@@ -1,2 +1,2 @@
-pub mod component;
+mod component;
 pub use component::LoomLogo;
