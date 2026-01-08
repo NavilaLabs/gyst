@@ -6,3 +6,8 @@ use dioxus::prelude::*;
 pub async fn echo(input: String) -> Result<String, ServerFnError> {
     Ok(input)
 }
+
+#[post("/api/database/migrate")]
+pub async fn migrate_database() -> Result<(), ServerFnError> {
+    Ok(())
+}

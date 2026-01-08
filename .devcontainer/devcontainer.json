@@ -16,7 +16,8 @@
         "tamasfe.even-better-toml",
         "fill-labs.dependi",
         "DioxusLabs.dioxus",
-        "bradlc.vscode-tailwindcss"
+        "bradlc.vscode-tailwindcss",
+        "macabeus.vscode-fluent"
       ]
     }
   },

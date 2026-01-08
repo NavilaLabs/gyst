@@ -14,7 +14,7 @@ use dioxus_primitives::ContentSide;
 use unic_langid::langid;
 
 #[component]
-pub fn Developer() -> Element {
+pub fn Database() -> Element {
     use_init_i18n(|| {
         I18nConfig::new(langid!("en-US"))
             .with_locale((langid!("en-US"), include_str!("./locales/en-US.ftl")))

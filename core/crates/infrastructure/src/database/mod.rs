@@ -1,3 +1,6 @@
+#[cfg(feature = "sea-query-sqlx")]
+pub mod sea_query_sqlx;
+
 use std::fmt::Display;
 
 use admin_migrations::{IntoSchemaManagerConnection, MigratorTrait};

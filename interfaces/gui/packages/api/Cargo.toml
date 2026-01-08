@@ -4,9 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+adapters = { path = "../../../../core/crates/adapters", optional = true }
 application = { path = "../../../../core/crates/application", optional = true }
+infrastructure = { path = "../../../../core/crates/infrastructure", optional = true }
 
 dioxus = { workspace = true, features = ["fullstack"] }
 
 [features]
-server = ["dioxus/server", "dep:application"]
+server = ["dioxus/server", "dep:adapters", "dep:application", "dep:infrastructure"]

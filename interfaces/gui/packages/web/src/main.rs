@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 
 use ui::{
-    views::{Developer, Login},
+    views::{Database, Login},
     FAVICON,
 };
 
@@ -12,8 +12,8 @@ enum Route {
     #[route("/login")]
     Login {},
     #[layout(DefaultLayout)]
-    #[route("/developer")]
-    Developer {},
+    #[route("/developer/database")]
+    Database {},
 }
 
 fn main() {

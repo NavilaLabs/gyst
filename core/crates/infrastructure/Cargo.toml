@@ -13,11 +13,21 @@ dotenvy = { workspace = true }
 embassy-futures = { workspace = true }
 log = { workspace = true }
 regex = { workspace = true }
+sea-query = { version = "0.32.7", optional = true }
+sea-query-sqlx = { version = "0.8.0-rc.9", features = ["runtime-tokio-rustls", "with-chrono", "with-json", "with-uuid", "with-rust_decimal", "with-time"], optional = true }
 serde = { workspace = true }
 serde-vars = "0.2.0"
 serde_yaml = "0.9.33"
+sqlx = { version = "0.8.6", features = ["any"], optional = true }
 thiserror = { workspace = true }
 url = { workspace = true }
+
+[features]
+default = ["sea-query-sqlx-postgres"]
+sea-query-sqlx = ["dep:sea-query", "dep:sea-query-sqlx", "dep:sqlx"]
+sea-query-sqlx-postgres = ["sea-query-sqlx", "sea-query-sqlx/sqlx-postgres"]
+sea-query-sqlx-sqlite = ["sea-query-sqlx", "sea-query-sqlx/sqlx-sqlite"]
+
 
 [lints]
 workspace = true

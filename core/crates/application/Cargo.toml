@@ -4,7 +4,6 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-adapters = { path = "../adapters" }
 domain = { path = "../domain" }
 infrastructure = { path = "../infrastructure" }
 
@@ -12,8 +11,6 @@ async-trait = { workspace = true }
 
 [features]
 default = []
-sea-query-sqlx-postgres = ["adapters/sea-query-sqlx-postgres"]
-sea-query-sqlx-sqlite = ["adapters/sea-query-sqlx-sqlite"]
 
 [lints]
 workspace = true

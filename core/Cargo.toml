@@ -1,6 +1,5 @@
 [workspace]
-members = [
-    "crates/adapters",
+members = ["crates/adapters",
     "crates/application",
     "crates/domain",
     "crates/infrastructure",
