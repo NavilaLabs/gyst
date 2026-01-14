@@ -1,23 +1,27 @@
+use std::sync::Arc;
+
 use crate::{commands, ports};
 
-pub struct Migrate<T: ports::database::Migrate> {
-    port: T,
+pub struct Connection {
+    port: Arc<dyn ports::database::Connection>,
 }
 
-impl<T: ports::database::Migrate> Migrate<T> {
-    pub fn new(port: T) -> Self {
-        Self { port }
-    }
+impl<Pool> super::Handler<Pool, commands::database::Connection> for Connection
+where
+    Pool: ports::database::Connection,
+{
+    type Error = ports::database::Error;
 
-    pub async fn handle<P: Send + Sync, C: infrastructure::database::Connection<P>>(
+    async fn handle(
         &self,
-        pool: &C,
-        command: commands::database::Database,
-    ) -> Result<(), <T as ports::database::Migrate>::Error> {
+        pool: &Pool,
+        command: commands::database::Connection,
+    ) -> Result<(), Self::Error> {
         match command {
-            commands::database::Database::RunMigrations(command) => {
-                self.port.run(pool, command).await
+            commands::database::Connection::Disconnect => {
+                self.port.close_connection(pool).await;
             }
         }
+        Ok(())
     }
 }
