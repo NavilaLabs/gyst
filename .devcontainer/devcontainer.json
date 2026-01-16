@@ -3,11 +3,9 @@
   "dockerComposeFile": "docker-compose.yml",
   "service": "app",
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
-  "initializeCommand": "cp -u .env.dev .env && set -a && source .env && set +a",
+  "initializeCommand": "cp -n .env.dev .env || true && set -a && . ./.env && set +a",
   "postStartCommand": "chmod +x .devcontainer/scripts/post-start.sh && .devcontainer/scripts/post-start.sh",
-  "forwardPorts": [
-    "5432:5432"
-  ],
+  "forwardPorts": ["5432:5432"],
   "customizations": {
     "vscode": {
       "extensions": [
@@ -17,11 +15,11 @@
         "fill-labs.dependi",
         "DioxusLabs.dioxus",
         "bradlc.vscode-tailwindcss",
-        "macabeus.vscode-fluent"
-      ]
-    }
+        "macabeus.vscode-fluent",
+      ],
+    },
   },
   "mounts": [
-    "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached"
-  ]
+    "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached",
+  ],
 }
