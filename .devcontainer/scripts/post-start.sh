@@ -1,5 +1,7 @@
 #!/bin/bash
 
+sudo chown -R "$(whoami)":"$(whoami)" /workspaces/loom
+
 # Make scripts executable
 chmod +x /workspaces/loom/scripts/*.sh
 
