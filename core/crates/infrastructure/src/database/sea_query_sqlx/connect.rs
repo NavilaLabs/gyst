@@ -1,17 +1,14 @@
 use std::{marker::PhantomData, time::Duration};
 
-use async_trait::async_trait;
-use sqlx::{Connection, any::AnyPoolOptions};
+use sqlx::any::AnyPoolOptions;
 use tracing::info;
 use url::Url;
 
 use crate::{
     config::CONFIG,
     database::{
-        AdminConnection, Pool, TenantConnection,
-        sea_query_sqlx::{
-            AcquiredConnection, Error, ScopeAdmin, ScopeTenant, StateConnected, StateDisconnected,
-        },
+        Pool,
+        sea_query_sqlx::{Error, StateConnected, StateDisconnected},
     },
 };
 
@@ -39,31 +36,5 @@ impl<Scope> Pool<Scope, StateDisconnected> {
             _scope: PhantomData,
             _state: PhantomData,
         })
-    }
-}
-
-#[async_trait]
-impl AdminConnection<AcquiredConnection> for Pool<ScopeAdmin, StateConnected> {
-    type Error = Error;
-
-    async fn acquire_connection(&self) -> Result<AcquiredConnection, Self::Error> {
-        Ok(self.pool.as_ref().unwrap().acquire().await?)
-    }
-
-    async fn close_connection(&self, connection: AcquiredConnection) {
-        connection.close().await.ok();
-    }
-}
-
-#[async_trait]
-impl TenantConnection<AcquiredConnection> for Pool<ScopeTenant, StateConnected> {
-    type Error = Error;
-
-    async fn acquire_connection(&self) -> Result<AcquiredConnection, Self::Error> {
-        Ok(self.pool.as_ref().unwrap().try_acquire().unwrap())
-    }
-
-    async fn close_connection(&self, connection: AcquiredConnection) {
-        connection.close().await.ok();
     }
 }

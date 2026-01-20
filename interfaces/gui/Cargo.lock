@@ -5353,6 +5353,7 @@ version = "1.0.0-rc.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93948054fb2d208555a96d03d2c887591deb42ffe3210eedbd8a3234c6fb6d34"
 dependencies = [
+ "bigdecimal",
  "chrono",
  "inherent",
  "ordered-float",
@@ -5397,6 +5398,7 @@ version = "0.8.0-rc.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "693f3ac3a10a228afaf3512b122cffc07c57b4269d233c7ff60571ebb4f0dd17"
 dependencies = [
+ "bigdecimal",
  "chrono",
  "rust_decimal",
  "sea-query 1.0.0-rc.29",
@@ -5876,6 +5878,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee6798b1838b6a0f69c007c133b8df5866302197e404e8b6ee8ed3e3a5e68dc6"
 dependencies = [
  "base64",
+ "bigdecimal",
  "bytes",
  "chrono",
  "crc",
@@ -5955,6 +5958,7 @@ checksum = "aa003f0038df784eb8fecbbac13affe3da23b45194bd57dba231c8f48199c526"
 dependencies = [
  "atoi",
  "base64",
+ "bigdecimal",
  "bitflags 2.10.0",
  "byteorder",
  "bytes",
@@ -6001,6 +6005,7 @@ checksum = "db58fcd5a53cf07c184b154801ff91347e4c30d17a3562a635ff028ad5deda46"
 dependencies = [
  "atoi",
  "base64",
+ "bigdecimal",
  "bitflags 2.10.0",
  "byteorder",
  "chrono",
@@ -6018,6 +6023,7 @@ dependencies = [
  "log",
  "md-5",
  "memchr",
+ "num-bigint",
  "once_cell",
  "rand 0.8.5",
  "rust_decimal",

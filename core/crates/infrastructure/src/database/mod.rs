@@ -1,8 +1,7 @@
-mod connection;
-pub(crate) use connection::*;
 mod initialize;
-pub(crate) use initialize::*;
+pub use initialize::*;
 mod migrate;
+pub use migrate::*;
 
 #[cfg(feature = "sea-query-sqlx")]
 mod sea_query_sqlx;
