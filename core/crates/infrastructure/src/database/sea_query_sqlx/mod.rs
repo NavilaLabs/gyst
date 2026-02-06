@@ -16,6 +16,8 @@ pub enum Error {
     SeaQueryError(#[from] sea_query::error::Error),
     #[error("Unsupported database type")]
     UnsupportedDatabaseType,
+    #[error("No tenant token provided")]
+    NoTenantTokenProvided,
 }
 
 impl From<sqlx::migrate::MigrateError> for crate::Error {

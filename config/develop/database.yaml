@@ -3,9 +3,9 @@ database:
 
   databases:
     admin:
-      name: test_loom_admin
+      name: ${ADMIN_DATABASE_NAME}
     tenant:
-      name_prefix: test_loom_tenant_
+      name_prefix: loom_tenant_
 
   pool:
     max_size: 20

@@ -1,9 +1,13 @@
 use domain::tenant::value_objects::TenantToken;
 use infrastructure::{
+    Error,
     config::CONFIG,
-    database::{Error, Migrate, Pool, ScopeAdmin, ScopeTenant, StateConnected},
+    database::{
+        Migrate, Pool, ScopeAdmin, ScopeTenant, StateConnected, TenantDatabaseNameBuilder,
+        TenantDatabaseNameConcreteBuilder, TenantDatabaseNameDirector,
+    },
 };
-use shared::build_tenant_database_name;
+use tracing::info;
 use url::Url;
 
 use super::{ConnectedDefaultPool, initialize_databases};
@@ -60,28 +64,29 @@ async fn get_admin_pool() -> Result<Pool<ScopeAdmin, StateConnected>, Error> {
 }
 
 async fn get_tenant_pool(
-    tenant_token: Option<&TenantToken>,
+    tenant_token: &TenantToken,
 ) -> Result<Pool<ScopeTenant, StateConnected>, Error> {
-    let database_name = build_tenant_database_name(
-        CONFIG
-            .get_database()
-            .get_databases()
-            .get_tenant()
-            .get_name_prefix(),
-        tenant_token,
-    );
+    let mut database_name_builder = TenantDatabaseNameConcreteBuilder::new();
+    TenantDatabaseNameDirector::construct(&mut database_name_builder, tenant_token);
+    let database_name = database_name_builder.get_tenant_database_name();
     let database_url = format!("postgres://postgres:postgres@postgres-test:5432/{database_name}",);
     Pool::connect(&Url::parse(&database_url).unwrap()).await
 }
 
-pub(crate) async fn refresh_databases(pool: &ConnectedDefaultPool) -> Result<(), Error> {
+pub(crate) async fn refresh_databases(
+    pool: &ConnectedDefaultPool,
+    tenant_token: &TenantToken,
+) -> Result<(), Error> {
     reset_entire_database(pool).await?;
-    initialize_databases(pool).await?;
+    info!("Database successfully reseted!");
+    initialize_databases(pool, tenant_token).await?;
+    info!("Database successfully initialized!");
 
     let admin_pool = get_admin_pool().await?;
     admin_pool.migrate_database().await?;
-    let tenant_template_pool = get_tenant_pool(None).await?;
+    let tenant_template_pool = get_tenant_pool(tenant_token).await?;
     tenant_template_pool.migrate_database().await?;
+    info!("Database successfully refreshed!");
 
     Ok(())
 }
@@ -97,7 +102,7 @@ pub mod tests {
     #[tokio::test]
     async fn test_setup_postgres_database() -> Result<(), Error> {
         let default_pool = get_default_pool().await?;
-        refresh_databases(&default_pool).await?;
+        refresh_databases(&default_pool, &TenantToken::default()).await?;
 
         Ok(())
     }

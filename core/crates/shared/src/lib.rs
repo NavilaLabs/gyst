@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use url::Url;
+
 pub mod test_lifecycle {
     pub fn before() {
         dotenvy::from_filename_override(".env.test").expect("Failed to load .env.test.");
@@ -10,15 +12,8 @@ pub mod test_lifecycle {
     }
 }
 
-pub fn build_tenant_database_name<T: Display>(prefix: &str, tenant_token: Option<&T>) -> String {
-    let tenant_token = tenant_token
-        .map(|token| token.to_string())
-        .unwrap_or("template".to_string());
-    format!("{}_{}", prefix, tenant_token)
-}
-
 pub fn extract_tenant_token_from_url(url: &str) -> Option<String> {
-    let url = url.parse::<url::Url>().ok()?;
+    let url = url.parse::<Url>().ok()?;
     url.path_segments()
         .and_then(|segments| segments.last())
         .map(|segment| segment.to_string())

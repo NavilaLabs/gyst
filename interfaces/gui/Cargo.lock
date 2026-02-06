@@ -3217,6 +3217,7 @@ dependencies = [
  "sea-query-sqlx",
  "serde",
  "serde-vars",
+ "serde_json",
  "serde_yaml",
  "shared",
  "shared-migrations",

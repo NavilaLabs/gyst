@@ -73,7 +73,7 @@ mod tests {
                 .get_databases()
                 .get_tenant()
                 .get_name_prefix(),
-            "test_loom_tenant"
+            "test_loom_tenant_"
         );
     }
 }

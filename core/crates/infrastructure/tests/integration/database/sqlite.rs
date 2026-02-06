@@ -1,25 +1,38 @@
 use domain::tenant::value_objects::TenantToken;
-use infrastructure::database::Migrate;
+use infrastructure::Error;
 use infrastructure::database::{
-    Error, Pool, ScopeAdmin, ScopeDefault, ScopeTenant, StateConnected,
+    DatabaseUriFactory, DatabaseUriType, Pool, ScopeAdmin, ScopeDefault, ScopeTenant,
+    StateConnected, TenantDatabaseNameBuilder,
 };
-use shared::build_tenant_database_name;
+use infrastructure::database::{
+    Migrate, TenantDatabaseNameConcreteBuilder, TenantDatabaseNameDirector,
+};
 use sqlx::ConnectOptions;
 use sqlx::sqlite::SqliteConnectOptions;
+use tracing::info;
 use url::Url;
+
+use crate::database;
 
 use super::ConnectedDefaultPool;
 use super::initialize_databases;
 
-const ADMIN_DATABASE_PATH: &str = "/workspaces/loom/test_loom_admin.sqlite";
-const TENANT_TEMPLATE_DATABASE_PATH: &str = "/workspaces/loom/test_loom_tenant_template.sqlite";
-
 async fn reset_entire_database() -> Result<(), Error> {
-    if std::path::Path::new(ADMIN_DATABASE_PATH).exists() {
-        std::fs::remove_file(ADMIN_DATABASE_PATH)?;
+    let admin_database_uri = DatabaseUriFactory::new_database_uri(&DatabaseUriType::Admin)
+        .get_uri(None)?
+        .to_string()
+        .replace("sqlite://", "");
+    if std::path::Path::new(&admin_database_uri).exists() {
+        std::fs::remove_file(admin_database_uri)?;
     }
-    if std::path::Path::new(TENANT_TEMPLATE_DATABASE_PATH).exists() {
-        std::fs::remove_file(TENANT_TEMPLATE_DATABASE_PATH)?;
+
+    let tenant_template_database_uri =
+        DatabaseUriFactory::new_database_uri(&DatabaseUriType::Tenant)
+            .get_uri(Some(&TenantToken::default()))?
+            .to_string()
+            .replace("sqlite://", "");
+    if std::path::Path::new(&tenant_template_database_uri).exists() {
+        std::fs::remove_file(tenant_template_database_uri)?;
     }
 
     Ok(())
@@ -32,32 +45,36 @@ async fn get_default_pool() -> Result<Pool<ScopeDefault, StateConnected>, Error>
 }
 
 async fn get_admin_pool() -> Result<Pool<ScopeAdmin, StateConnected>, Error> {
-    let url = SqliteConnectOptions::new()
-        .filename("/workspaces/loom/test_loom_admin.sqlite")
-        .to_url_lossy();
-    let admin_pool = Pool::connect(&url).await?;
+    let uri = DatabaseUriFactory::new_database_uri(&DatabaseUriType::Tenant).get_uri(None)?;
+    dbg!(&uri);
+    let admin_pool = Pool::connect(&uri).await?;
     Ok(admin_pool)
 }
 
 async fn get_tenant_pool(
-    tenant_token: Option<&TenantToken>,
+    tenant_token: &TenantToken,
 ) -> Result<Pool<ScopeTenant, StateConnected>, Error> {
-    let db_name = build_tenant_database_name("loom_tenant", tenant_token);
-    let url = SqliteConnectOptions::new()
-        .filename(format!("/workspaces/loom/test_{}.sqlite", db_name))
-        .to_url_lossy();
-    let tenant_pool = Pool::connect(&url).await?;
+    let uri = DatabaseUriFactory::new_database_uri(&DatabaseUriType::Tenant)
+        .get_uri(Some(tenant_token))?;
+    dbg!(&uri);
+    let tenant_pool = Pool::connect(&uri).await?;
     Ok(tenant_pool)
 }
 
-pub(crate) async fn refresh_databases(pool: &ConnectedDefaultPool) -> Result<(), Error> {
+pub(crate) async fn refresh_databases(
+    pool: &ConnectedDefaultPool,
+    tenant_token: &TenantToken,
+) -> Result<(), Error> {
     reset_entire_database().await?;
-    initialize_databases(pool).await?;
+    info!("Database successfully reseted");
+    initialize_databases(pool, tenant_token).await?;
+    info!("Database successfully initialized");
 
     let admin_pool = get_admin_pool().await?;
     admin_pool.migrate_database().await?;
-    let tenant_template_pool = get_tenant_pool(None).await?;
+    let tenant_template_pool = get_tenant_pool(tenant_token).await?;
     tenant_template_pool.migrate_database().await?;
+    info!("Database successfully migrated");
 
     Ok(())
 }
@@ -73,7 +90,7 @@ pub mod tests {
     #[tokio::test]
     async fn test_setup_postgres_database() -> Result<(), Error> {
         let default_pool = get_default_pool().await?;
-        refresh_databases(&default_pool).await?;
+        refresh_databases(&default_pool, &TenantToken::default()).await?;
 
         Ok(())
     }

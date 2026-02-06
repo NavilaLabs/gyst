@@ -14,7 +14,6 @@ tenant-migrations = { path = "../migrations/tenant" }
 async-trait = { workspace = true }
 dotenvy = { workspace = true }
 embassy-futures = { workspace = true }
-tracing = { workspace = true }
 regex = { workspace = true }
 sea-orm = { version = "2.0.0-rc.28", optional = true, default-features = false, features = ["sqlx-postgres", "sqlx-sqlite"] }
 sea-query = { version = "1.0.0-rc.28", optional = true }
@@ -22,8 +21,10 @@ sea-query-sqlx = { version = "0.8.0-rc.11", features = ["sqlx-any", "runtime-tok
 serde = { workspace = true }
 serde-vars = "0.3.1"
 serde_yaml = "0.9"
+serde_json = { workspace = true }
 sqlx = { version = "0.8.6", features = ["postgres", "sqlite", "runtime-tokio"], optional = true }
 thiserror = { workspace = true }
+tracing = { workspace = true }
 url = { workspace = true }
 
 [dev-dependencies]

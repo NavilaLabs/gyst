@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse::Parse, parse::ParseStream, parse_macro_input, ItemFn, Path};
+use syn::{ItemFn, Path, parse::Parse, parse::ParseStream, parse_macro_input};
 
 struct ModuleArgs {
     module_path: Path,

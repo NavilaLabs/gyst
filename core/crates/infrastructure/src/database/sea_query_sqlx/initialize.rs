@@ -3,7 +3,6 @@ use domain::tenant::value_objects::TenantToken;
 use embassy_futures::join::join;
 use sea_query::{Expr, ExprTrait, PostgresQueryBuilder, Query};
 use sea_query_sqlx::SqlxBinder;
-use shared::build_tenant_database_name;
 use sqlx::Row;
 use tracing::info;
 use url::Url;
@@ -12,7 +11,8 @@ use crate::{
     Error,
     config::CONFIG,
     database::{
-        Initialize, Pool,
+        self, DatabaseUriFactory, DatabaseUriType, Initialize, Pool, TenantDatabaseNameBuilder,
+        TenantDatabaseNameConcreteBuilder, TenantDatabaseNameDirector, database_uri_factory,
         sea_query_sqlx::{DatabaseType, ScopeDefault, StateConnected},
     },
 };
@@ -85,10 +85,12 @@ pub trait InitializationStrategy {
         &self,
         pool: &Pool<ScopeDefault, StateConnected>,
     ) -> Result<bool, Error> {
-        let admin_database_uri = CONFIG.get_database().get_databases().get_admin().get_uri();
+        let admin_database_uri = database_uri_factory::Factory::new_database_uri(
+            &crate::database::DatabaseUriType::Admin,
+        )
+        .get_uri(None)?;
 
-        self.check_is_initialized(pool, &Url::parse(admin_database_uri)?)
-            .await
+        self.check_is_initialized(pool, &admin_database_uri).await
     }
 
     async fn is_tenant_initialized(
@@ -96,16 +98,13 @@ pub trait InitializationStrategy {
         pool: &Pool<ScopeDefault, StateConnected>,
         tenant_token: Option<&TenantToken>,
     ) -> Result<bool, Error> {
-        let tenant_database_name = build_tenant_database_name(
-            CONFIG
-                .get_database()
-                .get_databases()
-                .get_tenant()
-                .get_name_prefix(),
-            tenant_token,
-        );
+        let database_uri = database_uri_factory::Factory::new_database_uri(
+            &crate::database::DatabaseUriType::Tenant,
+        )
+        .get_uri(tenant_token)?;
+        dbg!(&database_uri);
 
-        self.check_is_initialized(pool, &tenant_database_name).await
+        self.check_is_initialized(pool, &database_uri).await
     }
 
     async fn is_initialized(
@@ -128,6 +127,7 @@ pub trait InitializationStrategy {
         &self,
         pool: &Pool<ScopeDefault, StateConnected>,
     ) -> Result<(), Error>;
+
     async fn initialize_tenant(
         &self,
         pool: &Pool<ScopeDefault, StateConnected>,
@@ -163,13 +163,9 @@ impl InitializationStrategy for PostgresInitializationStrategy {
         &self,
         pool: &Pool<ScopeDefault, StateConnected>,
     ) -> Result<(), Error> {
-        let database_uri = CONFIG.get_database().get_databases().get_admin().get_uri();
-        let database_uri = Url::parse(database_uri)?;
-        info!("Initializing admin database: {}", database_uri);
-        let query = format!(
-            r#"CREATE DATABASE "{}""#,
-            database_uri.host_str().unwrap_or("")
-        );
+        let database_name = CONFIG.get_database().get_databases().get_admin().get_name();
+        info!("Initializing admin database: {}", database_name);
+        let query = format!(r#"CREATE DATABASE "{}""#, database_name);
         sqlx::query(query.as_str()).execute(pool.as_ref()).await?;
 
         Ok(())
@@ -180,12 +176,14 @@ impl InitializationStrategy for PostgresInitializationStrategy {
         pool: &Pool<ScopeDefault, StateConnected>,
         tenant_token: Option<&TenantToken>,
     ) -> Result<(), Error> {
-        let database_prefix = CONFIG
-            .get_database()
-            .get_databases()
-            .get_tenant()
-            .get_name_prefix();
-        let database_name = build_tenant_database_name(database_prefix, tenant_token);
+        let tenant_token = tenant_token.map_or_else(
+            || Err(database::Error::NoTenantTokenProvided),
+            |token| Ok(token),
+        )?;
+        let mut database_name_builder = TenantDatabaseNameConcreteBuilder::new();
+        TenantDatabaseNameDirector::construct(&mut database_name_builder, tenant_token);
+        let database_name = database_name_builder.get_tenant_database_name();
+
         info!("Initializing tenant database: {}", database_name);
         let query = format!(r#"CREATE DATABASE "{}""#, database_name);
         sqlx::query(query.as_str()).execute(pool.as_ref()).await?;
@@ -213,13 +211,10 @@ impl InitializationStrategy for SqliteInitializationStrategy {
         &self,
         _pool: &Pool<ScopeDefault, StateConnected>,
     ) -> Result<(), Error> {
-        let database_path = format!(
-            "{}/{}.sqlite",
-            CONFIG.get_application().get_project_root(),
-            CONFIG.get_database().get_databases().get_admin().get_name()
-        );
-        info!("Initializing admin database: {}", database_path);
-        std::fs::File::create(&database_path)?;
+        let uri = DatabaseUriFactory::new_database_uri(&DatabaseUriType::Admin).get_uri(None)?;
+        let uri = uri.to_string().replace("sqlite://", "");
+        info!("Initializing admin database: {}", uri);
+        std::fs::File::create(&uri)?;
 
         Ok(())
     }
@@ -229,20 +224,15 @@ impl InitializationStrategy for SqliteInitializationStrategy {
         _pool: &Pool<ScopeDefault, StateConnected>,
         tenant_token: Option<&TenantToken>,
     ) -> Result<(), Error> {
-        let database_path = format!(
-            "{}/{}.sqlite",
-            CONFIG.get_application().get_project_root(),
-            build_tenant_database_name(
-                CONFIG
-                    .get_database()
-                    .get_databases()
-                    .get_tenant()
-                    .get_name_prefix(),
-                tenant_token
-            )
-        );
-        info!("Initializing tenant database: {}", database_path);
-        std::fs::File::create(&database_path)?;
+        let tenant_token = tenant_token.map_or_else(
+            || Err(database::Error::NoTenantTokenProvided),
+            |token| Ok(token),
+        )?;
+        let uri = DatabaseUriFactory::new_database_uri(&DatabaseUriType::Tenant)
+            .get_uri(Some(tenant_token))?;
+        let uri = uri.to_string().replace("sqlite://", "");
+        info!("Initializing tenant database: {}", uri);
+        std::fs::File::create(&uri)?;
 
         Ok(())
     }

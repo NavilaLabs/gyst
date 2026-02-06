@@ -1,15 +1,17 @@
-mod url_builder;
-pub use url_builder::UrlBuilder;
-
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Database {
+    base_uri: String,
     databases: Databases,
     pool: Pool,
 }
 
 impl Database {
+    pub fn get_base_uri(&self) -> &str {
+        &self.base_uri
+    }
+
     pub fn get_databases(&self) -> &Databases {
         &self.databases
     }
@@ -37,12 +39,12 @@ impl Databases {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdminDatabase {
-    uri: String,
+    name: String,
 }
 
 impl AdminDatabase {
-    pub fn get_uri(&self) -> &str {
-        &self.uri
+    pub fn get_name(&self) -> &str {
+        &self.name
     }
 }
 

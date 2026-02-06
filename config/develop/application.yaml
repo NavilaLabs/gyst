@@ -1,0 +1,4 @@
+application:
+  environment: develop
+  name: Loom
+  project_root: ${APP_PROJECT_ROOT}

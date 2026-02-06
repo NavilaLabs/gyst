@@ -1,5 +1,6 @@
 use std::{borrow::Cow, fmt::Display, marker::PhantomData};
 
+use hex::FromHex;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -34,15 +35,9 @@ impl EntityToken {
     }
 }
 
-impl From<Vec<u8>> for EntityToken {
-    fn from(value: Vec<u8>) -> Self {
-        Self(value)
-    }
-}
-
-impl From<&[u8]> for EntityToken {
-    fn from(value: &[u8]) -> Self {
-        Self(value.to_vec())
+impl Default for EntityToken {
+    fn default() -> Self {
+        Self(vec![0u8; 16])
     }
 }
 

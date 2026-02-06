@@ -1,3 +1,4 @@
+use domain::tenant::value_objects::TenantToken;
 use embassy_futures::join::join;
 use infrastructure::database::{Error, Initialize, Pool, ScopeDefault, StateConnected};
 
@@ -6,10 +7,13 @@ pub mod sqlite;
 
 type ConnectedDefaultPool = Pool<ScopeDefault, StateConnected>;
 
-async fn initialize_databases(pool: &ConnectedDefaultPool) -> Result<(), Error> {
+async fn initialize_databases(
+    pool: &ConnectedDefaultPool,
+    tenant_token: &TenantToken,
+) -> Result<(), Error> {
     let (admin_result, tenant_result) = join(
         pool.initialize_admin_database(),
-        pool.initialize_tenant_database(None),
+        pool.initialize_tenant_database(Some(tenant_token)),
     )
     .await;
 

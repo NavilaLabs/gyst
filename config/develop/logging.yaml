@@ -1,0 +1,10 @@
+logging:
+    file:
+        level: info
+        file: logs/application.log
+        format: json
+
+    console:
+        enabled: true
+        color: true
+        level: debug
