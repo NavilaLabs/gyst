@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use url::Url;
 
 pub mod test_lifecycle {

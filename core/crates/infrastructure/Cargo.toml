@@ -26,6 +26,8 @@ sqlx = { version = "0.8.6", features = ["postgres", "sqlite", "runtime-tokio"], 
 thiserror = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
+sha2 = "0.10.9"
+serde_jcs = "0.1.0"
 
 [dev-dependencies]
 tokio = { workspace = true }

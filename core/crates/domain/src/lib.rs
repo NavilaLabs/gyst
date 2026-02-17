@@ -1,11 +1,7 @@
-use std::{borrow::Cow, marker::PhantomData};
-
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use uuid::Uuid;
-
-use crate::shared::value_objects::AggregateId;
 
 pub mod shared;
 pub mod tenant;
@@ -17,6 +13,14 @@ pub enum Error {
     UuidError(#[from] uuid::Error),
     #[error("{0}")]
     HexError(#[from] hex::FromHexError),
+}
+
+pub trait EventType {
+    fn get_event_type(&self) -> &str;
+}
+
+pub trait EventVersion {
+    const VERSION: u8;
 }
 
 /// Represents the aggregate this event belongs to.
@@ -118,51 +122,34 @@ impl EventTimestamps {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EventEnvelope<T> {
     event_id: Uuid,
-    event_type: String,
-    event_version: u32,
     aggregate: AggregateMeta,
     context: EventContext,
     timestamps: EventTimestamps,
     payload: T, // The actual domain event (e.g., UserCreated)
     metadata: Option<JsonValue>,
-    hash: Vec<u8>,
 }
 
 impl<T> EventEnvelope<T> {
     pub fn new(
         event_id: Uuid,
-        event_type: String,
-        event_version: u32,
         aggregate: AggregateMeta,
         context: EventContext,
         timestamps: EventTimestamps,
         payload: T,
         metadata: Option<JsonValue>,
-        hash: Vec<u8>,
     ) -> Self {
         EventEnvelope {
             event_id,
-            event_type,
-            event_version,
             aggregate,
             context,
             timestamps,
             payload,
             metadata,
-            hash,
         }
     }
 
     pub fn get_event_id(&self) -> &Uuid {
         &self.event_id
-    }
-
-    pub fn get_event_type(&self) -> &String {
-        &self.event_type
-    }
-
-    pub fn get_event_version(&self) -> u32 {
-        self.event_version
     }
 
     pub fn get_aggregate(&self) -> &AggregateMeta {
@@ -183,9 +170,5 @@ impl<T> EventEnvelope<T> {
 
     pub fn get_metadata(&self) -> &Option<JsonValue> {
         &self.metadata
-    }
-
-    pub fn get_hash(&self) -> &Vec<u8> {
-        &self.hash
     }
 }

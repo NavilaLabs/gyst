@@ -24,6 +24,8 @@ services:
   postgres-test:
     <<: *database
     env_file: ../.env.test
+    ports:
+      - "5433:5432"
     volumes:
       - postgres-test-data:/var/lib/postgresql
 

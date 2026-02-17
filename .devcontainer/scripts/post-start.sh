@@ -1,6 +1,7 @@
 #!/bin/bash
 
 sudo chown -R "$(whoami)":"$(whoami)" /workspaces/loom
+sudo chown -R "$(whoami)":"$(whoami)" /sqlite
 
 # Make scripts executable
 chmod +x /workspaces/loom/scripts/*.sh

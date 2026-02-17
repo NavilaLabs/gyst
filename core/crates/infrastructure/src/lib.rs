@@ -1,4 +1,6 @@
-use domain::{AggregateMeta, EventContext, EventEnvelope, EventTimestamps};
+use domain::{
+    AggregateMeta, EventContext, EventEnvelope, EventTimestamps, EventType, EventVersion,
+};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
 use sqlx::types::Uuid;
@@ -7,6 +9,9 @@ pub mod config;
 pub mod database;
 pub mod event_store;
 pub mod projections;
+
+mod integrity;
+pub use integrity::*;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -31,42 +36,90 @@ pub enum Error {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EventRecord {
     // Event Identity
-    pub event_id: Uuid,
-    pub event_type: String,
-    pub event_version: u32,
+    event_id: Uuid,
+    event_type: String,
+    event_version: u8,
 
     #[serde(flatten)]
-    pub aggregate: AggregateMeta,
+    aggregate: AggregateMeta,
     #[serde(flatten)]
-    pub context: EventContext,
+    context: EventContext,
     #[serde(flatten)]
-    pub timestamps: EventTimestamps,
+    timestamps: EventTimestamps,
 
     // Data payloads
-    pub data: JsonValue,
-    pub metadata: Option<JsonValue>,
+    data: JsonValue,
+    metadata: Option<JsonValue>,
 
     // Integrity
-    pub hash: Vec<u8>,
+    hash: Vec<u8>,
+    previous_hash: Vec<u8>,
 }
 
-impl<T: Serialize> TryFrom<EventEnvelope<T>> for EventRecord {
+impl EventRecord {
+    pub fn get_event_id(&self) -> &Uuid {
+        &self.event_id
+    }
+
+    pub fn get_event_type(&self) -> &str {
+        &self.event_type
+    }
+
+    pub fn get_event_version(&self) -> u8 {
+        self.event_version
+    }
+
+    pub fn get_aggregate(&self) -> &AggregateMeta {
+        &self.aggregate
+    }
+
+    pub fn get_context(&self) -> &EventContext {
+        &self.context
+    }
+
+    pub fn get_timestamps(&self) -> &EventTimestamps {
+        &self.timestamps
+    }
+
+    pub fn get_data(&self) -> &JsonValue {
+        &self.data
+    }
+
+    pub fn get_metadata(&self) -> &Option<JsonValue> {
+        &self.metadata
+    }
+
+    pub fn get_hash(&self) -> &Vec<u8> {
+        &self.hash
+    }
+
+    pub fn get_previous_hash(&self) -> &Vec<u8> {
+        &self.previous_hash
+    }
+}
+
+impl<T: Serialize + EventType + EventVersion> TryFrom<EventEnvelope<T>> for EventRecord {
     type Error = Error;
 
     fn try_from(event: EventEnvelope<T>) -> Result<Self, Self::Error> {
-        let data = serde_json::to_value(&event.get_payload())?;
+        let payload = event.get_payload();
+        let data = serde_json::to_value(&payload)?;
 
-        Ok(EventRecord {
+        let mut record = EventRecord {
             event_id: event.get_event_id().clone(),
-            event_type: event.get_event_type().clone(),
-            event_version: event.get_event_version().clone(),
+            event_type: payload.get_event_type().to_string(),
+            event_version: <T as EventVersion>::VERSION,
             aggregate: event.get_aggregate().clone(),
             context: event.get_context().clone(),
             timestamps: event.get_timestamps().clone(),
             data,
             metadata: event.get_metadata().clone(),
-            hash: event.get_hash().clone(),
-        })
+            previous_hash: event.get_hash().clone(),
+            hash: Vec::new(),
+        };
+        record.hash = record.calculate_hash(&event.get_hash());
+
+        Ok(record)
     }
 }
 
@@ -78,14 +131,11 @@ impl<T: DeserializeOwned> TryInto<EventEnvelope<T>> for EventRecord {
 
         Ok(EventEnvelope::new(
             self.event_id,
-            self.event_type,
-            self.event_version,
             self.aggregate,
             self.context,
             self.timestamps,
             payload,
             self.metadata,
-            self.hash,
         ))
     }
 }

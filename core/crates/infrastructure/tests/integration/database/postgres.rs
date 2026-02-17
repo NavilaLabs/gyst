@@ -13,7 +13,6 @@ use url::Url;
 use super::{ConnectedDefaultPool, initialize_databases};
 
 async fn reset_entire_database(pool: &ConnectedDefaultPool) -> Result<(), Error> {
-    // 1. Terminate other connections (must be done before dropping)
     sqlx::query(
         "SELECT pg_terminate_backend(pid) FROM pg_stat_activity
          WHERE datname LIKE 'test_loom_%' AND pid <> pg_backend_pid()",
@@ -21,7 +20,6 @@ async fn reset_entire_database(pool: &ConnectedDefaultPool) -> Result<(), Error>
     .execute(pool.as_ref())
     .await?;
 
-    // 2. Drop the main admin database
     let admin_database_name = CONFIG.get_database().get_databases().get_admin().get_name();
     sqlx::query(&format!(
         "DROP DATABASE IF EXISTS \"{admin_database_name}\""
@@ -29,14 +27,13 @@ async fn reset_entire_database(pool: &ConnectedDefaultPool) -> Result<(), Error>
     .execute(pool.as_ref())
     .await?;
 
-    // 3. Find and drop tenant databases
     let tenant_database_name_prefix = CONFIG
         .get_database()
         .get_databases()
         .get_tenant()
         .get_name_prefix();
     let tenants: Vec<(String,)> = sqlx::query_as(&format!(
-        "SELECT datname::TEXT FROM pg_database WHERE datname LIKE '{tenant_database_name_prefix}_%'"
+        "SELECT datname::TEXT FROM pg_database WHERE datname LIKE '{tenant_database_name_prefix}%'"
     ))
     .fetch_all(pool.as_ref())
     .await?;

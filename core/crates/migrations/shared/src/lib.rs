@@ -36,6 +36,7 @@ pub fn create_events_table_migration(
         .col(uuid_null("causation_id"))
         // integrity columns
         .col(binary("hash"))
+        .col(binary("previous_hash"))
         .to_owned();
     let index_create_statements = vec![
         Index::create()
@@ -45,6 +46,18 @@ pub fn create_events_table_migration(
             .col("aggregate_type")
             .col("aggregate_id")
             .col("aggregate_version")
+            .to_owned(),
+        Index::create()
+            .table(name)
+            .name("uq_events_hash")
+            .unique()
+            .col("hash")
+            .to_owned(),
+        Index::create()
+            .table(name)
+            .name("uq_events_previous_hash")
+            .unique()
+            .col("previous_hash")
             .to_owned(),
         Index::create()
             .table(name)
@@ -85,7 +98,6 @@ pub fn create_snapshots_table_migration(
         .col(string("aggregate_type"))
         .col(uuid("aggregate_id"))
         .col(integer("aggregate_version"))
-        .col(integer("aggregate_schema_version"))
         .col(json_binary("data"))
         .col(json_binary("metadata"))
         .col(timestamp("created_at").default(Expr::current_timestamp()))

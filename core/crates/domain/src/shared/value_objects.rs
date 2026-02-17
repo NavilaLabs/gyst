@@ -1,6 +1,5 @@
-use std::{borrow::Cow, fmt::Display, marker::PhantomData};
+use std::fmt::Display;
 
-use hex::FromHex;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

@@ -1,18 +1,12 @@
 use domain::tenant::value_objects::TenantToken;
 use infrastructure::Error;
+use infrastructure::database::Migrate;
 use infrastructure::database::{
     DatabaseUriFactory, DatabaseUriType, Pool, ScopeAdmin, ScopeDefault, ScopeTenant,
-    StateConnected, TenantDatabaseNameBuilder,
+    StateConnected,
 };
-use infrastructure::database::{
-    Migrate, TenantDatabaseNameConcreteBuilder, TenantDatabaseNameDirector,
-};
-use sqlx::ConnectOptions;
-use sqlx::sqlite::SqliteConnectOptions;
 use tracing::info;
 use url::Url;
-
-use crate::database;
 
 use super::ConnectedDefaultPool;
 use super::initialize_databases;
@@ -45,8 +39,7 @@ async fn get_default_pool() -> Result<Pool<ScopeDefault, StateConnected>, Error>
 }
 
 async fn get_admin_pool() -> Result<Pool<ScopeAdmin, StateConnected>, Error> {
-    let uri = DatabaseUriFactory::new_database_uri(&DatabaseUriType::Tenant).get_uri(None)?;
-    dbg!(&uri);
+    let uri = DatabaseUriFactory::new_database_uri(&DatabaseUriType::Admin).get_uri(None)?;
     let admin_pool = Pool::connect(&uri).await?;
     Ok(admin_pool)
 }
@@ -56,7 +49,6 @@ async fn get_tenant_pool(
 ) -> Result<Pool<ScopeTenant, StateConnected>, Error> {
     let uri = DatabaseUriFactory::new_database_uri(&DatabaseUriType::Tenant)
         .get_uri(Some(tenant_token))?;
-    dbg!(&uri);
     let tenant_pool = Pool::connect(&uri).await?;
     Ok(tenant_pool)
 }
@@ -72,8 +64,8 @@ pub(crate) async fn refresh_databases(
 
     let admin_pool = get_admin_pool().await?;
     admin_pool.migrate_database().await?;
-    let tenant_template_pool = get_tenant_pool(tenant_token).await?;
-    tenant_template_pool.migrate_database().await?;
+    let tenant_pool = get_tenant_pool(tenant_token).await?;
+    tenant_pool.migrate_database().await?;
     info!("Database successfully migrated");
 
     Ok(())
@@ -88,7 +80,7 @@ pub mod tests {
 
     #[with_lifecycle(test_lifecycle)]
     #[tokio::test]
-    async fn test_setup_postgres_database() -> Result<(), Error> {
+    async fn test_setup_sqlite_database() -> Result<(), Error> {
         let default_pool = get_default_pool().await?;
         refresh_databases(&default_pool, &TenantToken::default()).await?;
 
