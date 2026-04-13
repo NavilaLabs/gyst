@@ -3,16 +3,20 @@ use url::Url;
 use crate::{
     config::CONFIG,
     database::{
-        TenantDatabaseNameBuilder, TenantDatabaseNameConcreteBuilder, TenantDatabaseNameDirector,
+        DatabaseUri, TenantDatabaseNameBuilder, TenantDatabaseNameConcreteBuilder,
+        TenantDatabaseNameDirector,
     },
 };
 
-pub trait DatabaseUri {
+pub trait CreateDatabaseUri {
     /// # Errors
     ///
     /// Returns an error if the URI cannot be constructed or parsed.
-    fn get_uri(&self, database_type: &str, tenant_token: Option<&str>)
-    -> Result<Url, crate::Error>;
+    fn get_uri(
+        &self,
+        database_type: &str,
+        tenant_token: Option<&str>,
+    ) -> Result<DatabaseUri, crate::Error>;
 
     /// Ensures that the database URI has a `.sqlite` extension for `SQLite` databases.
     ///
@@ -22,8 +26,8 @@ pub trait DatabaseUri {
     fn ensure_sqlite_extension(
         &self,
         database_type: &str,
-        database_uri: Url,
-    ) -> Result<Url, crate::Error> {
+        database_uri: DatabaseUri,
+    ) -> Result<DatabaseUri, crate::Error> {
         if database_type == "sqlite" {
             let mut uri = database_uri.to_string();
             if !uri.ends_with(".sqlite") {
@@ -42,12 +46,12 @@ pub enum DatabaseUriType {
 
 pub struct AdminDatabaseUri;
 
-impl DatabaseUri for AdminDatabaseUri {
+impl CreateDatabaseUri for AdminDatabaseUri {
     fn get_uri(
         &self,
         database_type: &str,
         _tenant_token: Option<&str>,
-    ) -> Result<Url, crate::Error> {
+    ) -> Result<DatabaseUri, crate::Error> {
         let base_uri = CONFIG.get_database().get_base_uri();
         let admin_database_name = CONFIG.get_database().get_databases().get_admin().get_name();
         let admin_uri = Url::parse(&format!("{base_uri}/{admin_database_name}"))?;
@@ -59,12 +63,12 @@ impl DatabaseUri for AdminDatabaseUri {
 
 pub struct TenantDatabaseUri;
 
-impl DatabaseUri for TenantDatabaseUri {
+impl CreateDatabaseUri for TenantDatabaseUri {
     fn get_uri(
         &self,
         database_type: &str,
         tenant_token: Option<&str>,
-    ) -> Result<Url, crate::Error> {
+    ) -> Result<DatabaseUri, crate::Error> {
         let base_uri = CONFIG.get_database().get_base_uri();
         let tenant_token =
             tenant_token.map_or_else(|| Err(crate::database::Error::NoTenantTokenProvided), Ok)?;
@@ -82,7 +86,7 @@ pub struct Factory;
 
 impl Factory {
     #[must_use]
-    pub fn new_database_uri(database_uri_type: &DatabaseUriType) -> Box<dyn DatabaseUri> {
+    pub fn new_database_uri(database_uri_type: &DatabaseUriType) -> Box<dyn CreateDatabaseUri> {
         match database_uri_type {
             DatabaseUriType::Admin => Box::new(AdminDatabaseUri),
             DatabaseUriType::Tenant => Box::new(TenantDatabaseUri),

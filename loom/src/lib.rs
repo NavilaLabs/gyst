@@ -1,8 +1,9 @@
 #![allow(clippy::missing_errors_doc)]
 
-pub mod auth;
+pub mod authentication;
 pub mod authorization;
 pub mod error;
+mod pools;
 pub mod setup;
 pub mod tenant;
 pub mod user_settings;

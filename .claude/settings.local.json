@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs cat:*)",
+      "Bash(cargo build:*)",
+      "Bash(cargo clippy:*)",
+      "Bash(grep -n \"pub fn merge_attributes\\\\|fn merge_attributes\" /home/vscode/.cargo/git/checkouts/components-c3e2707fcc33b190/ccdb07f/primitives/src/*.rs)",
+      "Bash(cargo check:*)",
+      "Bash(sqlite3:*)",
+      "Bash(cargo run:*)",
+      "Bash(bash /tmp/check_schema.sh)",
+      "Bash(cargo test:*)",
+      "Read(//workspaces/loom/**)",
+      "Bash(cargo update:*)",
+      "Read(//home/vscode/.cargo/git/checkouts/eventually-projection-3af84b309018680e/27692a9/src/**)",
+      "Bash(xargs ls:*)",
+      "Bash(grep -A1 \"dioxus$\\\\|axum$\")",
+      "Bash(grep -r \"pub.*fn extract\" ~/.cargo/registry/src/**/dioxus-fullstack-*/src/)",
+      "Bash(find:*)",
+      "Bash(cargo metadata:*)",
+      "Bash(python3 -c \"import json,sys; m=json.load\\(sys.stdin\\); [print\\(p['manifest_path']\\) for p in m['packages'] if 'eventually' in p['name'].lower\\(\\)]\")",
+      "Bash(grep:*)",
+      "Bash(python3 -c \" import json,sys data = json.load\\(sys.stdin\\) for item in data: if item['type'] == 'text': print\\(item['text'][:50000]\\) \")",
+      "Bash(xargs -I{} sh -c 'echo \"=== {} ===\"; cat {}')",
+      "Bash(cargo tree:*)",
+      "Bash(ls /workspaces/loom/.devcontainer/database/*.sqlite)",
+      "Bash(DATABASE_URL=\"sqlite:///workspaces/loom/.devcontainer/database/loom_tenant_019d6ec7-f4f2-7663-83e3-1c46891f36c9.sqlite\" cargo run -p loom-tenant-migrations -- up)",
+      "Bash(rustup target:*)",
+      "Read(//home/vscode/.cargo/registry/src/**)",
+      "Read(//home/vscode/.cargo/**)",
+      "Bash(cargo fmt:*)",
+      "Bash(cargo search:*)",
+      "WebFetch(domain:docs.rs)",
+      "Bash(wc -l /workspaces/loom/loom-presentation/gui/packages/ui/src/views/*/component.rs)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); [print\\(p['name'], p['manifest_path']\\) for p in d['packages']]\")",
+      "Bash(cargo add:*)",
+      "Bash(python3 -c ':*)",
+      "WebFetch(domain:dioxuslabs.com)"
+    ]
+  }
+}

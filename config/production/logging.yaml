@@ -1,10 +1,10 @@
 logging:
   file:
-    level: info
+    level: warn
     file: logs/application.log
     format: json
 
   console:
     enabled: true
     color: true
-    level: info
+    level: warn

@@ -1,12 +1,19 @@
-use std::{fmt::Display, marker::PhantomData};
+use std::fmt::Display;
 
 use loom_infrastructure::ImplError;
 use sea_query::{PostgresQueryBuilder, SqliteQueryBuilder};
 use sea_query_sqlx::{SqlxBinder, SqlxValues};
+use sqlx::types::Uuid;
 use url::Url;
 
 pub type ConnectedAdminPool = Pool<ScopeAdmin, StateConnected>;
 pub type ConnectedTenantPool = Pool<ScopeTenant, StateConnected>;
+
+impl ConnectedTenantPool {
+    pub fn tenant_id(&self) -> Uuid {
+        self._scope
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct ScopeDefault;
@@ -15,7 +22,9 @@ pub struct ScopeDefault;
 pub struct ScopeAdmin;
 
 #[derive(Debug, Clone)]
-pub struct ScopeTenant;
+pub struct ScopeTenant {
+    tenant_id: Uuid,
+}
 
 #[derive(Debug, Clone)]
 pub struct StateConnected {
@@ -60,7 +69,7 @@ impl DatabaseType {
 pub struct Pool<Scope, State = StateDisconnected> {
     state: State,
     database_type: DatabaseType,
-    _scope: PhantomData<Scope>,
+    scope: Scope,
 }
 
 impl<Scope, State> ImplError for Pool<Scope, State> {
@@ -77,11 +86,11 @@ impl<Scope, State> Pool<Scope, State>
 where
     Self: Sized,
 {
-    pub const fn new(state: State, database_type: DatabaseType) -> Self {
+    pub const fn new(state: State, database_type: DatabaseType, scope: Scope) -> Self {
         Self {
             state,
             database_type,
-            _scope: PhantomData,
+            scope,
         }
     }
 

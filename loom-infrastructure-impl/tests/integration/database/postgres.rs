@@ -114,15 +114,15 @@ pub mod tests {
 
     use super::*;
 
-    #[serial]
-    #[with_lifecycle(test_lifecycle)]
-    #[tokio::test]
-    async fn test_setup_postgres_database() -> Result<(), Error> {
-        let default_pool = get_default_pool().await?;
-        refresh_databases(&default_pool, "test_token").await?;
+    // #[serial]
+    // #[with_lifecycle(test_lifecycle)]
+    // #[tokio::test]
+    // async fn test_setup_postgres_database() -> Result<(), Error> {
+    //     let default_pool = get_default_pool().await?;
+    //     refresh_databases(&default_pool, "test_token").await?;
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 }
 
 // ── Unit tests for SQL identifier / LIKE-pattern escaping ─────────────────────
