@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::shared::AggregateId;
 use crate::tenant::activity::ActivityId;
-use crate::tenant::project::ProjectId;
 use crate::tenant::timesheet::TimesheetEvent;
 use crate::tenant::timesheet::domain::events::UserId;
 
@@ -13,15 +12,12 @@ pub type TimesheetId = AggregateId;
 pub struct Timesheet {
     id: TimesheetId,
     user_id: UserId,
-    project_id: Option<ProjectId>,
     activity_id: Option<ActivityId>,
     start_time: String,
     end_time: Option<String>,
     duration: Option<i32>,
     description: Option<String>,
     timezone: String,
-    billable: bool,
-    exported: bool,
 }
 
 impl Timesheet {
@@ -29,45 +25,40 @@ impl Timesheet {
     pub const fn id(&self) -> &TimesheetId {
         &self.id
     }
+
     #[must_use]
     pub const fn user_id(&self) -> &UserId {
         &self.user_id
     }
-    #[must_use]
-    pub const fn project_id(&self) -> Option<&ProjectId> {
-        self.project_id.as_ref()
-    }
+
     #[must_use]
     pub const fn activity_id(&self) -> Option<&ActivityId> {
         self.activity_id.as_ref()
     }
+
     #[must_use]
     pub fn start_time(&self) -> &str {
         &self.start_time
     }
+
     #[must_use]
     pub fn end_time(&self) -> Option<&str> {
         self.end_time.as_deref()
     }
+
     #[must_use]
     pub const fn duration(&self) -> Option<i32> {
         self.duration
     }
+
     #[must_use]
     pub fn description(&self) -> Option<&str> {
         self.description.as_deref()
     }
+
     #[must_use]
     pub fn timezone(&self) -> &str {
         &self.timezone
-    }
-    #[must_use]
-    pub const fn billable(&self) -> bool {
-        self.billable
-    }
-    #[must_use]
-    pub const fn exported(&self) -> bool {
-        self.exported
     }
 }
 
@@ -101,24 +92,19 @@ impl Aggregate for Timesheet {
                 TimesheetEvent::Started {
                     id,
                     user_id,
-                    project_id,
                     activity_id,
                     start_time,
                     timezone,
-                    billable,
                 },
             ) => Ok(Self {
                 id,
                 user_id,
-                project_id,
                 activity_id,
                 start_time,
                 end_time: None,
                 duration: None,
                 description: None,
                 timezone,
-                billable,
-                exported: false,
             }),
             (Some(_), TimesheetEvent::Started { .. }) => Err(Error::AlreadyExists),
             (None, _) => Err(Error::NotFound),
@@ -132,25 +118,11 @@ impl Aggregate for Timesheet {
                 t.duration = Some(duration);
                 Ok(t)
             }
-            (
-                Some(mut t),
-                TimesheetEvent::Updated {
-                    description,
-                    billable,
-                },
-            ) => {
+            (Some(mut t), TimesheetEvent::Updated { description }) => {
                 t.description = description;
-                t.billable = billable;
                 Ok(t)
             }
-            (
-                Some(mut t),
-                TimesheetEvent::Reassigned {
-                    project_id,
-                    activity_id,
-                },
-            ) => {
-                t.project_id = Some(project_id);
+            (Some(mut t), TimesheetEvent::Reassigned { activity_id }) => {
                 t.activity_id = Some(activity_id);
                 Ok(t)
             }
@@ -166,15 +138,6 @@ impl Aggregate for Timesheet {
                 t.end_time = end_time;
                 t.duration = duration;
                 Ok(t)
-            }
-            (Some(t), TimesheetEvent::Exported) => {
-                if t.exported {
-                    return Err(Error::AlreadyExported);
-                }
-                Ok(Self {
-                    exported: true,
-                    ..t
-                })
             }
         }
     }

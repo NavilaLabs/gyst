@@ -7,7 +7,6 @@ use crate::tenant::activity::{
         events::ActivityEvent,
     },
 };
-use crate::tenant::project::ProjectId;
 
 #[eventually_macros::aggregate_root(Activity)]
 pub struct ActivityCommand;
@@ -19,16 +18,11 @@ impl ActivityCommand {
     pub fn create(
         &self,
         id: ActivityId,
-        project_id: Option<ProjectId>,
         name: String,
+        comment: Option<String>,
     ) -> Result<Self, crate::Error> {
         Ok(aggregate::Root::<Activity>::record_new(
-            ActivityEvent::Created {
-                id,
-                project_id,
-                name,
-            }
-            .into(),
+            ActivityEvent::Created { id, name, comment }.into(),
         )
         .map_err(activity::DomainError::from)?
         .into())
@@ -37,22 +31,8 @@ impl ActivityCommand {
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn update(
-        &mut self,
-        name: String,
-        comment: Option<String>,
-        visible: bool,
-        billable: bool,
-    ) -> Result<(), crate::Error> {
-        self.record_that(
-            ActivityEvent::Updated {
-                name,
-                comment,
-                visible,
-                billable,
-            }
-            .into(),
-        )
-        .map_err(|e| activity::DomainError::AggregateError(e).into())
+    pub fn update(&mut self, name: String, comment: Option<String>) -> Result<(), crate::Error> {
+        self.record_that(ActivityEvent::Updated { name, comment }.into())
+            .map_err(|e| activity::DomainError::AggregateError(e).into())
     }
 }

@@ -3,17 +3,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::shared::AggregateId;
 use crate::tenant::activity::ActivityEvent;
-use crate::tenant::project::ProjectId;
 
 pub type ActivityId = AggregateId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Activity {
     id: ActivityId,
-    project_id: Option<ProjectId>,
     name: String,
-    visible: bool,
-    billable: bool,
+    comment: Option<String>,
 }
 
 impl Activity {
@@ -21,21 +18,15 @@ impl Activity {
     pub const fn id(&self) -> &ActivityId {
         &self.id
     }
-    #[must_use]
-    pub const fn project_id(&self) -> Option<&ProjectId> {
-        self.project_id.as_ref()
-    }
+
     #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
+
     #[must_use]
-    pub const fn visible(&self) -> bool {
-        self.visible
-    }
-    #[must_use]
-    pub const fn billable(&self) -> bool {
-        self.billable
+    pub const fn comment(&self) -> Option<&String> {
+        self.comment.as_ref()
     }
 }
 
@@ -56,34 +47,12 @@ impl Aggregate for Activity {
 
     fn apply(state: Option<Self>, event: Self::Event) -> Result<Self, Self::Error> {
         match (state, event) {
-            (
-                None,
-                ActivityEvent::Created {
-                    id,
-                    project_id,
-                    name,
-                },
-            ) => Ok(Self {
-                id,
-                project_id,
-                name,
-                visible: true,
-                billable: true,
-            }),
+            (None, ActivityEvent::Created { id, name, comment }) => Ok(Self { id, name, comment }),
             (Some(_), ActivityEvent::Created { .. }) => Err(Error::AlreadyExists),
             (None, _) => Err(Error::NotFound),
-            (
-                Some(mut a),
-                ActivityEvent::Updated {
-                    name,
-                    visible,
-                    billable,
-                    ..
-                },
-            ) => {
+            (Some(mut a), ActivityEvent::Updated { name, comment, .. }) => {
                 a.name = name;
-                a.visible = visible;
-                a.billable = billable;
+                a.comment = comment;
                 Ok(a)
             }
         }

@@ -1,8 +1,8 @@
 use sea_orm_migration::{
     prelude::*,
     schema::{
-        big_integer_null, integer, integer_null, pk_uuid, string, string_null,
-        timestamp_with_time_zone, timestamp_with_time_zone_null, uuid, uuid_null,
+        integer_null, pk_uuid, string, string_null, timestamp_with_time_zone,
+        timestamp_with_time_zone_null, uuid, uuid_null,
     },
 };
 
@@ -18,32 +18,15 @@ impl MigrationTrait for Migration {
                     .table("projections__timesheets")
                     .col(pk_uuid("id"))
                     .col(uuid("user_id"))
-                    .col(uuid_null("project_id"))
                     .col(uuid_null("activity_id"))
                     .col(timestamp_with_time_zone("start_time"))
                     .col(timestamp_with_time_zone_null("end_time"))
                     .col(integer_null("duration"))
                     .col(string_null("description"))
                     .col(string("timezone").default("Europe/Berlin"))
-                    .col(integer("billable").default(1))
-                    .col(big_integer_null("hourly_rate"))
-                    .col(big_integer_null("fixed_rate"))
-                    .col(big_integer_null("internal_rate"))
-                    .col(big_integer_null("rate"))
-                    .col(integer("exported").default(0))
                     .col(timestamp_with_time_zone("created_at").default(Expr::current_timestamp()))
                     .col(timestamp_with_time_zone("updated_at").default(Expr::current_timestamp()))
                     // No FK on user_id — users live in the admin database.
-                    .foreign_key(
-                        ForeignKey::create()
-                            .name("fk_timesheets_project_id")
-                            .from(
-                                TableRef::Table("projections__timesheets".into(), None),
-                                "project_id",
-                            )
-                            .to(TableRef::Table("projections__projects".into(), None), "id")
-                            .on_delete(ForeignKeyAction::Restrict),
-                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_timesheets_activity_id")
@@ -68,26 +51,6 @@ impl MigrationTrait for Migration {
                     .name("idx_timesheets_user_start")
                     .col("user_id")
                     .col("start_time")
-                    .to_owned(),
-            )
-            .await?;
-
-        manager
-            .create_index(
-                Index::create()
-                    .table("projections__timesheets")
-                    .name("idx_timesheets_project_id")
-                    .col("project_id")
-                    .to_owned(),
-            )
-            .await?;
-
-        manager
-            .create_index(
-                Index::create()
-                    .table("projections__timesheets")
-                    .name("idx_timesheets_exported")
-                    .col("exported")
                     .to_owned(),
             )
             .await

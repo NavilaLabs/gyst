@@ -12,7 +12,7 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table("projections__tags")
+                    .table("projections__timesheet_tags")
                     .if_not_exists()
                     .col(pk_uuid("id"))
                     .col(string("name").unique_key())
@@ -23,20 +23,20 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table("projections__timesheet_tags")
+                    .table("projections__timesheet_has_tags")
                     .if_not_exists()
                     .col(uuid("timesheet_id"))
-                    .col(uuid("tag_id"))
-                    .primary_key(Index::create().col("timesheet_id").col("tag_id"))
+                    .col(uuid("timesheet_tag_id"))
+                    .primary_key(Index::create().col("timesheet_id").col("timesheet_tag_id"))
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_timesheet_tags_timesheet_id")
                             .from(
-                                TableRef::Table("projections__timesheet_tags".into(), None),
+                                TableRef::Table("projections__timesheet_has_tags".into(), None),
                                 "timesheet_id",
                             )
                             .to(
-                                TableRef::Table("projections__timesheets".into(), None),
+                                TableRef::Table("projections__timesheet_tags".into(), None),
                                 "id",
                             )
                             .on_delete(ForeignKeyAction::Cascade),
@@ -45,10 +45,13 @@ impl MigrationTrait for Migration {
                         ForeignKey::create()
                             .name("fk_timesheet_tags_tag_id")
                             .from(
-                                TableRef::Table("projections__timesheet_tags".into(), None),
-                                "tag_id",
+                                TableRef::Table("projections__timesheet_has_tags".into(), None),
+                                "timesheet_tag_id",
                             )
-                            .to(TableRef::Table("projections__tags".into(), None), "id")
+                            .to(
+                                TableRef::Table("projections__timesheet_tags".into(), None),
+                                "id",
+                            )
                             .on_delete(ForeignKeyAction::Cascade),
                     )
                     .to_owned(),
@@ -60,12 +63,16 @@ impl MigrationTrait for Migration {
         manager
             .drop_table(
                 Table::drop()
-                    .table("projections__timesheet_tags")
+                    .table("projections__timesheet_has_tags")
                     .to_owned(),
             )
             .await?;
         manager
-            .drop_table(Table::drop().table("projections__tags").to_owned())
+            .drop_table(
+                Table::drop()
+                    .table("projections__timesheet_tags")
+                    .to_owned(),
+            )
             .await
     }
 }

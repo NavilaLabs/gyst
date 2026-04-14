@@ -33,7 +33,7 @@ pub trait CreateDatabaseUri {
             if !uri.ends_with(".sqlite") {
                 uri.push_str(".sqlite");
             }
-            return Ok(Url::parse(&uri)?);
+            return Ok(Url::parse(&uri)?.into());
         }
         Ok(database_uri)
     }
@@ -55,7 +55,7 @@ impl CreateDatabaseUri for AdminDatabaseUri {
         let base_uri = CONFIG.get_database().get_base_uri();
         let admin_database_name = CONFIG.get_database().get_databases().get_admin().get_name();
         let admin_uri = Url::parse(&format!("{base_uri}/{admin_database_name}"))?;
-        let admin_uri = self.ensure_sqlite_extension(database_type, admin_uri)?;
+        let admin_uri = self.ensure_sqlite_extension(database_type, admin_uri.into())?;
 
         Ok(admin_uri)
     }
@@ -76,7 +76,7 @@ impl CreateDatabaseUri for TenantDatabaseUri {
         TenantDatabaseNameDirector::construct(&mut database_name_builder, tenant_token);
         let database_name = database_name_builder.get_tenant_database_name();
         let tenant_uri = Url::parse(&format!("{base_uri}/{database_name}"))?;
-        let tenant_uri = self.ensure_sqlite_extension(database_type, tenant_uri)?;
+        let tenant_uri = self.ensure_sqlite_extension(database_type, tenant_uri.into())?;
 
         Ok(tenant_uri)
     }

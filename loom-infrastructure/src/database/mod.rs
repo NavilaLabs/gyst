@@ -1,5 +1,5 @@
 mod initialize;
-use std::ops::Deref;
+use std::{fmt::Display, ops::Deref};
 
 pub use initialize::*;
 pub mod migrate;
@@ -32,6 +32,21 @@ impl DatabaseUri {
     }
 }
 
+impl From<Url> for DatabaseUri {
+    fn from(uri: Url) -> Self {
+        let tenant_token: Option<Uuid> = uri
+            .as_str()
+            .split('_')
+            .next_back()
+            .map(Uuid::parse_str)
+            .transpose()
+            .ok()
+            .flatten();
+
+        Self { uri, tenant_token }
+    }
+}
+
 impl AsRef<Url> for DatabaseUri {
     fn as_ref(&self) -> &Url {
         &self.uri
@@ -43,5 +58,11 @@ impl Deref for DatabaseUri {
 
     fn deref(&self) -> &Self::Target {
         &self.uri
+    }
+}
+
+impl Display for DatabaseUri {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.uri)
     }
 }
