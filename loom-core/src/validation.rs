@@ -30,19 +30,25 @@ mod tests {
 
     #[test]
     fn valid_input_produces_no_errors() {
-        let input = CreateActivityInput { name: "Stand-up".to_string() };
+        let input = CreateActivityInput {
+            name: "Stand-up".to_string(),
+        };
         assert!(input.validate().is_ok());
     }
 
     #[test]
     fn empty_name_produces_validation_error() {
-        let input = CreateActivityInput { name: String::new() };
+        let input = CreateActivityInput {
+            name: String::new(),
+        };
         assert!(input.validate().is_err());
     }
 
     #[test]
     fn summary_extracts_message_from_failing_field() {
-        let input = CreateActivityInput { name: String::new() };
+        let input = CreateActivityInput {
+            name: String::new(),
+        };
         let errors = input.validate().expect_err("must fail");
         let summary = validation_summary(&errors);
         assert!(

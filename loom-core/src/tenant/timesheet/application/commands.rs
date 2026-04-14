@@ -18,7 +18,6 @@ impl TimesheetCommand {
     /// Returns an error if the domain event cannot be applied to the aggregate.
     #[allow(clippy::too_many_arguments)]
     pub fn start(
-        &self,
         id: TimesheetId,
         user_id: UserId,
         activity_id: Option<ActivityId>,
@@ -63,6 +62,26 @@ impl TimesheetCommand {
         self.record_that(TimesheetEvent::Reassigned { activity_id }.into())
             .map_err(|e| timesheet::DomainError::AggregateError(e).into())
     }
+
+    /// # Errors
+    ///
+    /// Returns an error if the domain event cannot be applied to the aggregate.
+    pub fn update_time(
+        &mut self,
+        start_time: String,
+        end_time: Option<String>,
+        duration: Option<i32>,
+    ) -> Result<(), crate::Error> {
+        self.record_that(
+            TimesheetEvent::TimeUpdated {
+                start_time,
+                end_time,
+                duration,
+            }
+            .into(),
+        )
+        .map_err(|e| timesheet::DomainError::AggregateError(e).into())
+    }
 }
 
 #[cfg(test)]
@@ -94,11 +113,10 @@ mod tests {
 
     #[test]
     fn start_returns_root_with_applied_state() {
-        let shell = make_shell();
         let id: TimesheetId = "019d0ce8-facb-7c90-b9d7-287ae4f17d00".parse().unwrap();
         let user_id: UserId = USER_ID.parse().unwrap();
 
-        let result = shell.start(
+        let result = TimesheetCommand::start(
             id.clone(),
             user_id,
             None,

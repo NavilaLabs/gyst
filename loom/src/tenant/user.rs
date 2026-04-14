@@ -1,37 +1,13 @@
-use std::sync::Arc;
-
 use anyhow::Result;
-use loom_core::admin::user::{UserCommand, UserId, UserQuery, UserRepository};
+use eventually::aggregate::repository::Saver;
+use loom_core::admin::user::{UserCommand, UserId};
+use loom_infrastructure_impl::{Pool, admin::user::repositories::UserRepository};
 
-pub struct UserController<R: UserRepository, P: Send + Sync> {
-    repository: Arc<R>,
-    commands: Arc<UserCommand>,
-    queries: Arc<UserQuery<P>>,
-}
-
-impl<R: UserRepository, P: Send + Sync> UserController<R, P> {
-    pub const fn new(
-        repository: Arc<R>,
-        commands: Arc<UserCommand>,
-        queries: Arc<UserQuery<P>>,
-    ) -> Self {
-        Self {
-            repository,
-            commands,
-            queries,
-        }
-    }
-
-    pub async fn create_user(
-        &self,
-        id: UserId,
-        name: String,
-        email: String,
-        password: String,
-    ) -> Result<()> {
-        let mut root = self.commands.create(id, name, email, password)?;
-        self.repository.save(&mut root).await?;
-
-        Ok(())
-    }
+/// Create a new user and persist it to the admin store.
+pub async fn create(id: UserId, name: String, email: String, password: String) -> Result<()> {
+    let pool = Pool::connect_admin().await?;
+    let repo = UserRepository::from_pool(pool).await?;
+    let mut cmd = UserCommand::create(id, name, email, password)?;
+    repo.save(&mut cmd).await?;
+    Ok(())
 }

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use eventually::aggregate::repository::{Getter, Saver};
-use loom_core::admin::user::{UserEvent, UserId, UserView};
+use loom_core::admin::user::{UserCommand, UserId, UserView};
 use loom_infrastructure_impl::{Pool, admin::user::repositories::UserRepository};
 
 /// Returns the current settings for the given user.
@@ -23,19 +23,13 @@ pub async fn update_user_settings(
     let repo = UserRepository::from_pool(pool).await?;
 
     let agg_id: UserId = user_id.parse()?;
-    let mut root = repo
+    let root = repo
         .get(&agg_id)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
-    root.record_that(
-        UserEvent::SettingsUpdated {
-            timezone,
-            date_format,
-            language,
-        }
-        .into(),
-    )?;
-    repo.save(&mut root)
+    let mut cmd: UserCommand = root.into();
+    cmd.update_settings(timezone, date_format, language)?;
+    repo.save(&mut cmd)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))
 }

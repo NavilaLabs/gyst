@@ -1,6 +1,6 @@
 use anyhow::Result;
 use eventually::aggregate::repository::{Getter, Saver};
-use loom_core::admin::workspace::{WorkspaceEvent, WorkspaceId};
+use loom_core::admin::workspace::{WorkspaceCommand, WorkspaceId, WorkspaceView};
 use loom_infrastructure_impl::{Pool, admin::workspace::repositories::WorkspaceRepository};
 use serde::{Deserialize, Serialize};
 
@@ -22,9 +22,7 @@ pub async fn list_user_workspaces(user_id: &str) -> Result<Vec<WorkspaceInfo>> {
 }
 
 /// Returns the current settings for the given workspace.
-pub async fn get_workspace_settings(
-    workspace_id: &str,
-) -> Result<loom_core::admin::workspace::WorkspaceView> {
+pub async fn get_workspace_settings(workspace_id: &str) -> Result<WorkspaceView> {
     let pool = Pool::connect_admin().await?;
     let repo = WorkspaceRepository::from_pool(pool).await?;
     repo.find_view_by_id(workspace_id)
@@ -45,21 +43,13 @@ pub async fn update_workspace_settings(
     let repo = WorkspaceRepository::from_pool(pool).await?;
 
     let agg_id: WorkspaceId = workspace_id.parse()?;
-    let mut root = repo
+    let root = repo
         .get(&agg_id)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
-    root.record_that(
-        WorkspaceEvent::SettingsUpdated {
-            name,
-            timezone,
-            date_format,
-            currency,
-            week_start,
-        }
-        .into(),
-    )?;
-    repo.save(&mut root)
+    let mut cmd: WorkspaceCommand = root.into();
+    cmd.update_settings(name, timezone, date_format, currency, week_start)?;
+    repo.save(&mut cmd)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))
 }

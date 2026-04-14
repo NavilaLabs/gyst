@@ -241,7 +241,9 @@ mod tests {
     fn apply_updated_sets_description() {
         let t = Timesheet::apply(
             Some(started()),
-            TimesheetEvent::Updated { description: Some("pair session".to_string()) },
+            TimesheetEvent::Updated {
+                description: Some("pair session".to_string()),
+            },
         )
         .unwrap();
         assert_eq!(t.description(), Some("pair session"));
@@ -251,7 +253,9 @@ mod tests {
     fn apply_updated_can_clear_description() {
         let with_desc = Timesheet::apply(
             Some(started()),
-            TimesheetEvent::Updated { description: Some("note".to_string()) },
+            TimesheetEvent::Updated {
+                description: Some("note".to_string()),
+            },
         )
         .unwrap();
         let cleared = Timesheet::apply(
@@ -267,7 +271,9 @@ mod tests {
         let new_act: ActivityId = "019d0ce8-facb-7c90-b9d7-287ae4f17c94".parse().unwrap();
         let t = Timesheet::apply(
             Some(started()),
-            TimesheetEvent::Reassigned { activity_id: new_act.clone() },
+            TimesheetEvent::Reassigned {
+                activity_id: new_act.clone(),
+            },
         )
         .unwrap();
         assert_eq!(t.activity_id(), Some(&new_act));

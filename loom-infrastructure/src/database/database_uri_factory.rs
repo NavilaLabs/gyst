@@ -125,9 +125,7 @@ mod tests {
     #[test]
     fn ensure_sqlite_extension_does_not_double_append() {
         let already = uri("sqlite:///tmp/loom_admin.sqlite");
-        let result = TestUri
-            .ensure_sqlite_extension("sqlite", already)
-            .unwrap();
+        let result = TestUri.ensure_sqlite_extension("sqlite", already).unwrap();
         let s = result.to_string();
         assert!(s.ends_with(".sqlite"));
         assert!(!s.ends_with(".sqlite.sqlite"));
@@ -136,9 +134,7 @@ mod tests {
     #[test]
     fn ensure_sqlite_extension_does_not_modify_postgres_uri() {
         let pg = uri("postgres://localhost/loom_admin");
-        let result = TestUri
-            .ensure_sqlite_extension("postgres", pg)
-            .unwrap();
+        let result = TestUri.ensure_sqlite_extension("postgres", pg).unwrap();
         assert!(!result.to_string().contains(".sqlite"));
     }
 

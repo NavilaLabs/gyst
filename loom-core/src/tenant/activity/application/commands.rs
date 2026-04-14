@@ -16,7 +16,6 @@ impl ActivityCommand {
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
     pub fn create(
-        &self,
         id: ActivityId,
         name: String,
         comment: Option<String>,
@@ -52,7 +51,11 @@ mod tests {
     fn make_shell(id: ActivityId) -> ActivityCommand {
         let activity = Activity::apply(
             None,
-            ActivityEvent::Created { id, name: "seed".to_string(), comment: None },
+            ActivityEvent::Created {
+                id,
+                name: "seed".to_string(),
+                comment: None,
+            },
         )
         .expect("seed activity");
         Root::<Activity>::rehydrate_from_state(1, activity).into()
@@ -60,10 +63,9 @@ mod tests {
 
     #[test]
     fn create_returns_root_with_applied_state() {
-        let shell = make_shell(test_id());
         let id: ActivityId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92".parse().unwrap();
 
-        let result = shell.create(id.clone(), "Stand-up".to_string(), None);
+        let result = ActivityCommand::create(id.clone(), "Stand-up".to_string(), None);
 
         assert!(result.is_ok());
         let cmd = result.unwrap();
@@ -75,12 +77,14 @@ mod tests {
 
     #[test]
     fn create_stores_comment_when_provided() {
-        let shell = make_shell(test_id());
         let id: ActivityId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92".parse().unwrap();
 
-        let cmd = shell
-            .create(id, "Debug session".to_string(), Some("detailed".to_string()))
-            .unwrap();
+        let cmd = ActivityCommand::create(
+            id,
+            "Debug session".to_string(),
+            Some("detailed".to_string()),
+        )
+        .unwrap();
         assert_eq!(cmd.comment(), Some(&"detailed".to_string()));
     }
 
@@ -109,10 +113,10 @@ mod tests {
             },
         )
         .expect("seed activity");
-        let mut cmd: ActivityCommand =
-            Root::<Activity>::rehydrate_from_state(1, activity).into();
+        let mut cmd: ActivityCommand = Root::<Activity>::rehydrate_from_state(1, activity).into();
 
-        cmd.update("Same".to_string(), None).expect("update must succeed");
+        cmd.update("Same".to_string(), None)
+            .expect("update must succeed");
 
         assert!(cmd.comment().is_none());
     }

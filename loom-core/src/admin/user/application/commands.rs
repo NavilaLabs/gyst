@@ -15,8 +15,27 @@ impl UserCommand {
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
+    pub fn update_settings(
+        &mut self,
+        timezone: String,
+        date_format: String,
+        language: String,
+    ) -> Result<(), crate::Error> {
+        self.record_that(
+            UserEvent::SettingsUpdated {
+                timezone,
+                date_format,
+                language,
+            }
+            .into(),
+        )
+        .map_err(|e| user::DomainError::AggregateError(e).into())
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error if the domain event cannot be applied to the aggregate.
     pub fn create(
-        &self,
         id: UserId,
         name: String,
         email: String,
@@ -38,25 +57,7 @@ impl UserCommand {
 
 #[cfg(test)]
 mod tests {
-    use eventually::aggregate::{Aggregate, Root};
-
     use super::*;
-
-    /// Build a `UserCommand` shell by rehydrating an existing user state.
-    /// `create(&self, …)` ignores `self`, so this is just the cheapest valid instance.
-    fn make_command_shell(id: UserId) -> UserCommand {
-        let user = User::apply(
-            None,
-            UserEvent::Created {
-                id,
-                name: "seed".to_string(),
-                email: "seed@example.com".to_string(),
-                password: "$2b$12$hash".to_string(),
-            },
-        )
-        .expect("seed user");
-        Root::<User>::rehydrate_from_state(1, user).into()
-    }
 
     fn test_id() -> UserId {
         "019d0ce8-facb-7c90-b9d7-287ae4f17c91"
@@ -66,12 +67,11 @@ mod tests {
 
     #[test]
     fn create_returns_root_with_applied_state() {
-        let shell = make_command_shell(test_id());
         let id: UserId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92"
             .parse()
             .expect("valid UUID");
 
-        let result = shell.create(
+        let result = UserCommand::create(
             id.clone(),
             "Alice".to_string(),
             "alice@example.com".to_string(),
@@ -87,16 +87,14 @@ mod tests {
 
     #[test]
     fn create_propagates_aggregate_error_on_bad_event() {
-        let shell = make_command_shell(test_id());
         assert!(
-            shell
-                .create(
-                    test_id(),
-                    "Bob".to_string(),
-                    "bob@example.com".to_string(),
-                    "$2b$12$hash".to_string(),
-                )
-                .is_ok()
+            UserCommand::create(
+                test_id(),
+                "Bob".to_string(),
+                "bob@example.com".to_string(),
+                "$2b$12$hash".to_string(),
+            )
+            .is_ok()
         );
     }
 }

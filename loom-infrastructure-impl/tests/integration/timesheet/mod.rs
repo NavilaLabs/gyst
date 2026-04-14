@@ -58,10 +58,8 @@ pub mod tests {
         let repo = make_repository(&db).await;
         let id = ts_id();
 
-        let mut root = eventually::aggregate::Root::<Timesheet>::record_new(
-            started_event().into(),
-        )
-        .expect("Started event is always valid for a new aggregate");
+        let mut root = eventually::aggregate::Root::<Timesheet>::record_new(started_event().into())
+            .expect("Started event is always valid for a new aggregate");
 
         repo.save(&mut root).await.expect("save must succeed");
 
@@ -91,13 +89,12 @@ pub mod tests {
             .await
             .expect("must handle TimesheetStarted");
 
-        let count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM projections__timesheets WHERE id = ?",
-        )
-        .bind(TS_ID)
-        .fetch_one(db.tenant.as_ref())
-        .await
-        .unwrap();
+        let count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM projections__timesheets WHERE id = ?")
+                .bind(TS_ID)
+                .fetch_one(db.tenant.as_ref())
+                .await
+                .unwrap();
         assert_eq!(count, 1);
     }
 
@@ -121,13 +118,12 @@ pub mod tests {
             .await
             .expect("must handle TimesheetStopped");
 
-        let end_time: Option<String> = sqlx::query_scalar(
-            "SELECT end_time FROM projections__timesheets WHERE id = ?",
-        )
-        .bind(TS_ID)
-        .fetch_one(db.tenant.as_ref())
-        .await
-        .unwrap();
+        let end_time: Option<String> =
+            sqlx::query_scalar("SELECT end_time FROM projections__timesheets WHERE id = ?")
+                .bind(TS_ID)
+                .fetch_one(db.tenant.as_ref())
+                .await
+                .unwrap();
         assert_eq!(end_time.as_deref(), Some("2024-01-01T10:00:00Z"));
     }
 
@@ -142,19 +138,20 @@ pub mod tests {
             .await
             .unwrap();
 
-        let updated = TimesheetEvent::Updated { description: Some("pair session".to_string()) };
+        let updated = TimesheetEvent::Updated {
+            description: Some("pair session".to_string()),
+        };
         projector
             .handle(raw(TS_ID, 2, "TimesheetUpdated", &updated))
             .await
             .expect("must handle TimesheetUpdated");
 
-        let desc: Option<String> = sqlx::query_scalar(
-            "SELECT description FROM projections__timesheets WHERE id = ?",
-        )
-        .bind(TS_ID)
-        .fetch_one(db.tenant.as_ref())
-        .await
-        .unwrap();
+        let desc: Option<String> =
+            sqlx::query_scalar("SELECT description FROM projections__timesheets WHERE id = ?")
+                .bind(TS_ID)
+                .fetch_one(db.tenant.as_ref())
+                .await
+                .unwrap();
         assert_eq!(desc.as_deref(), Some("pair session"));
     }
 

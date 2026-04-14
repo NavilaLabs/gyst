@@ -20,7 +20,7 @@ impl WorkspaceCommand {
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn create(&self, id: WorkspaceId, name: Option<String>) -> Result<Self, crate::Error> {
+    pub fn create(id: WorkspaceId, name: Option<String>) -> Result<Self, crate::Error> {
         Ok(
             aggregate::Root::<Workspace>::record_new(WorkspaceEvent::Created { id, name }.into())
                 .map_err(workspace::DomainError::from)?
@@ -99,6 +99,31 @@ impl WorkspaceCommand {
         )
         .map_err(|e| workspace::DomainError::AggregateError(e).into())
     }
+
+    /// # Errors
+    ///
+    /// Returns an error if the domain event cannot be applied to the aggregate.
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_settings(
+        &mut self,
+        name: Option<String>,
+        timezone: String,
+        date_format: String,
+        currency: String,
+        week_start: String,
+    ) -> Result<(), crate::Error> {
+        self.record_that(
+            WorkspaceEvent::SettingsUpdated {
+                name,
+                timezone,
+                date_format,
+                currency,
+                week_start,
+            }
+            .into(),
+        )
+        .map_err(|e| workspace::DomainError::AggregateError(e).into())
+    }
 }
 
 #[cfg(test)]
@@ -127,12 +152,11 @@ mod tests {
 
     #[test]
     fn create_returns_root_with_applied_state() {
-        let shell = make_command_shell(test_id());
         let id: WorkspaceId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92"
             .parse()
             .expect("valid UUID");
 
-        let result = shell.create(id.clone(), Some("Acme".to_string()));
+        let result = WorkspaceCommand::create(id.clone(), Some("Acme".to_string()));
 
         assert!(result.is_ok());
         let cmd = result.unwrap();
@@ -164,7 +188,8 @@ mod tests {
         let user_id: UserId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92".parse().unwrap();
         let role_id: WorkspaceRoleId = "019d0ce8-facb-7c90-b9d7-287ae4f17c93".parse().unwrap();
 
-        cmd.assign_user_role(user_id.clone(), role_id.clone()).unwrap();
+        cmd.assign_user_role(user_id.clone(), role_id.clone())
+            .unwrap();
         let result = cmd.revoke_user_role(user_id, role_id);
 
         assert!(result.is_ok());
@@ -191,7 +216,8 @@ mod tests {
         let user_id: UserId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92".parse().unwrap();
         let perm_id: PermissionId = "019d0ce8-facb-7c90-b9d7-287ae4f17c94".parse().unwrap();
 
-        cmd.grant_user_permission(user_id.clone(), perm_id.clone()).unwrap();
+        cmd.grant_user_permission(user_id.clone(), perm_id.clone())
+            .unwrap();
         let result = cmd.revoke_user_permission(user_id, perm_id);
 
         assert!(result.is_ok());

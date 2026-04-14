@@ -123,8 +123,7 @@ mod tests {
     fn revoke_permission_records_event() {
         let (role_id, workspace_id) = test_ids();
         let mut cmd = make_command_shell(role_id, workspace_id);
-        let permission_id: PermissionId =
-            "019d0ce8-facb-7c90-b9d7-287ae4f17c94".parse().unwrap();
+        let permission_id: PermissionId = "019d0ce8-facb-7c90-b9d7-287ae4f17c94".parse().unwrap();
 
         cmd.grant_permission(permission_id.clone()).unwrap();
         let result = cmd.revoke_permission(permission_id);

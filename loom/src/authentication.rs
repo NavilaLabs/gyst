@@ -19,12 +19,12 @@ pub struct CurrentUser {
 }
 
 /// Authenticate with email + password.  Returns a signed JWT on success.
-pub async fn login_user(email: String, password: String) -> Result<String> {
+pub async fn login_user(email: &str, password: &str) -> Result<String> {
     let pool = Pool::connect_admin().await?;
     let user_repo = UserRepository::from_pool(pool).await?;
     let query = LoginQuery::new(user_repo, Authenticator::new(JwtAuthentication));
     let token = query
-        .login(&email, &password)
+        .login(email, password)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
     Ok(token)

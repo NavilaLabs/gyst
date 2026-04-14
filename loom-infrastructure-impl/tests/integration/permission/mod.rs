@@ -25,7 +25,10 @@ async fn make_repository(fixture: &TestFixture) -> PermissionRepository {
 }
 
 fn raw_created(id: &PermissionId, name: &str) -> RawEvent {
-    let event = PermissionEvent::Created { id: id.clone(), name: name.to_string() };
+    let event = PermissionEvent::Created {
+        id: id.clone(),
+        name: name.to_string(),
+    };
     RawEvent {
         stream_id: id.to_string(),
         version: 1,
@@ -50,7 +53,11 @@ pub mod tests {
         let id = test_id();
 
         let mut root = eventually::aggregate::Root::<Permission>::record_new(
-            PermissionEvent::Created { id: id.clone(), name: "can_invite".to_string() }.into(),
+            PermissionEvent::Created {
+                id: id.clone(),
+                name: "can_invite".to_string(),
+            }
+            .into(),
         )
         .expect("Created event on a new aggregate is always valid");
 
@@ -68,13 +75,19 @@ pub mod tests {
         let id = test_id();
         let existing = Permission::apply(
             None,
-            PermissionEvent::Created { id: id.clone(), name: "can_invite".to_string() },
+            PermissionEvent::Created {
+                id: id.clone(),
+                name: "can_invite".to_string(),
+            },
         )
         .expect("first Created is valid");
 
         let result = Permission::apply(
             Some(existing),
-            PermissionEvent::Created { id, name: "duplicate".to_string() },
+            PermissionEvent::Created {
+                id,
+                name: "duplicate".to_string(),
+            },
         );
         assert!(result.is_err(), "second Created must fail");
     }
@@ -92,10 +105,7 @@ pub mod tests {
             .expect("projector must handle PermissionCreated");
 
         let repo = make_repository(&db).await;
-        let view = repo
-            .find_one(id.0)
-            .await
-            .expect("query must succeed");
+        let view = repo.find_one(id.0).await.expect("query must succeed");
         assert!(view.is_some(), "projected permission must be findable");
         assert_eq!(view.unwrap().get_name(), "can_invite");
     }
@@ -107,7 +117,10 @@ pub mod tests {
         let mut projector = PermissionProjector::new(db.admin.clone());
         let id = test_id();
 
-        projector.handle(raw_created(&id, "can_invite")).await.unwrap();
+        projector
+            .handle(raw_created(&id, "can_invite"))
+            .await
+            .unwrap();
         let result = projector.handle(raw_created(&id, "can_invite")).await;
         assert!(result.is_ok(), "second identical event must not error");
     }
@@ -160,8 +173,7 @@ pub mod tests {
     async fn test_find_one_returns_none_for_unknown_id() {
         let db = TestFixture::setup().await;
         let repo = make_repository(&db).await;
-        let unknown_id: sqlx::types::Uuid =
-            "ffffffff-ffff-7fff-bfff-ffffffffffff".parse().unwrap();
+        let unknown_id: sqlx::types::Uuid = "ffffffff-ffff-7fff-bfff-ffffffffffff".parse().unwrap();
 
         let result = repo.find_one(unknown_id).await.expect("query must succeed");
         assert!(result.is_none());

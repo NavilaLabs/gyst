@@ -37,8 +37,7 @@ impl TimesheetRepository {
         Ok(Self { pool, repository })
     }
 
-    const SELECT: &'static str =
-        "SELECT id, user_id, activity_id, start_time, end_time, duration, description, timezone \
+    const SELECT: &'static str = "SELECT id, user_id, activity_id, start_time, end_time, duration, description, timezone \
          FROM projections__timesheets";
 
     /// Most-recent 50 timesheets for a user, newest first.

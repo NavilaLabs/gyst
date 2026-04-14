@@ -89,7 +89,7 @@ async fn main() -> Result<()> {
 
         daemon.register_with_config(
             ProjectionRunner::new(pool.clone().into_pool(), ProjectionSource::AllStreams),
-            TenantProjector::new(pool.clone()),
+            TenantProjector::new(&pool),
             checkpoint,
             backoff.clone(),
         );

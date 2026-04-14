@@ -16,7 +16,7 @@ impl TimesheetTagCommand {
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn create(&self, id: TimesheetTagId, name: String) -> Result<Self, crate::Error> {
+    pub fn create(id: TimesheetTagId, name: String) -> Result<Self, crate::Error> {
         Ok(aggregate::Root::<TimesheetTag>::record_new(
             TimesheetTagEvent::Created { id, name }.into(),
         )
@@ -64,7 +64,10 @@ mod tests {
     fn make_shell(id: TimesheetTagId) -> TimesheetTagCommand {
         let tag = TimesheetTag::apply(
             None,
-            TimesheetTagEvent::Created { id, name: "seed".to_string() },
+            TimesheetTagEvent::Created {
+                id,
+                name: "seed".to_string(),
+            },
         )
         .expect("seed tag");
         Root::<TimesheetTag>::rehydrate_from_state(1, tag).into()
@@ -72,10 +75,9 @@ mod tests {
 
     #[test]
     fn create_returns_root_with_applied_state() {
-        let shell = make_shell(test_id());
         let id: TimesheetTagId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92".parse().unwrap();
 
-        let result = shell.create(id.clone(), "backend".to_string());
+        let result = TimesheetTagCommand::create(id.clone(), "backend".to_string());
 
         assert!(result.is_ok());
         let cmd = result.unwrap();
@@ -87,7 +89,8 @@ mod tests {
     #[test]
     fn rename_records_event_and_increments_version() {
         let mut cmd = make_shell(test_id());
-        cmd.rename("frontend".to_string()).expect("rename must succeed");
+        cmd.rename("frontend".to_string())
+            .expect("rename must succeed");
         assert_eq!(cmd.version(), 2);
         assert_eq!(cmd.name(), "frontend");
     }
@@ -96,7 +99,8 @@ mod tests {
     fn tag_timesheet_records_event_and_increments_version() {
         let mut cmd = make_shell(test_id());
         let ts_id: TimesheetId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92".parse().unwrap();
-        cmd.tag_timesheet(ts_id).expect("tag_timesheet must succeed");
+        cmd.tag_timesheet(ts_id)
+            .expect("tag_timesheet must succeed");
         assert_eq!(cmd.version(), 2);
     }
 
@@ -105,7 +109,8 @@ mod tests {
         let mut cmd = make_shell(test_id());
         let ts_id: TimesheetId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92".parse().unwrap();
         cmd.tag_timesheet(ts_id.clone()).unwrap();
-        cmd.untag_timesheet(ts_id).expect("untag_timesheet must succeed");
+        cmd.untag_timesheet(ts_id)
+            .expect("untag_timesheet must succeed");
         assert_eq!(cmd.version(), 3);
     }
 }

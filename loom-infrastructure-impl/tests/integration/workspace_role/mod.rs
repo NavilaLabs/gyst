@@ -60,7 +60,10 @@ fn raw_created(rid: &WorkspaceRoleId, wid: &WorkspaceId) -> RawEvent {
 /// Projects a workspace row into `projections__workspaces` so FK constraints
 /// on `projections__workspace_roles.workspace_id` are satisfied.
 async fn project_workspace(fixture: &TestFixture, wid: &WorkspaceId) {
-    let event = WorkspaceEvent::Created { id: wid.clone(), name: Some("Test Workspace".to_string()) };
+    let event = WorkspaceEvent::Created {
+        id: wid.clone(),
+        name: Some("Test Workspace".to_string()),
+    };
     let raw = RawEvent {
         stream_id: wid.to_string(),
         version: 1,
@@ -124,7 +127,11 @@ pub mod tests {
         .unwrap();
         let result = WorkspaceRole::apply(
             Some(existing),
-            WorkspaceRoleEvent::Created { id: rid, workspace_id: wid, name: None },
+            WorkspaceRoleEvent::Created {
+                id: rid,
+                workspace_id: wid,
+                name: None,
+            },
         );
         assert!(result.is_err());
     }
@@ -165,7 +172,9 @@ pub mod tests {
         let mut projector = WorkspaceRoleProjector::new(db.admin.clone());
         projector.handle(raw_created(&rid, &wid)).await.unwrap();
 
-        let granted = WorkspaceRoleEvent::PermissionGranted { permission_id: pid.clone() };
+        let granted = WorkspaceRoleEvent::PermissionGranted {
+            permission_id: pid.clone(),
+        };
         projector
             .handle(RawEvent {
                 stream_id: rid.to_string(),
@@ -204,7 +213,9 @@ pub mod tests {
         let mut projector = WorkspaceRoleProjector::new(db.admin.clone());
         projector.handle(raw_created(&rid, &wid)).await.unwrap();
 
-        let granted = WorkspaceRoleEvent::PermissionGranted { permission_id: pid.clone() };
+        let granted = WorkspaceRoleEvent::PermissionGranted {
+            permission_id: pid.clone(),
+        };
         projector
             .handle(RawEvent {
                 stream_id: rid.to_string(),
@@ -218,7 +229,9 @@ pub mod tests {
             .await
             .unwrap();
 
-        let revoked = WorkspaceRoleEvent::PermissionRevoked { permission_id: pid.clone() };
+        let revoked = WorkspaceRoleEvent::PermissionRevoked {
+            permission_id: pid.clone(),
+        };
         projector
             .handle(RawEvent {
                 stream_id: rid.to_string(),

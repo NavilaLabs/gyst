@@ -77,12 +77,20 @@ pub mod tests {
         let id = test_id();
         let existing = Activity::apply(
             None,
-            ActivityEvent::Created { id: id.clone(), name: "First".to_string(), comment: None },
+            ActivityEvent::Created {
+                id: id.clone(),
+                name: "First".to_string(),
+                comment: None,
+            },
         )
         .unwrap();
         let result = Activity::apply(
             Some(existing),
-            ActivityEvent::Created { id, name: "Second".to_string(), comment: None },
+            ActivityEvent::Created {
+                id,
+                name: "Second".to_string(),
+                comment: None,
+            },
         );
         assert!(result.is_err());
     }
@@ -104,7 +112,9 @@ pub mod tests {
             .await
             .unwrap();
 
-        let found = rows.iter().any(|r| r.get::<String, _>("name") == "Stand-up");
+        let found = rows
+            .iter()
+            .any(|r| r.get::<String, _>("name") == "Stand-up");
         assert!(found, "projection table must contain the activity");
     }
 
@@ -115,7 +125,10 @@ pub mod tests {
         let mut projector = ActivityProjector::new(db.tenant.clone());
         let id = test_id();
 
-        projector.handle(raw_created(&id, "Old Name")).await.unwrap();
+        projector
+            .handle(raw_created(&id, "Old Name"))
+            .await
+            .unwrap();
 
         let updated = ActivityEvent::Updated {
             name: "New Name".to_string(),
@@ -183,7 +196,10 @@ pub mod tests {
         let repo = make_repository(&db).await;
         let id = test_id();
 
-        projector.handle(raw_created(&id, "Sprint-review")).await.unwrap();
+        projector
+            .handle(raw_created(&id, "Sprint-review"))
+            .await
+            .unwrap();
 
         let all = repo.all().await.expect("all must succeed");
         let found = all.iter().any(|r| r.get_name() == "Sprint-review");

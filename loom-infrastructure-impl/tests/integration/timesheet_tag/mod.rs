@@ -22,7 +22,10 @@ async fn make_repository(fixture: &TestFixture) -> TimesheetTagRepository {
 }
 
 fn raw_created(id: &TimesheetTagId, name: &str) -> RawEvent {
-    let event = TimesheetTagEvent::Created { id: id.clone(), name: name.to_string() };
+    let event = TimesheetTagEvent::Created {
+        id: id.clone(),
+        name: name.to_string(),
+    };
     RawEvent {
         stream_id: id.to_string(),
         version: 1,
@@ -59,7 +62,11 @@ pub mod tests {
         let id = tag_id();
 
         let mut root = eventually::aggregate::Root::<TimesheetTag>::record_new(
-            TimesheetTagEvent::Created { id: id.clone(), name: "backend".to_string() }.into(),
+            TimesheetTagEvent::Created {
+                id: id.clone(),
+                name: "backend".to_string(),
+            }
+            .into(),
         )
         .expect("Created event is always valid");
 
@@ -99,9 +106,14 @@ pub mod tests {
         let mut projector = TimesheetTagProjector::new(db.tenant.clone());
         let id = tag_id();
 
-        projector.handle(raw_created(&id, "old-name")).await.unwrap();
+        projector
+            .handle(raw_created(&id, "old-name"))
+            .await
+            .unwrap();
 
-        let renamed = TimesheetTagEvent::Renamed { name: "new-name".to_string() };
+        let renamed = TimesheetTagEvent::Renamed {
+            name: "new-name".to_string(),
+        };
         projector
             .handle(raw(TAG_ID, 2, "TagRenamed", &renamed))
             .await
@@ -126,7 +138,9 @@ pub mod tests {
 
         projector.handle(raw_created(&id, "backend")).await.unwrap();
 
-        let tagged = TimesheetTagEvent::TimesheetTagged { timesheet_id: ts_id.clone() };
+        let tagged = TimesheetTagEvent::TimesheetTagged {
+            timesheet_id: ts_id.clone(),
+        };
         projector
             .handle(raw(TAG_ID, 2, "TagTimesheetTagged", &tagged))
             .await
@@ -143,7 +157,9 @@ pub mod tests {
         .unwrap();
         assert_eq!(count_after_tag, 1, "link row must exist after tagging");
 
-        let untagged = TimesheetTagEvent::TimesheetUntagged { timesheet_id: ts_id };
+        let untagged = TimesheetTagEvent::TimesheetUntagged {
+            timesheet_id: ts_id,
+        };
         projector
             .handle(raw(TAG_ID, 3, "TagTimesheetUntagged", &untagged))
             .await
@@ -158,7 +174,10 @@ pub mod tests {
         .fetch_one(db.tenant.as_ref())
         .await
         .unwrap();
-        assert_eq!(count_after_untag, 0, "link row must be removed after untagging");
+        assert_eq!(
+            count_after_untag, 0,
+            "link row must be removed after untagging"
+        );
     }
 
     /// The projector silently ignores unknown event types.
@@ -203,7 +222,10 @@ pub mod tests {
             .for_timesheet(TS_ID)
             .await
             .expect("for_timesheet must succeed");
-        assert!(for_ts.is_empty(), "no tags associated with the timesheet yet");
+        assert!(
+            for_ts.is_empty(),
+            "no tags associated with the timesheet yet"
+        );
     }
 
     /// `for_timesheet` returns the tag after a `TimesheetTagged` event is projected.
@@ -217,7 +239,9 @@ pub mod tests {
 
         projector.handle(raw_created(&id, "backend")).await.unwrap();
 
-        let tagged = TimesheetTagEvent::TimesheetTagged { timesheet_id: ts_id };
+        let tagged = TimesheetTagEvent::TimesheetTagged {
+            timesheet_id: ts_id,
+        };
         projector
             .handle(raw(TAG_ID, 2, "TagTimesheetTagged", &tagged))
             .await

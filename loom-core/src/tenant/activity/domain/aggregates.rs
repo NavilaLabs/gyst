@@ -105,7 +105,10 @@ mod tests {
     fn apply_updated_to_no_state_returns_not_found() {
         let result = Activity::apply(
             None,
-            ActivityEvent::Updated { name: "X".to_string(), comment: None },
+            ActivityEvent::Updated {
+                name: "X".to_string(),
+                comment: None,
+            },
         );
         assert!(matches!(result, Err(Error::NotFound)));
     }
@@ -129,11 +132,13 @@ mod tests {
     #[test]
     fn apply_updated_can_clear_comment() {
         let id = test_id();
-        let existing =
-            Activity::apply(None, created(id, "Old", Some("original note"))).unwrap();
+        let existing = Activity::apply(None, created(id, "Old", Some("original note"))).unwrap();
         let updated = Activity::apply(
             Some(existing),
-            ActivityEvent::Updated { name: "New".to_string(), comment: None },
+            ActivityEvent::Updated {
+                name: "New".to_string(),
+                comment: None,
+            },
         )
         .unwrap();
         assert!(updated.comment().is_none());

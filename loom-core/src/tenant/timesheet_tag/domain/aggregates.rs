@@ -67,7 +67,10 @@ mod tests {
     }
 
     fn created(id: TimesheetTagId, name: &str) -> TimesheetTagEvent {
-        TimesheetTagEvent::Created { id, name: name.to_string() }
+        TimesheetTagEvent::Created {
+            id,
+            name: name.to_string(),
+        }
     }
 
     #[test]
@@ -90,7 +93,9 @@ mod tests {
     fn apply_non_created_to_no_state_returns_not_found() {
         let result = TimesheetTag::apply(
             None,
-            TimesheetTagEvent::Renamed { name: "x".to_string() },
+            TimesheetTagEvent::Renamed {
+                name: "x".to_string(),
+            },
         );
         assert!(matches!(result, Err(Error::NotFound)));
     }
@@ -101,7 +106,9 @@ mod tests {
         let existing = TimesheetTag::apply(None, created(id, "old-name")).unwrap();
         let t = TimesheetTag::apply(
             Some(existing),
-            TimesheetTagEvent::Renamed { name: "new-name".to_string() },
+            TimesheetTagEvent::Renamed {
+                name: "new-name".to_string(),
+            },
         )
         .unwrap();
         assert_eq!(t.name(), "new-name");
@@ -115,7 +122,9 @@ mod tests {
             "019d0ce8-facb-7c90-b9d7-287ae4f17c92".parse().unwrap();
         let t = TimesheetTag::apply(
             Some(existing),
-            TimesheetTagEvent::TimesheetTagged { timesheet_id: ts_id },
+            TimesheetTagEvent::TimesheetTagged {
+                timesheet_id: ts_id,
+            },
         )
         .unwrap();
         // Tag identity is unchanged — tagging is recorded in the event stream only.
@@ -131,7 +140,9 @@ mod tests {
             "019d0ce8-facb-7c90-b9d7-287ae4f17c92".parse().unwrap();
         let t = TimesheetTag::apply(
             Some(existing),
-            TimesheetTagEvent::TimesheetUntagged { timesheet_id: ts_id },
+            TimesheetTagEvent::TimesheetUntagged {
+                timesheet_id: ts_id,
+            },
         )
         .unwrap();
         assert_eq!(t.id(), &id);
