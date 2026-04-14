@@ -38,7 +38,7 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use loom_infrastructure::database::Migrate;
+use loom_infrastructure::database::{DatabaseUri, Migrate};
 use loom_infrastructure_impl::{Error, Pool, ScopeAdmin, ScopeTenant, StateConnected};
 use tempfile::TempDir;
 use url::Url;
@@ -107,7 +107,7 @@ impl TestFixture {
         let tenant_url = Url::parse(&format!("sqlite://{}", tenant_path.display()))
             .expect("tenant URL must parse");
 
-        let admin = Pool::connect(&admin_url)
+        let admin = Pool::connect(&DatabaseUri::from(admin_url))
             .await
             .unwrap_or_else(|e: Error| panic!("could not open admin test DB: {e}"));
         admin
@@ -115,7 +115,7 @@ impl TestFixture {
             .await
             .expect("admin migrations must succeed in TestFixture::setup");
 
-        let tenant = Pool::connect(&tenant_url)
+        let tenant = Pool::connect(&DatabaseUri::from(tenant_url))
             .await
             .unwrap_or_else(|e: Error| panic!("could not open tenant test DB: {e}"));
         tenant

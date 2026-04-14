@@ -1,4 +1,5 @@
 use std::ops::Deref;
+use std::str::FromStr;
 
 use async_trait::async_trait;
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
@@ -6,7 +7,7 @@ use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
 use loom_core::tenant::timesheet_tag::{
     TimesheetTag, TimesheetTagEvent, TimesheetTagId,
-    TimesheetTagRepository as TimesheetTagRepositoryTrait,
+    TimesheetTagRepository as TimesheetTagRepositoryTrait, TimesheetTagView,
 };
 use sqlx::{Row, any::AnyRow};
 
@@ -37,7 +38,7 @@ impl TimesheetTagRepository {
     /// # Errors
     ///
     /// Returns an error if the database query fails.
-    pub async fn all(&self) -> Result<Vec<TimesheetTagRow>, crate::Error> {
+    pub async fn all(&self) -> Result<Vec<TimesheetTagView>, crate::Error> {
         let rows = sqlx::query("SELECT id, name FROM projections__timesheet_tags ORDER BY name")
             .fetch_all(self.pool.as_ref())
             .await?;
@@ -50,7 +51,7 @@ impl TimesheetTagRepository {
     pub async fn for_timesheet(
         &self,
         timesheet_id: &str,
-    ) -> Result<Vec<TimesheetTagRow>, crate::Error> {
+    ) -> Result<Vec<TimesheetTagView>, crate::Error> {
         let rows = sqlx::query(
             "SELECT t.id, t.name \
              FROM projections__tags t \
@@ -64,18 +65,12 @@ impl TimesheetTagRepository {
         rows.into_iter().map(|r| Self::map_row(&r)).collect()
     }
 
-    fn map_row(row: &AnyRow) -> Result<TimesheetTagRow, crate::Error> {
-        Ok(TimesheetTagRow {
-            id: row.try_get("id")?,
-            name: row.try_get("name")?,
-        })
+    fn map_row(row: &AnyRow) -> Result<TimesheetTagView, crate::Error> {
+        Ok(TimesheetTagView::new(
+            TimesheetTagId::from_str(&row.try_get::<String, _>("id")?)?,
+            row.try_get("name")?,
+        ))
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct TimesheetTagRow {
-    pub id: String,
-    pub name: String,
 }
 
 #[async_trait]

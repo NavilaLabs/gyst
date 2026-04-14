@@ -1,7 +1,7 @@
 use loom_infrastructure::{
     config::CONFIG,
     database::{
-        Migrate, TenantDatabaseNameBuilder, TenantDatabaseNameConcreteBuilder,
+        DatabaseUri, Migrate, TenantDatabaseNameBuilder, TenantDatabaseNameConcreteBuilder,
         TenantDatabaseNameDirector,
     },
 };
@@ -70,14 +70,14 @@ async fn reset_entire_database(pool: &ConnectedDefaultPool) -> Result<(), Error>
 
 async fn get_default_pool() -> Result<ConnectedDefaultPool, Error> {
     let database_url = "postgres://postgres:postgres@postgres-test:5432/postgres";
-    Pool::connect(&Url::parse(database_url).unwrap()).await
+    Pool::connect(&DatabaseUri::from(Url::parse(database_url).unwrap())).await
 }
 
 async fn get_admin_pool() -> Result<Pool<ScopeAdmin, StateConnected>, Error> {
     let admin_database_name = CONFIG.get_database().get_databases().get_admin().get_name();
     let database_url =
         format!("postgres://postgres:postgres@postgres-test:5432/{admin_database_name}");
-    Pool::connect(&Url::parse(&database_url).unwrap()).await
+    Pool::connect(&DatabaseUri::from(Url::parse(&database_url).unwrap())).await
 }
 
 async fn get_tenant_pool(tenant_token: &str) -> Result<Pool<ScopeTenant, StateConnected>, Error> {
@@ -85,7 +85,7 @@ async fn get_tenant_pool(tenant_token: &str) -> Result<Pool<ScopeTenant, StateCo
     TenantDatabaseNameDirector::construct(&mut database_name_builder, tenant_token);
     let database_name = database_name_builder.get_tenant_database_name();
     let database_url = format!("postgres://postgres:postgres@postgres-test:5432/{database_name}",);
-    Pool::connect(&Url::parse(&database_url).unwrap()).await
+    Pool::connect(&DatabaseUri::from(Url::parse(&database_url).unwrap())).await
 }
 
 pub async fn refresh_databases(

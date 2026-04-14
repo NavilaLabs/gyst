@@ -3,13 +3,12 @@ use eventually::aggregate::{
     Root,
     repository::{Getter, Saver},
 };
-use loom_core::tenant::{
-    activity::{Activity, ActivityEvent, ActivityId, CreateActivityInput, UpdateActivityInput},
-    project::ProjectId,
+use loom_core::tenant::activity::{
+    Activity, ActivityEvent, ActivityId, ActivityView, CreateActivityInput, UpdateActivityInput,
 };
-use loom_infrastructure_impl::tenant::activity::repositories::{ActivityRepository, ActivityRow};
+use loom_infrastructure_impl::tenant::activity::repositories::ActivityRepository;
 
-pub async fn list(workspace_id: &str) -> Result<Vec<ActivityRow>> {
+pub async fn list(workspace_id: &str) -> Result<Vec<ActivityView>> {
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = ActivityRepository::from_pool(pool).await?;
     Ok(repo.all().await?)
@@ -17,31 +16,27 @@ pub async fn list(workspace_id: &str) -> Result<Vec<ActivityRow>> {
 
 pub async fn create(
     workspace_id: &str,
-    project_id: Option<String>,
     name: String,
-) -> Result<ActivityRow> {
+    comment: Option<String>,
+) -> Result<ActivityView> {
     crate::error::validate(CreateActivityInput { name: name.clone() })?;
 
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = ActivityRepository::from_pool(pool).await?;
     let id = ActivityId::new();
-    let pid: Option<ProjectId> = project_id.as_deref().map(str::parse).transpose()?;
     let mut root = Root::<Activity>::record_new(
         ActivityEvent::Created {
             id: id.clone(),
-            project_id: pid.clone(),
             name: name.clone(),
+            comment: comment.clone(),
         }
         .into(),
     )?;
     repo.save(&mut root).await?;
     Ok(ActivityRow {
         id: id.to_string(),
-        project_id: pid.map(|p| p.to_string()),
         name,
-        comment: None,
-        visible: true,
-        billable: true,
+        comment,
     })
 }
 

@@ -1,4 +1,5 @@
 use std::ops::Deref;
+use std::str::FromStr;
 
 use async_trait::async_trait;
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
@@ -6,6 +7,7 @@ use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
 use loom_core::tenant::activity::{
     Activity, ActivityEvent, ActivityId, ActivityRepository as ActivityRepositoryTrait,
+    ActivityView,
 };
 use sqlx::{Row, any::AnyRow};
 
@@ -36,7 +38,7 @@ impl ActivityRepository {
     /// # Errors
     ///
     /// Returns an error if the database query fails.
-    pub async fn all(&self) -> Result<Vec<ActivityRow>, crate::Error> {
+    pub async fn all(&self) -> Result<Vec<ActivityView>, crate::Error> {
         let rows = sqlx::query(
             "SELECT id, project_id, name, comment, visible, billable \
              FROM projections__activities ORDER BY name",
@@ -49,7 +51,7 @@ impl ActivityRepository {
     /// # Errors
     ///
     /// Returns an error if the database query fails.
-    pub async fn by_project(&self, project_id: &str) -> Result<Vec<ActivityRow>, crate::Error> {
+    pub async fn by_project(&self, project_id: &str) -> Result<Vec<ActivityView>, crate::Error> {
         let rows = sqlx::query(
             "SELECT id, project_id, name, comment, visible, billable \
              FROM projections__activities WHERE project_id = ? OR project_id IS NULL ORDER BY name",
@@ -60,31 +62,13 @@ impl ActivityRepository {
         rows.into_iter().map(|r| Self::map_row(&r)).collect()
     }
 
-    fn map_row(row: &AnyRow) -> Result<ActivityRow, crate::Error> {
-        Ok(ActivityRow {
-            id: row.try_get("id")?,
-            project_id: row.try_get("project_id")?,
-            name: row.try_get("name")?,
-            comment: row.try_get("comment")?,
-            visible: bool_col(row, "visible"),
-            billable: bool_col(row, "billable"),
-        })
+    fn map_row(row: &AnyRow) -> Result<ActivityView, crate::Error> {
+        Ok(ActivityView::new(
+            ActivityId::from_str(&row.try_get::<String, _>("id")?)?,
+            row.try_get("name")?,
+            row.try_get("comment")?,
+        ))
     }
-}
-
-fn bool_col(row: &AnyRow, col: &str) -> bool {
-    row.try_get::<bool, _>(col)
-        .unwrap_or_else(|_| row.try_get::<i64, _>(col).map(|v| v != 0).unwrap_or(false))
-}
-
-#[derive(Debug, Clone)]
-pub struct ActivityRow {
-    pub id: String,
-    pub project_id: Option<String>,
-    pub name: String,
-    pub comment: Option<String>,
-    pub visible: bool,
-    pub billable: bool,
 }
 
 #[async_trait]

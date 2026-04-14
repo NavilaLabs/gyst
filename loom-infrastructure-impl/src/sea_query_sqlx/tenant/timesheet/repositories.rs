@@ -1,11 +1,15 @@
 use std::ops::Deref;
+use std::str::FromStr;
 
 use async_trait::async_trait;
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
+use loom_core::admin::user::UserId;
+use loom_core::tenant::activity::ActivityId;
 use loom_core::tenant::timesheet::{
     Timesheet, TimesheetEvent, TimesheetId, TimesheetRepository as TimesheetRepositoryTrait,
+    TimesheetView,
 };
 use sqlx::{Row, any::AnyRow};
 
@@ -43,7 +47,7 @@ impl TimesheetRepository {
     /// # Errors
     ///
     /// Returns an error if the database query fails.
-    pub async fn recent_for_user(&self, user_id: &str) -> Result<Vec<TimesheetRow>, crate::Error> {
+    pub async fn recent_for_user(&self, user_id: &str) -> Result<Vec<TimesheetView>, crate::Error> {
         let sql = format!(
             "{} WHERE user_id = ? ORDER BY start_time DESC LIMIT 50",
             Self::SELECT
@@ -63,7 +67,7 @@ impl TimesheetRepository {
     pub async fn running_for_user(
         &self,
         user_id: &str,
-    ) -> Result<Option<TimesheetRow>, crate::Error> {
+    ) -> Result<Option<TimesheetView>, crate::Error> {
         let sql = format!(
             "{} WHERE user_id = ? AND end_time IS NULL ORDER BY start_time DESC LIMIT 1",
             Self::SELECT
@@ -75,53 +79,21 @@ impl TimesheetRepository {
         row.map(|r| Self::map_row(&r)).transpose()
     }
 
-    fn map_row(row: &AnyRow) -> Result<TimesheetRow, crate::Error> {
-        Ok(TimesheetRow {
-            id: row.try_get("id")?,
-            user_id: row.try_get("user_id")?,
-            project_id: row.try_get("project_id").ok(),
-            activity_id: row.try_get("activity_id").ok(),
-            start_time: row.try_get("start_time")?,
-            end_time: row.try_get("end_time")?,
-            duration: row.try_get("duration")?,
-            description: row.try_get("description")?,
-            timezone: row.try_get("timezone")?,
-            billable: bool_col(row, "billable"),
-            exported: bool_col(row, "exported"),
-            hourly_rate: row.try_get("hourly_rate")?,
-            fixed_rate: row.try_get("fixed_rate")?,
-            internal_rate: row.try_get("internal_rate")?,
-            rate: row.try_get("rate")?,
-        })
+    fn map_row(row: &AnyRow) -> Result<TimesheetView, crate::Error> {
+        Ok(TimesheetView::new(
+            TimesheetId::from_str(&row.try_get::<String, _>("id")?)?,
+            UserId::from_str(&row.try_get::<String, _>("user_id")?)?,
+            row.try_get::<String, _>("activity_id")
+                .ok()
+                .map(|activity_id| ActivityId::from_str(&activity_id))
+                .transpose()?,
+            row.try_get("start_time")?,
+            row.try_get("end_time")?,
+            row.try_get("duration")?,
+            row.try_get("description")?,
+            row.try_get("timezone")?,
+        ))
     }
-}
-
-fn bool_col(row: &AnyRow, col: &str) -> bool {
-    row.try_get::<bool, _>(col)
-        .unwrap_or_else(|_| row.try_get::<i64, _>(col).map(|v| v != 0).unwrap_or(false))
-}
-
-#[derive(Debug, Clone)]
-pub struct TimesheetRow {
-    pub id: String,
-    pub user_id: String,
-    pub project_id: Option<String>,
-    pub activity_id: Option<String>,
-    pub start_time: String,
-    pub end_time: Option<String>,
-    pub duration: Option<i32>,
-    pub description: Option<String>,
-    pub timezone: String,
-    pub billable: bool,
-    pub exported: bool,
-    /// Snapshot of the applicable hourly rate in cents at the time of stopping.
-    pub hourly_rate: Option<i64>,
-    /// Fixed rate override in cents (mutually exclusive with `hourly_rate`).
-    pub fixed_rate: Option<i64>,
-    /// Internal (cost) rate in cents for profitability calculations.
-    pub internal_rate: Option<i64>,
-    /// Total billable amount in cents: `hourly_rate * duration / 3600`.
-    pub rate: Option<i64>,
 }
 
 #[async_trait]

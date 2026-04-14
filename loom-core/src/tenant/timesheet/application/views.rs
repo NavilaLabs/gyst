@@ -8,7 +8,7 @@ pub type UserId = AggregateId;
 pub struct TimesheetView {
     id: TimesheetId,
     user_id: UserId,
-    activity_id: ActivityId,
+    activity_id: Option<ActivityId>,
     start_time: String,
     end_time: Option<String>,
     duration: Option<i32>,
@@ -22,7 +22,7 @@ impl TimesheetView {
     pub const fn new(
         id: TimesheetId,
         user_id: UserId,
-        activity_id: ActivityId,
+        activity_id: Option<ActivityId>,
         start_time: String,
         end_time: Option<String>,
         duration: Option<i32>,
@@ -52,8 +52,8 @@ impl TimesheetView {
     }
 
     #[must_use]
-    pub const fn get_activity_id(&self) -> &ActivityId {
-        &self.activity_id
+    pub const fn get_activity_id(&self) -> Option<&ActivityId> {
+        self.activity_id.as_ref()
     }
 
     #[must_use]
