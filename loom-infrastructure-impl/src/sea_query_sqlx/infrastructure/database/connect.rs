@@ -2,11 +2,13 @@ use std::{str::FromStr, time::Duration};
 
 use loom_infrastructure::{
     config::CONFIG,
-    database::database_uri_factory::{self, DatabaseUriType},
+    database::{
+        DatabaseUri,
+        database_uri_factory::{self, DatabaseUriType},
+    },
 };
 use sqlx::any::AnyPoolOptions;
 use tracing::info;
-use url::Url;
 
 use crate::{
     Error, ScopeAdmin, ScopeDefault, ScopeTenant,
@@ -17,7 +19,7 @@ impl<Scope> Pool<Scope, StateDisconnected> {
     /// # Errors
     ///
     /// Returns an error if the pool cannot connect to the database at `uri`.
-    pub async fn connect(uri: &Url) -> Result<Pool<Scope, StateConnected>, Error> {
+    pub async fn connect(uri: &DatabaseUri) -> Result<Pool<Scope, StateConnected>, Error> {
         sqlx::any::install_default_drivers();
 
         let mut pool = AnyPoolOptions::new();
@@ -40,11 +42,13 @@ impl<Scope> Pool<Scope, StateDisconnected> {
                 );
             }
         };
+
         info!("Configured database pool: {:?}", pool);
         info!("Establishing connection to database at URL: {}", uri);
         let pool = Pool::new(
             StateConnected::new(pool.connect(uri.as_str()).await?),
             database_type,
+            uri.tenant_token().copied(),
         );
 
         info!("Connected to database at URL: {uri}");
@@ -88,6 +92,11 @@ impl Pool<ScopeDefault, StateDisconnected> {
     ///
     /// Panics if the hardcoded default URI fails to parse (should never happen).
     pub async fn connect_default() -> Result<Pool<ScopeDefault, StateConnected>, Error> {
-        Self::connect(&Url::from_str("sqlite:///file:loom?mode=memory&cache=shared").unwrap()).await
+        Self::connect(
+            &url::Url::from_str("sqlite:///file:loom?mode=memory&cache=shared")
+                .unwrap()
+                .into(),
+        )
+        .await
     }
 }

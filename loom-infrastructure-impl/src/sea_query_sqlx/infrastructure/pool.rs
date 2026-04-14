@@ -1,19 +1,12 @@
-use std::fmt::Display;
+use std::{fmt::Display, marker::PhantomData};
 
 use loom_infrastructure::ImplError;
 use sea_query::{PostgresQueryBuilder, SqliteQueryBuilder};
 use sea_query_sqlx::{SqlxBinder, SqlxValues};
 use sqlx::types::Uuid;
-use url::Url;
 
 pub type ConnectedAdminPool = Pool<ScopeAdmin, StateConnected>;
 pub type ConnectedTenantPool = Pool<ScopeTenant, StateConnected>;
-
-impl ConnectedTenantPool {
-    pub fn tenant_id(&self) -> Uuid {
-        self._scope
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct ScopeDefault;
@@ -22,9 +15,7 @@ pub struct ScopeDefault;
 pub struct ScopeAdmin;
 
 #[derive(Debug, Clone)]
-pub struct ScopeTenant {
-    tenant_id: Uuid,
-}
+pub struct ScopeTenant;
 
 #[derive(Debug, Clone)]
 pub struct StateConnected {
@@ -69,7 +60,8 @@ impl DatabaseType {
 pub struct Pool<Scope, State = StateDisconnected> {
     state: State,
     database_type: DatabaseType,
-    scope: Scope,
+    scope: PhantomData<Scope>,
+    tenant_id: Option<Uuid>,
 }
 
 impl<Scope, State> ImplError for Pool<Scope, State> {
@@ -86,16 +78,21 @@ impl<Scope, State> Pool<Scope, State>
 where
     Self: Sized,
 {
-    pub const fn new(state: State, database_type: DatabaseType, scope: Scope) -> Self {
+    pub const fn new(state: State, database_type: DatabaseType, tenant_id: Option<Uuid>) -> Self {
         Self {
             state,
             database_type,
-            scope,
+            scope: PhantomData,
+            tenant_id,
         }
     }
 
-    pub const fn get_database_type(&self) -> &DatabaseType {
+    pub const fn database_type(&self) -> &DatabaseType {
         &self.database_type
+    }
+
+    pub const fn tenant_id(&self) -> Option<&Uuid> {
+        self.tenant_id.as_ref()
     }
 
     pub fn build_query<S: SqlxBinder>(&self, statement: &S) -> (String, SqlxValues) {
@@ -110,7 +107,7 @@ impl<Scope> Pool<Scope, StateConnected> {
     }
 
     #[must_use]
-    pub fn get_uri(&self) -> Url {
+    pub fn get_uri(&self) -> url::Url {
         self.state.pool.connect_options().database_url.clone()
     }
 }

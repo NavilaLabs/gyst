@@ -4,10 +4,8 @@ use eventually_projection::{Projector, RawEvent};
 use crate::{
     ConnectedTenantPool,
     sea_query_sqlx::tenant::{
-        activity::projectors::ActivityProjector, activity_rate::projectors::ActivityRateProjector,
-        customer::projectors::CustomerProjector, project::projectors::ProjectProjector,
-        project_rate::projectors::ProjectRateProjector, tag::projectors::TagProjector,
-        timesheet::projectors::TimesheetProjector,
+        activity::projectors::ActivityProjector, timesheet::projectors::TimesheetProjector,
+        timesheet_tag::projectors::TimesheetTagProjector,
     },
 };
 
@@ -20,26 +18,18 @@ use crate::{
 /// event being applied before the corresponding `CustomerCreated` has been
 /// committed).
 pub struct TenantProjector {
-    customer: CustomerProjector,
-    project: ProjectProjector,
     activity: ActivityProjector,
     timesheet: TimesheetProjector,
-    tag: TagProjector,
-    project_rate: ProjectRateProjector,
-    activity_rate: ActivityRateProjector,
+    timesheet_tag: TimesheetTagProjector,
 }
 
 impl TenantProjector {
     #[must_use]
-    pub fn new(pool: ConnectedTenantPool) -> Self {
+    pub fn new(pool: &ConnectedTenantPool) -> Self {
         Self {
-            customer: CustomerProjector::new(pool.clone()),
-            project: ProjectProjector::new(pool.clone()),
             activity: ActivityProjector::new(pool.clone()),
             timesheet: TimesheetProjector::new(pool.clone()),
-            tag: TagProjector::new(pool.clone()),
-            project_rate: ProjectRateProjector::new(pool.clone()),
-            activity_rate: ActivityRateProjector::new(pool),
+            timesheet_tag: TimesheetTagProjector::new(pool.clone()),
         }
     }
 }
@@ -49,13 +39,9 @@ impl Projector for TenantProjector {
     type Error = crate::Error;
 
     async fn handle(&mut self, event: RawEvent) -> Result<(), Self::Error> {
-        self.customer.handle(event.clone()).await?;
-        self.project.handle(event.clone()).await?;
         self.activity.handle(event.clone()).await?;
         self.timesheet.handle(event.clone()).await?;
-        self.tag.handle(event.clone()).await?;
-        self.project_rate.handle(event.clone()).await?;
-        self.activity_rate.handle(event).await?;
+        self.timesheet_tag.handle(event.clone()).await?;
         Ok(())
     }
 }

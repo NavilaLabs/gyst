@@ -1,16 +1,16 @@
 use async_trait::async_trait;
 use eventually_projection::{Projector, RawEvent};
-use loom_core::tenant::tag::TagEvent;
+use loom_core::tenant::timesheet_tag::TimesheetTagEvent;
 use sea_query::{Condition, DynIden, Expr, ExprTrait, OnConflict, Query, TableRef};
 use sea_query_sqlx::SqlxBinder;
 
 use crate::{ConnectedTenantPool, DatabaseType};
 
-pub struct TagProjector {
+pub struct TimesheetTagProjector {
     pool: ConnectedTenantPool,
 }
 
-impl TagProjector {
+impl TimesheetTagProjector {
     const TAGS_TABLE: &'static str = "projections__tags";
     const TIMESHEET_TAGS_TABLE: &'static str = "projections__timesheet_tags";
 
@@ -21,13 +21,14 @@ impl TagProjector {
 }
 
 #[async_trait]
-impl Projector for TagProjector {
+impl Projector for TimesheetTagProjector {
     type Error = crate::Error;
 
     async fn handle(&mut self, event: RawEvent) -> Result<(), Self::Error> {
         match event.event_type.as_str() {
             "TagCreated" => {
-                let TagEvent::Created { id, name } = serde_json::from_slice(&event.payload_bytes)?
+                let TimesheetTagEvent::Created { id, name } =
+                    serde_json::from_slice(&event.payload_bytes)?
                 else {
                     return Ok(());
                 };
@@ -45,7 +46,8 @@ impl Projector for TagProjector {
                     .await?;
             }
             "TagRenamed" => {
-                let TagEvent::Renamed { name } = serde_json::from_slice(&event.payload_bytes)?
+                let TimesheetTagEvent::Renamed { name } =
+                    serde_json::from_slice(&event.payload_bytes)?
                 else {
                     return Ok(());
                 };
@@ -59,7 +61,7 @@ impl Projector for TagProjector {
                     )
                     .to_owned();
 
-                let (sql, values) = match self.pool.get_database_type() {
+                let (sql, values) = match self.pool.database_type() {
                     DatabaseType::Sqlite => query.build_sqlx(sea_query::SqliteQueryBuilder),
                     DatabaseType::Postgres => query.build_sqlx(sea_query::PostgresQueryBuilder),
                 };
@@ -68,7 +70,7 @@ impl Projector for TagProjector {
                     .await?;
             }
             "TagTimesheetTagged" => {
-                let TagEvent::TimesheetTagged { timesheet_id } =
+                let TimesheetTagEvent::TimesheetTagged { timesheet_id } =
                     serde_json::from_slice(&event.payload_bytes)?
                 else {
                     return Ok(());
@@ -90,7 +92,7 @@ impl Projector for TagProjector {
                     .await?;
             }
             "TagTimesheetUntagged" => {
-                let TagEvent::TimesheetUntagged { timesheet_id } =
+                let TimesheetTagEvent::TimesheetUntagged { timesheet_id } =
                     serde_json::from_slice(&event.payload_bytes)?
                 else {
                     return Ok(());
@@ -105,7 +107,7 @@ impl Projector for TagProjector {
                     )
                     .to_owned();
 
-                let (sql, values) = match self.pool.get_database_type() {
+                let (sql, values) = match self.pool.database_type() {
                     DatabaseType::Sqlite => query.build_sqlx(sea_query::SqliteQueryBuilder),
                     DatabaseType::Postgres => query.build_sqlx(sea_query::PostgresQueryBuilder),
                 };

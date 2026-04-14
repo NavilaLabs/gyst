@@ -18,8 +18,6 @@ pub enum Error {
     #[error("{0}")]
     SeaQuerySqlxError(#[from] sea_query_sqlx::Error),
     #[error("{0}")]
-    UrlParseError(#[from] url::ParseError),
-    #[error("{0}")]
     UuidError(#[from] uuid::Error),
     #[error("bcrypt error: {0}")]
     BcryptError(#[from] bcrypt::BcryptError),

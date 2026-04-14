@@ -54,7 +54,7 @@ impl Projector for WorkspaceRoleProjector {
                     .on_conflict(OnConflict::new().do_nothing().to_owned())
                     .to_owned();
 
-                let (sql, values) = match self.pool.get_database_type() {
+                let (sql, values) = match self.pool.database_type() {
                     DatabaseType::Sqlite => query.build_sqlx(SqliteQueryBuilder),
                     DatabaseType::Postgres => query.build_sqlx(PostgresQueryBuilder),
                 };
@@ -83,7 +83,7 @@ impl Projector for WorkspaceRoleProjector {
                     .on_conflict(OnConflict::new().do_nothing().to_owned())
                     .to_owned();
 
-                let (sql, values) = match self.pool.get_database_type() {
+                let (sql, values) = match self.pool.database_type() {
                     DatabaseType::Sqlite => query.build_sqlx(SqliteQueryBuilder),
                     DatabaseType::Postgres => query.build_sqlx(PostgresQueryBuilder),
                 };
@@ -113,7 +113,7 @@ impl Projector for WorkspaceRoleProjector {
                     )
                     .to_owned();
 
-                let (sql, values) = match self.pool.get_database_type() {
+                let (sql, values) = match self.pool.database_type() {
                     DatabaseType::Sqlite => query.build_sqlx(SqliteQueryBuilder),
                     DatabaseType::Postgres => query.build_sqlx(PostgresQueryBuilder),
                 };

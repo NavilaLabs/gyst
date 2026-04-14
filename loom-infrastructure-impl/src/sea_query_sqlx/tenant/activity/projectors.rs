@@ -26,11 +26,8 @@ impl Projector for ActivityProjector {
     async fn handle(&mut self, event: RawEvent) -> Result<(), Self::Error> {
         match event.event_type.as_str() {
             "ActivityCreated" => {
-                let ActivityEvent::Created {
-                    id,
-                    project_id,
-                    name,
-                } = serde_json::from_slice(&event.payload_bytes)?
+                let ActivityEvent::Created { id, name, comment } =
+                    serde_json::from_slice(&event.payload_bytes)?
                 else {
                     return Ok(());
                 };
@@ -39,14 +36,10 @@ impl Projector for ActivityProjector {
                     .into_table(TableRef::from(Self::TABLE))
                     .columns([
                         DynIden::from("id"),
-                        DynIden::from("project_id"),
                         DynIden::from("name"),
+                        DynIden::from("comment"),
                     ])
-                    .values_panic([
-                        id.to_string().into(),
-                        project_id.map(|p| p.to_string()).into(),
-                        name.into(),
-                    ])
+                    .values_panic([id.to_string().into(), name.into(), comment.into()])
                     .on_conflict(OnConflict::new().do_nothing().to_owned())
                     .to_owned();
 
@@ -56,12 +49,8 @@ impl Projector for ActivityProjector {
                     .await?;
             }
             "ActivityUpdated" => {
-                let ActivityEvent::Updated {
-                    name,
-                    comment,
-                    visible,
-                    billable,
-                } = serde_json::from_slice(&event.payload_bytes)?
+                let ActivityEvent::Updated { name, comment } =
+                    serde_json::from_slice(&event.payload_bytes)?
                 else {
                     return Ok(());
                 };
@@ -71,8 +60,6 @@ impl Projector for ActivityProjector {
                     .values([
                         (DynIden::from("name"), name.into()),
                         (DynIden::from("comment"), comment.into()),
-                        (DynIden::from("visible"), visible.into()),
-                        (DynIden::from("billable"), billable.into()),
                     ])
                     .cond_where(
                         Condition::all()
@@ -80,7 +67,7 @@ impl Projector for ActivityProjector {
                     )
                     .to_owned();
 
-                let (sql, values) = match self.pool.get_database_type() {
+                let (sql, values) = match self.pool.database_type() {
                     DatabaseType::Sqlite => query.build_sqlx(sea_query::SqliteQueryBuilder),
                     DatabaseType::Postgres => query.build_sqlx(sea_query::PostgresQueryBuilder),
                 };

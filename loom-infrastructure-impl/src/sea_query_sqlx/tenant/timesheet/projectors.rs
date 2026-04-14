@@ -30,11 +30,9 @@ impl Projector for TimesheetProjector {
                 let TimesheetEvent::Started {
                     id,
                     user_id,
-                    project_id,
                     activity_id,
                     start_time,
                     timezone,
-                    billable,
                 } = serde_json::from_slice(&event.payload_bytes)?
                 else {
                     return Ok(());
@@ -45,20 +43,16 @@ impl Projector for TimesheetProjector {
                     .columns([
                         DynIden::from("id"),
                         DynIden::from("user_id"),
-                        DynIden::from("project_id"),
                         DynIden::from("activity_id"),
                         DynIden::from("start_time"),
                         DynIden::from("timezone"),
-                        DynIden::from("billable"),
                     ])
                     .values_panic([
                         id.to_string().into(),
                         user_id.to_string().into(),
-                        project_id.map(|v| v.to_string()).into(),
                         activity_id.map(|v| v.to_string()).into(),
                         start_time.into(),
                         timezone.into(),
-                        billable.into(),
                     ])
                     .on_conflict(OnConflict::new().do_nothing().to_owned())
                     .to_owned();
@@ -69,14 +63,8 @@ impl Projector for TimesheetProjector {
                     .await?;
             }
             "TimesheetStopped" => {
-                let TimesheetEvent::Stopped {
-                    end_time,
-                    duration,
-                    hourly_rate,
-                    fixed_rate,
-                    internal_rate,
-                    rate,
-                } = serde_json::from_slice(&event.payload_bytes)?
+                let TimesheetEvent::Stopped { end_time, duration } =
+                    serde_json::from_slice(&event.payload_bytes)?
                 else {
                     return Ok(());
                 };
@@ -86,10 +74,6 @@ impl Projector for TimesheetProjector {
                     .values([
                         (DynIden::from("end_time"), end_time.into()),
                         (DynIden::from("duration"), duration.into()),
-                        (DynIden::from("hourly_rate"), hourly_rate.into()),
-                        (DynIden::from("fixed_rate"), fixed_rate.into()),
-                        (DynIden::from("internal_rate"), internal_rate.into()),
-                        (DynIden::from("rate"), rate.into()),
                     ])
                     .cond_where(
                         Condition::all()
@@ -97,7 +81,7 @@ impl Projector for TimesheetProjector {
                     )
                     .to_owned();
 
-                let (sql, values) = match self.pool.get_database_type() {
+                let (sql, values) = match self.pool.database_type() {
                     DatabaseType::Sqlite => query.build_sqlx(sea_query::SqliteQueryBuilder),
                     DatabaseType::Postgres => query.build_sqlx(sea_query::PostgresQueryBuilder),
                 };
@@ -106,27 +90,22 @@ impl Projector for TimesheetProjector {
                     .await?;
             }
             "TimesheetUpdated" => {
-                let TimesheetEvent::Updated {
-                    description,
-                    billable,
-                } = serde_json::from_slice(&event.payload_bytes)?
+                let TimesheetEvent::Updated { description } =
+                    serde_json::from_slice(&event.payload_bytes)?
                 else {
                     return Ok(());
                 };
 
                 let query = Query::update()
                     .table(TableRef::from(Self::TABLE))
-                    .values([
-                        (DynIden::from("description"), description.into()),
-                        (DynIden::from("billable"), billable.into()),
-                    ])
+                    .values([(DynIden::from("description"), description.into())])
                     .cond_where(
                         Condition::all()
                             .add(Expr::col("id").eq(Expr::val(event.stream_id.clone()))),
                     )
                     .to_owned();
 
-                let (sql, values) = match self.pool.get_database_type() {
+                let (sql, values) = match self.pool.database_type() {
                     DatabaseType::Sqlite => query.build_sqlx(sea_query::SqliteQueryBuilder),
                     DatabaseType::Postgres => query.build_sqlx(sea_query::PostgresQueryBuilder),
                 };
@@ -135,27 +114,22 @@ impl Projector for TimesheetProjector {
                     .await?;
             }
             "TimesheetReassigned" => {
-                let TimesheetEvent::Reassigned {
-                    project_id,
-                    activity_id,
-                } = serde_json::from_slice(&event.payload_bytes)?
+                let TimesheetEvent::Reassigned { activity_id } =
+                    serde_json::from_slice(&event.payload_bytes)?
                 else {
                     return Ok(());
                 };
 
                 let query = Query::update()
                     .table(TableRef::from(Self::TABLE))
-                    .values([
-                        (DynIden::from("project_id"), project_id.to_string().into()),
-                        (DynIden::from("activity_id"), activity_id.to_string().into()),
-                    ])
+                    .values([(DynIden::from("activity_id"), activity_id.to_string().into())])
                     .cond_where(
                         Condition::all()
                             .add(Expr::col("id").eq(Expr::val(event.stream_id.clone()))),
                     )
                     .to_owned();
 
-                let (sql, values) = match self.pool.get_database_type() {
+                let (sql, values) = match self.pool.database_type() {
                     DatabaseType::Sqlite => query.build_sqlx(sea_query::SqliteQueryBuilder),
                     DatabaseType::Postgres => query.build_sqlx(sea_query::PostgresQueryBuilder),
                 };
@@ -186,25 +160,7 @@ impl Projector for TimesheetProjector {
                     )
                     .to_owned();
 
-                let (sql, values) = match self.pool.get_database_type() {
-                    DatabaseType::Sqlite => query.build_sqlx(sea_query::SqliteQueryBuilder),
-                    DatabaseType::Postgres => query.build_sqlx(sea_query::PostgresQueryBuilder),
-                };
-                sqlx::query_with(&sql, values)
-                    .execute(self.pool.as_ref())
-                    .await?;
-            }
-            "TimesheetExported" => {
-                let query = Query::update()
-                    .table(TableRef::from(Self::TABLE))
-                    .values([(DynIden::from("exported"), true.into())])
-                    .cond_where(
-                        Condition::all()
-                            .add(Expr::col("id").eq(Expr::val(event.stream_id.clone()))),
-                    )
-                    .to_owned();
-
-                let (sql, values) = match self.pool.get_database_type() {
+                let (sql, values) = match self.pool.database_type() {
                     DatabaseType::Sqlite => query.build_sqlx(sea_query::SqliteQueryBuilder),
                     DatabaseType::Postgres => query.build_sqlx(sea_query::PostgresQueryBuilder),
                 };
