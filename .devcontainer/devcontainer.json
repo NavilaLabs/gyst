@@ -5,7 +5,7 @@
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "initializeCommand": "chmod +x .devcontainer/scripts/initialize.sh && .devcontainer/scripts/initialize.sh",
   "postStartCommand": "chmod +x .devcontainer/scripts/post-start.sh && .devcontainer/scripts/post-start.sh",
-  "appPort": [8080],
+  "appPort": 8080,
   "forwardPorts": [8080],
   "customizations": {
     "vscode": {
@@ -16,11 +16,11 @@
         "fill-labs.dependi",
         "DioxusLabs.dioxus",
         "bradlc.vscode-tailwindcss",
-        "macabeus.vscode-fluent",
-      ],
-    },
+        "macabeus.vscode-fluent"
+      ]
+    }
   },
   "mounts": [
-    "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached",
-  ],
+    "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached"
+  ]
 }
