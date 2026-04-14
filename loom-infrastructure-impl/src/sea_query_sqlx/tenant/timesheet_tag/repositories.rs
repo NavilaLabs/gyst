@@ -7,7 +7,7 @@ use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
 use loom_core::tenant::timesheet_tag::{
     TimesheetTag, TimesheetTagEvent, TimesheetTagId,
-    TimesheetTagRepository as TimesheetTagRepositoryTrait, TimesheetTagView,
+    TimesheetTagRepository as TimesheetTagRepositoryTrait, TimesheetTagRow,
 };
 use sqlx::{Row, any::AnyRow};
 
@@ -38,7 +38,7 @@ impl TimesheetTagRepository {
     /// # Errors
     ///
     /// Returns an error if the database query fails.
-    pub async fn all(&self) -> Result<Vec<TimesheetTagView>, crate::Error> {
+    pub async fn all(&self) -> Result<Vec<TimesheetTagRow>, crate::Error> {
         let rows = sqlx::query("SELECT id, name FROM projections__timesheet_tags ORDER BY name")
             .fetch_all(self.pool.as_ref())
             .await?;
@@ -51,12 +51,12 @@ impl TimesheetTagRepository {
     pub async fn for_timesheet(
         &self,
         timesheet_id: &str,
-    ) -> Result<Vec<TimesheetTagView>, crate::Error> {
+    ) -> Result<Vec<TimesheetTagRow>, crate::Error> {
         let rows = sqlx::query(
             "SELECT t.id, t.name \
-             FROM projections__tags t \
-             JOIN projections__timesheet_tags tt ON tt.tag_id = t.id \
-             WHERE tt.timesheet_id = ? \
+             FROM projections__timesheet_tags t \
+             JOIN projections__timesheet_has_tags tht ON tht.timesheet_tag_id = t.id \
+             WHERE tht.timesheet_id = ? \
              ORDER BY t.name",
         )
         .bind(timesheet_id)
@@ -65,8 +65,8 @@ impl TimesheetTagRepository {
         rows.into_iter().map(|r| Self::map_row(&r)).collect()
     }
 
-    fn map_row(row: &AnyRow) -> Result<TimesheetTagView, crate::Error> {
-        Ok(TimesheetTagView::new(
+    fn map_row(row: &AnyRow) -> Result<TimesheetTagRow, crate::Error> {
+        Ok(TimesheetTagRow::new(
             TimesheetTagId::from_str(&row.try_get::<String, _>("id")?)?,
             row.try_get("name")?,
         ))

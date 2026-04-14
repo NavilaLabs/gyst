@@ -4,10 +4,10 @@ use eventually::aggregate::{
     repository::{Getter, Saver},
 };
 use loom_core::tenant::{
-    tag::{CreateTagInput, RenameTagInput, Tag, TagEvent, TagId},
     timesheet::TimesheetId,
+    timesheet_tag::{CreateTagInput, RenameTagInput, Tag, TagEvent, TagId},
 };
-use loom_infrastructure_impl::tenant::tag::repositories::{TagRepository, TagRow};
+use loom_infrastructure_impl::tenant::timesheet_tag::repositories::{TagRepository, TagRow};
 
 pub async fn list(workspace_id: &str) -> Result<Vec<TagRow>> {
     let pool = super::tenant_pool(workspace_id).await?;

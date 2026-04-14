@@ -48,3 +48,64 @@ impl TimesheetTagCommand {
             .map_err(|e| timesheet_tag::DomainError::AggregateError(e).into())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use eventually::aggregate::{Aggregate, Root};
+
+    use super::*;
+
+    fn test_id() -> TimesheetTagId {
+        "019d0ce8-facb-7c90-b9d7-287ae4f17c91"
+            .parse()
+            .expect("valid UUID")
+    }
+
+    fn make_shell(id: TimesheetTagId) -> TimesheetTagCommand {
+        let tag = TimesheetTag::apply(
+            None,
+            TimesheetTagEvent::Created { id, name: "seed".to_string() },
+        )
+        .expect("seed tag");
+        Root::<TimesheetTag>::rehydrate_from_state(1, tag).into()
+    }
+
+    #[test]
+    fn create_returns_root_with_applied_state() {
+        let shell = make_shell(test_id());
+        let id: TimesheetTagId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92".parse().unwrap();
+
+        let result = shell.create(id.clone(), "backend".to_string());
+
+        assert!(result.is_ok());
+        let cmd = result.unwrap();
+        assert_eq!(cmd.aggregate_id(), &id);
+        assert_eq!(cmd.name(), "backend");
+        assert_eq!(cmd.version(), 1);
+    }
+
+    #[test]
+    fn rename_records_event_and_increments_version() {
+        let mut cmd = make_shell(test_id());
+        cmd.rename("frontend".to_string()).expect("rename must succeed");
+        assert_eq!(cmd.version(), 2);
+        assert_eq!(cmd.name(), "frontend");
+    }
+
+    #[test]
+    fn tag_timesheet_records_event_and_increments_version() {
+        let mut cmd = make_shell(test_id());
+        let ts_id: TimesheetId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92".parse().unwrap();
+        cmd.tag_timesheet(ts_id).expect("tag_timesheet must succeed");
+        assert_eq!(cmd.version(), 2);
+    }
+
+    #[test]
+    fn untag_timesheet_records_event_and_increments_version() {
+        let mut cmd = make_shell(test_id());
+        let ts_id: TimesheetId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92".parse().unwrap();
+        cmd.tag_timesheet(ts_id.clone()).unwrap();
+        cmd.untag_timesheet(ts_id).expect("untag_timesheet must succeed");
+        assert_eq!(cmd.version(), 3);
+    }
+}

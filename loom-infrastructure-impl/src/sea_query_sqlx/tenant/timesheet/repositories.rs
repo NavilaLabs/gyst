@@ -9,7 +9,7 @@ use loom_core::admin::user::UserId;
 use loom_core::tenant::activity::ActivityId;
 use loom_core::tenant::timesheet::{
     Timesheet, TimesheetEvent, TimesheetId, TimesheetRepository as TimesheetRepositoryTrait,
-    TimesheetView,
+    TimesheetRow,
 };
 use sqlx::{Row, any::AnyRow};
 
@@ -37,9 +37,8 @@ impl TimesheetRepository {
         Ok(Self { pool, repository })
     }
 
-    const SELECT: &'static str = "SELECT id, user_id, project_id, activity_id, start_time, end_time, \
-         duration, description, timezone, billable, exported, \
-         hourly_rate, fixed_rate, internal_rate, rate \
+    const SELECT: &'static str =
+        "SELECT id, user_id, activity_id, start_time, end_time, duration, description, timezone \
          FROM projections__timesheets";
 
     /// Most-recent 50 timesheets for a user, newest first.
@@ -47,7 +46,7 @@ impl TimesheetRepository {
     /// # Errors
     ///
     /// Returns an error if the database query fails.
-    pub async fn recent_for_user(&self, user_id: &str) -> Result<Vec<TimesheetView>, crate::Error> {
+    pub async fn recent_for_user(&self, user_id: &str) -> Result<Vec<TimesheetRow>, crate::Error> {
         let sql = format!(
             "{} WHERE user_id = ? ORDER BY start_time DESC LIMIT 50",
             Self::SELECT
@@ -67,7 +66,7 @@ impl TimesheetRepository {
     pub async fn running_for_user(
         &self,
         user_id: &str,
-    ) -> Result<Option<TimesheetView>, crate::Error> {
+    ) -> Result<Option<TimesheetRow>, crate::Error> {
         let sql = format!(
             "{} WHERE user_id = ? AND end_time IS NULL ORDER BY start_time DESC LIMIT 1",
             Self::SELECT
@@ -79,8 +78,8 @@ impl TimesheetRepository {
         row.map(|r| Self::map_row(&r)).transpose()
     }
 
-    fn map_row(row: &AnyRow) -> Result<TimesheetView, crate::Error> {
-        Ok(TimesheetView::new(
+    fn map_row(row: &AnyRow) -> Result<TimesheetRow, crate::Error> {
+        Ok(TimesheetRow::new(
             TimesheetId::from_str(&row.try_get::<String, _>("id")?)?,
             UserId::from_str(&row.try_get::<String, _>("user_id")?)?,
             row.try_get::<String, _>("activity_id")

@@ -8,17 +8,11 @@ use loom_core::{
     shared::AggregateId,
     tenant::{
         activity::ActivityId,
-        project::ProjectId,
-        timesheet::{Timesheet, TimesheetEvent, TimesheetId},
+        timesheet::{Timesheet, TimesheetEvent, TimesheetId, TimesheetRow},
     },
 };
 use loom_infrastructure_impl::{
-    ConnectedTenantPool,
-    tenant::{
-        activity_rate::repositories::ActivityRateRepository,
-        project_rate::repositories::ProjectRateRepository,
-        timesheet::repositories::{TimesheetRepository, TimesheetRow},
-    },
+    ConnectedTenantPool, tenant::timesheet::repositories::TimesheetRepository,
 };
 
 pub async fn recent(workspace_id: &str, user_id: &str) -> Result<Vec<TimesheetRow>> {
@@ -54,7 +48,6 @@ pub async fn start(
 
     let id = TimesheetId::new();
     let uid: AggregateId = user_id.parse()?;
-    let pid: Option<ProjectId> = project_id.as_deref().map(str::parse).transpose()?;
     let aid: Option<ActivityId> = activity_id.as_deref().map(str::parse).transpose()?;
     let start_time = Utc::now().to_rfc3339();
     let timezone = "UTC".to_string();
@@ -63,11 +56,9 @@ pub async fn start(
         TimesheetEvent::Started {
             id: id.clone(),
             user_id: uid,
-            project_id: pid,
             activity_id: aid,
             start_time: start_time.clone(),
             timezone: timezone.clone(),
-            billable,
         }
         .into(),
     )?;
@@ -75,30 +66,22 @@ pub async fn start(
         root.record_that(
             TimesheetEvent::Updated {
                 description: description.clone(),
-                billable,
             }
             .into(),
         )?;
     }
     repo.save(&mut root).await?;
 
-    Ok(TimesheetRow {
-        id: id.to_string(),
-        user_id: user_id.to_string(),
-        project_id,
+    Ok(TimesheetRow::new(
+        id,
+        user_id,
         activity_id,
         start_time,
-        end_time: None,
-        duration: None,
+        None,
+        None,
         description,
         timezone,
-        billable,
-        exported: false,
-        hourly_rate: None,
-        fixed_rate: None,
-        internal_rate: None,
-        rate: None,
-    })
+    ))
 }
 
 /// # Errors

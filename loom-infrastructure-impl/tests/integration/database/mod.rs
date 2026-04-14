@@ -7,8 +7,10 @@ use loom_infrastructure_impl::{
 pub mod postgres;
 pub mod sqlite;
 
+#[allow(dead_code)]
 type ConnectedDefaultPool = Pool<ScopeDefault, StateConnected>;
 
+#[allow(dead_code)]
 async fn initialize_databases(
     pool: &ConnectedDefaultPool,
     tenant_token: &str,
@@ -29,11 +31,13 @@ pub mod test_lifecycle {
     use loom_tests::test_lifecycle;
     use sqlx::any::install_default_drivers;
 
+    #[allow(dead_code)]
     pub fn before() {
         test_lifecycle::before();
         install_default_drivers();
     }
 
+    #[allow(dead_code)]
     pub fn after() {
         test_lifecycle::after();
     }

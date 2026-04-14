@@ -33,6 +33,7 @@ fn escape_pg_like_prefix(prefix: &str) -> String {
         .replace('_', "\\_")
 }
 
+#[allow(dead_code)]
 async fn reset_entire_database(pool: &ConnectedDefaultPool) -> Result<(), Error> {
     sqlx::query(
         "SELECT pg_terminate_backend(pid) FROM pg_stat_activity
@@ -68,11 +69,13 @@ async fn reset_entire_database(pool: &ConnectedDefaultPool) -> Result<(), Error>
     Ok(())
 }
 
+#[allow(dead_code)]
 async fn get_default_pool() -> Result<ConnectedDefaultPool, Error> {
     let database_url = "postgres://postgres:postgres@postgres-test:5432/postgres";
     Pool::connect(&DatabaseUri::from(Url::parse(database_url).unwrap())).await
 }
 
+#[allow(dead_code)]
 async fn get_admin_pool() -> Result<Pool<ScopeAdmin, StateConnected>, Error> {
     let admin_database_name = CONFIG.get_database().get_databases().get_admin().get_name();
     let database_url =
@@ -80,6 +83,7 @@ async fn get_admin_pool() -> Result<Pool<ScopeAdmin, StateConnected>, Error> {
     Pool::connect(&DatabaseUri::from(Url::parse(&database_url).unwrap())).await
 }
 
+#[allow(dead_code)]
 async fn get_tenant_pool(tenant_token: &str) -> Result<Pool<ScopeTenant, StateConnected>, Error> {
     let mut database_name_builder = TenantDatabaseNameConcreteBuilder::new();
     TenantDatabaseNameDirector::construct(&mut database_name_builder, tenant_token);
@@ -88,6 +92,7 @@ async fn get_tenant_pool(tenant_token: &str) -> Result<Pool<ScopeTenant, StateCo
     Pool::connect(&DatabaseUri::from(Url::parse(&database_url).unwrap())).await
 }
 
+#[allow(dead_code)]
 pub async fn refresh_databases(
     pool: &ConnectedDefaultPool,
     tenant_token: &str,
@@ -107,11 +112,15 @@ pub async fn refresh_databases(
 }
 
 pub mod tests {
+    #[allow(unused_imports)]
     use serial_test::serial;
+    #[allow(unused_imports)]
     use with_lifecycle::with_lifecycle;
 
+    #[allow(unused_imports)]
     use crate::database::test_lifecycle;
 
+    #[allow(unused_imports)]
     use super::*;
 
     // #[serial]

@@ -1,13 +1,13 @@
 use crate::tenant::activity::ActivityId;
 
 #[derive(Debug, Clone)]
-pub struct ActivityView {
+pub struct ActivityRow {
     id: ActivityId,
     name: String,
     comment: Option<String>,
 }
 
-impl ActivityView {
+impl ActivityRow {
     #[must_use]
     pub const fn new(id: ActivityId, name: String, comment: Option<String>) -> Self {
         Self { id, name, comment }

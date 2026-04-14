@@ -1,12 +1,12 @@
 use crate::tenant::timesheet_tag::TimesheetTagId;
 
 #[derive(Debug, Clone)]
-pub struct TimesheetTagView {
+pub struct TimesheetTagRow {
     id: TimesheetTagId,
     name: String,
 }
 
-impl TimesheetTagView {
+impl TimesheetTagRow {
     #[must_use]
     pub const fn new(id: TimesheetTagId, name: String) -> Self {
         Self { id, name }

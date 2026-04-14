@@ -37,6 +37,18 @@ impl PermissionRepository {
         }
     }
 
+    /// # Errors
+    ///
+    /// Returns an error if the event store repository cannot be initialized.
+    pub async fn from_pool(pool: ConnectedAdminPool) -> Result<Self, sqlx::migrate::MigrateError> {
+        let repository =
+            Repository::new(pool.as_ref().clone(), Json::default(), Json::default()).await?;
+        Ok(Self {
+            database: pool,
+            repository,
+        })
+    }
+
     #[must_use]
     pub const fn event_store(
         &self,
@@ -78,12 +90,12 @@ impl Query<AnyRow> for PermissionRepository {
     type Filter = Condition;
 
     async fn get_one(&self, id: Uuid) -> Result<PermissionView, crate::Error> {
-        self.get_one_by(Condition::all().add(Expr::col("id").eq(id)))
+        self.get_one_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
             .await
     }
 
     async fn find_one(&self, id: Uuid) -> Result<Option<PermissionView>, crate::Error> {
-        self.find_one_by(Condition::all().add(Expr::col("id").eq(id)))
+        self.find_one_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
             .await
     }
 
@@ -109,7 +121,8 @@ impl Query<AnyRow> for PermissionRepository {
         if ids.is_empty() {
             return Ok(vec![]);
         }
-        self.find_many_by(Condition::all().add(Expr::col("id").is_in(ids)))
+        let id_strings: Vec<String> = ids.into_iter().map(|id| id.to_string()).collect();
+        self.find_many_by(Condition::all().add(Expr::col("id").is_in(id_strings)))
             .await
     }
 

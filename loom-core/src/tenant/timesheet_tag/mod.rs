@@ -4,7 +4,7 @@ pub(crate) mod domain;
 pub use application::{
     commands::TimesheetTagCommand,
     inputs::{CreateTimesheetTagInput, RenameTimesheetTagInput},
-    views::TimesheetTagView,
+    views::TimesheetTagRow,
 };
 pub use domain::{
     Error as DomainError,

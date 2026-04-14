@@ -2,7 +2,7 @@ use anyhow::{Result, bail};
 use loom_infrastructure_impl::Pool;
 use sqlx::AnyPool;
 
-use crate::auth::CurrentUser;
+use crate::authentication::CurrentUser;
 
 /// Live permission checks against the projection tables.
 ///

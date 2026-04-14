@@ -4,7 +4,7 @@ pub(crate) mod domain;
 pub use application::{
     commands::ActivityCommand,
     inputs::{CreateActivityInput, UpdateActivityInput},
-    views::ActivityView,
+    views::ActivityRow,
 };
 pub use domain::{
     Error as DomainError,

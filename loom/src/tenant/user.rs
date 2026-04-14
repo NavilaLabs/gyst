@@ -6,7 +6,7 @@ use loom_core::admin::user::{UserCommand, UserId, UserQuery, UserRepository};
 pub struct UserController<R: UserRepository, P: Send + Sync> {
     repository: Arc<R>,
     commands: Arc<UserCommand>,
-    queries: Arc<UserQuery<P>>, // TODO: this is not a query root
+    queries: Arc<UserQuery<P>>,
 }
 
 impl<R: UserRepository, P: Send + Sync> UserController<R, P> {

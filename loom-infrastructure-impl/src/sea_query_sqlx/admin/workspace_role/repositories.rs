@@ -95,12 +95,12 @@ impl Query<AnyRow> for WorkspaceRoleRepository {
     type Filter = Condition;
 
     async fn get_one(&self, id: Uuid) -> Result<WorkspaceRoleView, crate::Error> {
-        self.get_one_by(Condition::all().add(Expr::col("id").eq(id)))
+        self.get_one_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
             .await
     }
 
     async fn find_one(&self, id: Uuid) -> Result<Option<WorkspaceRoleView>, crate::Error> {
-        self.find_one_by(Condition::all().add(Expr::col("id").eq(id)))
+        self.find_one_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
             .await
     }
 
@@ -129,7 +129,8 @@ impl Query<AnyRow> for WorkspaceRoleRepository {
         if ids.is_empty() {
             return Ok(vec![]);
         }
-        self.find_many_by(Condition::all().add(Expr::col("id").is_in(ids)))
+        let id_strings: Vec<String> = ids.into_iter().map(|id| id.to_string()).collect();
+        self.find_many_by(Condition::all().add(Expr::col("id").is_in(id_strings)))
             .await
     }
 

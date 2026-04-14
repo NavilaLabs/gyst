@@ -38,6 +38,10 @@ impl From<Url> for DatabaseUri {
             .as_str()
             .split('_')
             .next_back()
+            .map(|s| {
+                // Strip any file extension (e.g. ".sqlite") before parsing.
+                s.split('.').next().unwrap_or(s)
+            })
             .map(Uuid::parse_str)
             .transpose()
             .ok()
@@ -64,5 +68,56 @@ impl Deref for DatabaseUri {
 impl Display for DatabaseUri {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.uri)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(s: &str) -> DatabaseUri {
+        DatabaseUri::from(Url::parse(s).expect("valid URL"))
+    }
+
+    #[test]
+    fn from_url_preserves_the_url() {
+        let url = Url::parse("sqlite:///tmp/loom_admin.sqlite").unwrap();
+        let uri = DatabaseUri::from(url.clone());
+        assert_eq!(uri.as_ref(), &url);
+    }
+
+    #[test]
+    fn display_shows_the_url_string() {
+        let s = "sqlite:///tmp/loom_admin.sqlite";
+        let uri = parse(s);
+        assert_eq!(uri.to_string(), s);
+    }
+
+    #[test]
+    fn deref_gives_access_to_url_scheme() {
+        let uri = parse("sqlite:///tmp/loom.sqlite");
+        assert_eq!(uri.scheme(), "sqlite");
+    }
+
+    #[test]
+    fn tenant_token_is_none_for_plain_admin_path() {
+        let uri = parse("sqlite:///tmp/loom_admin.sqlite");
+        assert!(uri.tenant_token().is_none());
+    }
+
+    #[test]
+    fn tenant_token_is_extracted_when_path_ends_with_valid_uuid() {
+        // The path segment after the last `_` must be a valid UUID.
+        let uuid_str = "019d0ce8-facb-7c90-b9d7-287ae4f17c91";
+        let uri = parse(&format!("sqlite:///tmp/loom_tenant_{uuid_str}.sqlite"));
+        let token = uri.tenant_token();
+        assert!(token.is_some(), "expected a tenant token to be extracted");
+        assert_eq!(token.unwrap().to_string(), uuid_str);
+    }
+
+    #[test]
+    fn tenant_token_is_none_when_suffix_is_not_a_uuid() {
+        let uri = parse("sqlite:///tmp/loom_tenant_not_a_uuid.sqlite");
+        assert!(uri.tenant_token().is_none());
     }
 }

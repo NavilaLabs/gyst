@@ -156,4 +156,45 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(cmd.version(), 2);
     }
+
+    #[test]
+    fn revoke_user_role_records_event() {
+        let id = test_id();
+        let mut cmd = make_command_shell(id);
+        let user_id: UserId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92".parse().unwrap();
+        let role_id: WorkspaceRoleId = "019d0ce8-facb-7c90-b9d7-287ae4f17c93".parse().unwrap();
+
+        cmd.assign_user_role(user_id.clone(), role_id.clone()).unwrap();
+        let result = cmd.revoke_user_role(user_id, role_id);
+
+        assert!(result.is_ok());
+        assert_eq!(cmd.version(), 3);
+    }
+
+    #[test]
+    fn grant_user_permission_records_event() {
+        let id = test_id();
+        let mut cmd = make_command_shell(id);
+        let user_id: UserId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92".parse().unwrap();
+        let perm_id: PermissionId = "019d0ce8-facb-7c90-b9d7-287ae4f17c94".parse().unwrap();
+
+        let result = cmd.grant_user_permission(user_id, perm_id);
+
+        assert!(result.is_ok());
+        assert_eq!(cmd.version(), 2);
+    }
+
+    #[test]
+    fn revoke_user_permission_records_event() {
+        let id = test_id();
+        let mut cmd = make_command_shell(id);
+        let user_id: UserId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92".parse().unwrap();
+        let perm_id: PermissionId = "019d0ce8-facb-7c90-b9d7-287ae4f17c94".parse().unwrap();
+
+        cmd.grant_user_permission(user_id.clone(), perm_id.clone()).unwrap();
+        let result = cmd.revoke_user_permission(user_id, perm_id);
+
+        assert!(result.is_ok());
+        assert_eq!(cmd.version(), 3);
+    }
 }

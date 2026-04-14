@@ -11,8 +11,8 @@ pub struct TimesheetTagProjector {
 }
 
 impl TimesheetTagProjector {
-    const TAGS_TABLE: &'static str = "projections__tags";
-    const TIMESHEET_TAGS_TABLE: &'static str = "projections__timesheet_tags";
+    const TAGS_TABLE: &'static str = "projections__timesheet_tags";
+    const TIMESHEET_TAGS_TABLE: &'static str = "projections__timesheet_has_tags";
 
     #[must_use]
     pub const fn new(pool: ConnectedTenantPool) -> Self {
@@ -78,7 +78,7 @@ impl Projector for TimesheetTagProjector {
 
                 let query = Query::insert()
                     .into_table(TableRef::from(Self::TIMESHEET_TAGS_TABLE))
-                    .columns([DynIden::from("timesheet_id"), DynIden::from("tag_id")])
+                    .columns([DynIden::from("timesheet_id"), DynIden::from("timesheet_tag_id")])
                     .values_panic([
                         timesheet_id.to_string().into(),
                         event.stream_id.clone().into(),
@@ -103,7 +103,7 @@ impl Projector for TimesheetTagProjector {
                     .cond_where(
                         Condition::all()
                             .add(Expr::col("timesheet_id").eq(Expr::val(timesheet_id.to_string())))
-                            .add(Expr::col("tag_id").eq(Expr::val(event.stream_id.clone()))),
+                            .add(Expr::col("timesheet_tag_id").eq(Expr::val(event.stream_id.clone()))),
                     )
                     .to_owned();
 

@@ -1,7 +1,7 @@
 pub(crate) mod application;
 pub(crate) mod domain;
 
-pub use application::{commands::TimesheetCommand, views::TimesheetView};
+pub use application::{commands::TimesheetCommand, views::TimesheetRow};
 pub use domain::{
     Error as DomainError,
     aggregates::{Timesheet, TimesheetId},

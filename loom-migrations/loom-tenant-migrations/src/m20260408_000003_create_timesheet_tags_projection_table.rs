@@ -28,22 +28,11 @@ impl MigrationTrait for Migration {
                     .col(uuid("timesheet_id"))
                     .col(uuid("timesheet_tag_id"))
                     .primary_key(Index::create().col("timesheet_id").col("timesheet_tag_id"))
+                    // No FK on timesheet_id: timesheets may not yet be in the projection table
+                    // when a tag event arrives; referential integrity is maintained at the app level.
                     .foreign_key(
                         ForeignKey::create()
-                            .name("fk_timesheet_tags_timesheet_id")
-                            .from(
-                                TableRef::Table("projections__timesheet_has_tags".into(), None),
-                                "timesheet_id",
-                            )
-                            .to(
-                                TableRef::Table("projections__timesheet_tags".into(), None),
-                                "id",
-                            )
-                            .on_delete(ForeignKeyAction::Cascade),
-                    )
-                    .foreign_key(
-                        ForeignKey::create()
-                            .name("fk_timesheet_tags_tag_id")
+                            .name("fk_timesheet_has_tags_tag_id")
                             .from(
                                 TableRef::Table("projections__timesheet_has_tags".into(), None),
                                 "timesheet_tag_id",

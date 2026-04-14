@@ -38,3 +38,49 @@ impl FromStr for AggregateId {
         Uuid::from_str(s).map(Self)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_generates_non_nil_uuid() {
+        assert!(!AggregateId::new().0.is_nil());
+    }
+
+    #[test]
+    fn two_new_ids_are_different() {
+        assert_ne!(AggregateId::new(), AggregateId::new());
+    }
+
+    #[test]
+    fn default_is_non_nil() {
+        assert!(!AggregateId::default().0.is_nil());
+    }
+
+    #[test]
+    fn from_str_parses_valid_uuid() {
+        let s = "019d0ce8-facb-7c90-b9d7-287ae4f17c91";
+        let id: AggregateId = s.parse().expect("must parse");
+        assert_eq!(id.to_string(), s);
+    }
+
+    #[test]
+    fn from_str_rejects_invalid_input() {
+        assert!("not-a-uuid".parse::<AggregateId>().is_err());
+    }
+
+    #[test]
+    fn display_roundtrips_through_from_str() {
+        let id = AggregateId::new();
+        let id2: AggregateId = id.to_string().parse().expect("must parse");
+        assert_eq!(id, id2);
+    }
+
+    #[test]
+    fn from_uuid_preserves_inner_value() {
+        let uuid = Uuid::parse_str("019d0ce8-facb-7c90-b9d7-287ae4f17c91").unwrap();
+        let id = AggregateId::from(uuid);
+        assert_eq!(id.0, uuid);
+    }
+}

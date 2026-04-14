@@ -1,10 +1,6 @@
 pub mod activity;
-pub mod activity_rate;
-pub mod customer;
-pub mod project;
-pub mod project_rate;
-pub mod tag;
 pub mod timesheet;
+pub mod timesheet_tag;
 pub mod user;
 
 /// Open a connection pool to the given workspace's tenant database.

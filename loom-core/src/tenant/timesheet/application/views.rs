@@ -5,7 +5,7 @@ use crate::tenant::timesheet::TimesheetId;
 pub type UserId = AggregateId;
 
 #[derive(Debug, Clone)]
-pub struct TimesheetView {
+pub struct TimesheetRow {
     id: TimesheetId,
     user_id: UserId,
     activity_id: Option<ActivityId>,
@@ -16,7 +16,7 @@ pub struct TimesheetView {
     timezone: String,
 }
 
-impl TimesheetView {
+impl TimesheetRow {
     #[allow(clippy::too_many_arguments)]
     #[must_use]
     pub const fn new(

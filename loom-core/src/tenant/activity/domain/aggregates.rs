@@ -58,3 +58,84 @@ impl Aggregate for Activity {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_id() -> ActivityId {
+        "019d0ce8-facb-7c90-b9d7-287ae4f17c91"
+            .parse()
+            .expect("valid UUID")
+    }
+
+    fn created(id: ActivityId, name: &str, comment: Option<&str>) -> ActivityEvent {
+        ActivityEvent::Created {
+            id,
+            name: name.to_string(),
+            comment: comment.map(str::to_owned),
+        }
+    }
+
+    #[test]
+    fn apply_created_to_no_state_builds_activity() {
+        let id = test_id();
+        let a = Activity::apply(None, created(id.clone(), "Debug", None)).unwrap();
+        assert_eq!(a.id(), &id);
+        assert_eq!(a.name(), "Debug");
+        assert!(a.comment().is_none());
+    }
+
+    #[test]
+    fn apply_created_stores_comment_when_provided() {
+        let id = test_id();
+        let a = Activity::apply(None, created(id, "Test", Some("a note"))).unwrap();
+        assert_eq!(a.comment(), Some(&"a note".to_string()));
+    }
+
+    #[test]
+    fn apply_created_to_existing_activity_returns_already_exists() {
+        let id = test_id();
+        let existing = Activity::apply(None, created(id.clone(), "First", None)).unwrap();
+        let result = Activity::apply(Some(existing), created(id, "Second", None));
+        assert!(matches!(result, Err(Error::AlreadyExists)));
+    }
+
+    #[test]
+    fn apply_updated_to_no_state_returns_not_found() {
+        let result = Activity::apply(
+            None,
+            ActivityEvent::Updated { name: "X".to_string(), comment: None },
+        );
+        assert!(matches!(result, Err(Error::NotFound)));
+    }
+
+    #[test]
+    fn apply_updated_mutates_name_and_comment() {
+        let id = test_id();
+        let existing = Activity::apply(None, created(id, "Old", None)).unwrap();
+        let updated = Activity::apply(
+            Some(existing),
+            ActivityEvent::Updated {
+                name: "New".to_string(),
+                comment: Some("note".to_string()),
+            },
+        )
+        .unwrap();
+        assert_eq!(updated.name(), "New");
+        assert_eq!(updated.comment(), Some(&"note".to_string()));
+    }
+
+    #[test]
+    fn apply_updated_can_clear_comment() {
+        let id = test_id();
+        let existing =
+            Activity::apply(None, created(id, "Old", Some("original note"))).unwrap();
+        let updated = Activity::apply(
+            Some(existing),
+            ActivityEvent::Updated { name: "New".to_string(), comment: None },
+        )
+        .unwrap();
+        assert!(updated.comment().is_none());
+    }
+}
