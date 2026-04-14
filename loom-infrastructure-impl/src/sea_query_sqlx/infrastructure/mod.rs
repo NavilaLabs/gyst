@@ -1,5 +1,6 @@
 pub mod database;
 mod pool;
+pub mod read_model;
 
 pub use pool::*;
 

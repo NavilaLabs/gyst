@@ -5,47 +5,34 @@ use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
 use loom_core::admin::permission::{Permission, PermissionEvent, PermissionView};
 use loom_infrastructure::query::{Query, RowToView};
-use sea_query::{Condition, Expr, ExprTrait, Func, SelectStatement};
+use sea_query::{Condition, Expr, ExprTrait};
 use sqlx::{Row, any::AnyRow, types::Uuid};
 
-use crate::ConnectedAdminPool;
+use crate::{
+    ConnectedAdminPool, infrastructure::read_model::SeaQueryReadModel, snapshot::SnapshotRepository,
+};
 
 const TABLE: &str = "permissions";
 
 pub struct PermissionRepository {
-    database: ConnectedAdminPool,
-    repository: Repository<Permission, Json<Permission>, Json<PermissionEvent>>,
+    store: SnapshotRepository<Permission, ConnectedAdminPool>,
 }
 
 impl Deref for PermissionRepository {
     type Target = Repository<Permission, Json<Permission>, Json<PermissionEvent>>;
 
     fn deref(&self) -> &Self::Target {
-        &self.repository
+        &self.store
     }
 }
 
 impl PermissionRepository {
-    #[must_use]
-    pub const fn new(
-        database: ConnectedAdminPool,
-        repository: Repository<Permission, Json<Permission>, Json<PermissionEvent>>,
-    ) -> Self {
-        Self {
-            database,
-            repository,
-        }
-    }
-
     /// # Errors
     ///
     /// Returns an error if the event store repository cannot be initialized.
     pub async fn from_pool(pool: ConnectedAdminPool) -> Result<Self, sqlx::migrate::MigrateError> {
-        let repository =
-            Repository::new(pool.as_ref().clone(), Json::default(), Json::default()).await?;
         Ok(Self {
-            database: pool,
-            repository,
+            store: SnapshotRepository::from_pool(pool).await?,
         })
     }
 
@@ -53,23 +40,11 @@ impl PermissionRepository {
     pub const fn event_store(
         &self,
     ) -> &Repository<Permission, Json<Permission>, Json<PermissionEvent>> {
-        &self.repository
+        self.store.event_store()
     }
 
-    #[allow(clippy::unused_self)]
-    fn select(&self) -> SelectStatement {
-        sea_query::Query::select()
-            .expr(Expr::col(sea_query::Asterisk))
-            .from(TABLE)
-            .to_owned()
-    }
-
-    #[allow(clippy::unused_self)]
-    fn select_count(&self) -> SelectStatement {
-        sea_query::Query::select()
-            .expr(Func::count(Expr::col(sea_query::Asterisk)))
-            .from(TABLE)
-            .to_owned()
+    const fn read_model(&self) -> SeaQueryReadModel<'_> {
+        SeaQueryReadModel::new(&self.store.pool, TABLE)
     }
 }
 
@@ -100,20 +75,16 @@ impl Query<AnyRow> for PermissionRepository {
     }
 
     async fn get_one_by(&self, filter: Condition) -> Result<PermissionView, crate::Error> {
-        let statement = self.select().cond_where(filter).to_owned();
-        let (sql, arguments) = self.database.build_query(&statement);
-        let row = sqlx::query_with(&sql, arguments)
-            .fetch_one(self.database.as_ref())
-            .await?;
+        let rm = self.read_model();
+        let stmt = rm.select().cond_where(filter).to_owned();
+        let row = rm.fetch_one_row(&stmt).await?;
         self.row_to_view(row)
     }
 
     async fn find_one_by(&self, filter: Condition) -> Result<Option<PermissionView>, crate::Error> {
-        let statement = self.select().cond_where(filter).to_owned();
-        let (sql, arguments) = self.database.build_query(&statement);
-        let row = sqlx::query_with(&sql, arguments)
-            .fetch_optional(self.database.as_ref())
-            .await?;
+        let rm = self.read_model();
+        let stmt = rm.select().cond_where(filter).to_owned();
+        let row = rm.fetch_optional_row(&stmt).await?;
         row.map(|r| self.row_to_view(r)).transpose()
     }
 
@@ -127,40 +98,28 @@ impl Query<AnyRow> for PermissionRepository {
     }
 
     async fn find_many_by(&self, filter: Condition) -> Result<Vec<PermissionView>, crate::Error> {
-        let statement = self.select().cond_where(filter).to_owned();
-        let (sql, arguments) = self.database.build_query(&statement);
-        let rows = sqlx::query_with(&sql, arguments)
-            .fetch_all(self.database.as_ref())
-            .await?;
+        let rm = self.read_model();
+        let stmt = rm.select().cond_where(filter).to_owned();
+        let rows = rm.fetch_all_rows(&stmt).await?;
         rows.into_iter().map(|row| self.row_to_view(row)).collect()
     }
 
     async fn all(&self) -> Result<Vec<PermissionView>, crate::Error> {
-        let (sql, arguments) = self.database.build_query(&self.select());
-        let rows = sqlx::query_with(&sql, arguments)
-            .fetch_all(self.database.as_ref())
-            .await?;
+        let rm = self.read_model();
+        let stmt = rm.select();
+        let rows = rm.fetch_all_rows(&stmt).await?;
         rows.into_iter().map(|row| self.row_to_view(row)).collect()
     }
 
     async fn count_by(&self, filter: Condition) -> Result<u64, crate::Error> {
-        let statement = self.select_count().cond_where(filter).to_owned();
-        let (sql, arguments) = self.database.build_query(&statement);
-        let row = sqlx::query_with(&sql, arguments)
-            .fetch_one(self.database.as_ref())
-            .await?;
-        let n: i64 = row.try_get(0)?;
-        #[allow(clippy::cast_sign_loss)]
-        Ok(n as u64)
+        let rm = self.read_model();
+        let stmt = rm.select_count().cond_where(filter).to_owned();
+        rm.count_rows(&stmt).await
     }
 
     async fn count(&self) -> Result<u64, crate::Error> {
-        let (sql, arguments) = self.database.build_query(&self.select_count());
-        let row = sqlx::query_with(&sql, arguments)
-            .fetch_one(self.database.as_ref())
-            .await?;
-        let n: i64 = row.try_get(0)?;
-        #[allow(clippy::cast_sign_loss)]
-        Ok(n as u64)
+        let rm = self.read_model();
+        let stmt = rm.select_count();
+        rm.count_rows(&stmt).await
     }
 }

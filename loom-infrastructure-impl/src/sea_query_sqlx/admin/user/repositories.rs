@@ -1,6 +1,7 @@
 use std::{ops::Deref, str::FromStr};
 
 use async_trait::async_trait;
+use eventually::aggregate::Root;
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
@@ -8,53 +9,44 @@ use loom_core::admin::user::{
     User, UserEvent, UserId, UserRepository as UserRepositoryTrait, UserView,
 };
 use loom_infrastructure::query::{Query, RowToView};
-use sea_query::{Alias, Condition, Expr, ExprTrait, Func, SelectStatement};
+use sea_query::{Alias, Condition, Expr, ExprTrait};
 use sqlx::{Row, any::AnyRow, types::Uuid};
 
-use crate::ConnectedAdminPool;
+use crate::{
+    ConnectedAdminPool, infrastructure::read_model::SeaQueryReadModel, snapshot::SnapshotRepository,
+};
 
 const TABLE: &str = "projections__users";
 
 pub struct UserRepository {
-    database: ConnectedAdminPool,
-    repository: Repository<User, Json<User>, Json<UserEvent>>,
+    store: SnapshotRepository<User, ConnectedAdminPool>,
 }
 
 impl Deref for UserRepository {
     type Target = Repository<User, Json<User>, Json<UserEvent>>;
 
     fn deref(&self) -> &Self::Target {
-        &self.repository
+        &self.store
     }
 }
 
 impl UserRepository {
-    #[must_use]
-    pub const fn new(
-        database: ConnectedAdminPool,
-        repository: Repository<User, Json<User>, Json<UserEvent>>,
-    ) -> Self {
-        Self {
-            database,
-            repository,
-        }
-    }
-
     /// # Errors
     ///
     /// Returns an error if the event store repository cannot be initialized.
     pub async fn from_pool(pool: ConnectedAdminPool) -> Result<Self, sqlx::migrate::MigrateError> {
-        let repository =
-            Repository::new(pool.as_ref().clone(), Json::default(), Json::default()).await?;
         Ok(Self {
-            database: pool,
-            repository,
+            store: SnapshotRepository::from_pool(pool).await?,
         })
     }
 
     #[must_use]
     pub const fn event_store(&self) -> &Repository<User, Json<User>, Json<UserEvent>> {
-        &self.repository
+        self.store.event_store()
+    }
+
+    const fn read_model(&self) -> SeaQueryReadModel<'_> {
+        SeaQueryReadModel::new(&self.store.pool, TABLE)
     }
 
     /// Returns `(user_id, email, password)` for the given email — intended
@@ -67,8 +59,6 @@ impl UserRepository {
         &self,
         email: &str,
     ) -> Result<Option<(String, String, String)>, crate::Error> {
-        // Build an explicit SELECT with named expressions to avoid any
-        // wildcard-expansion quirk in sea-query with AnyPool.
         let statement = sea_query::Query::select()
             .expr(Expr::col(Alias::new("id")))
             .expr(Expr::col(Alias::new("email")))
@@ -76,16 +66,15 @@ impl UserRepository {
             .from(Alias::new(TABLE))
             .and_where(Expr::col(Alias::new("email")).eq(email))
             .to_owned();
-        let (sql, arguments) = self.database.build_query(&statement);
+        let (sql, arguments) = self.store.pool.build_query(&statement);
 
         tracing::debug!(sql = %sql, "find_credentials_by_email");
 
         let row = sqlx::query_with(&sql, arguments)
-            .fetch_optional(self.database.as_ref())
+            .fetch_optional(self.store.pool.as_ref())
             .await?;
 
         row.map(|r| {
-            // Use positional indices — immune to column-name aliasing by the driver.
             let id: String = r.try_get(0usize)?;
             let email: String = r.try_get(1usize)?;
             let hash: String = r.try_get(2usize)?;
@@ -107,32 +96,13 @@ impl UserRepository {
     ///
     /// Returns an error if the database query fails.
     pub async fn find_view_by_id(&self, id: &str) -> Result<Option<UserView>, crate::Error> {
-        let statement = sea_query::Query::select()
-            .expr(Expr::col(sea_query::Asterisk))
-            .from(Alias::new(TABLE))
+        let rm = self.read_model();
+        let stmt = rm
+            .select()
             .and_where(Expr::col(Alias::new("id")).eq(id))
             .to_owned();
-        let (sql, arguments) = self.database.build_query(&statement);
-        let row = sqlx::query_with(&sql, arguments)
-            .fetch_optional(self.database.as_ref())
-            .await?;
+        let row = rm.fetch_optional_row(&stmt).await?;
         row.map(|r| self.row_to_view(r)).transpose()
-    }
-
-    #[allow(clippy::unused_self)]
-    fn select(&self) -> SelectStatement {
-        sea_query::Query::select()
-            .expr(Expr::col(sea_query::Asterisk))
-            .from(TABLE)
-            .to_owned()
-    }
-
-    #[allow(clippy::unused_self)]
-    fn select_count(&self) -> SelectStatement {
-        sea_query::Query::select()
-            .expr(Func::count(Expr::col(sea_query::Asterisk)))
-            .from(TABLE)
-            .to_owned()
     }
 }
 
@@ -179,24 +149,16 @@ impl Query<AnyRow> for UserRepository {
     }
 
     async fn get_one_by(&self, filter: Condition) -> Result<UserView, crate::Error> {
-        let statement = self.select().cond_where(filter).to_owned();
-        let (sql, arguments) = self.database.build_query(&statement);
-
-        let row = sqlx::query_with(&sql, arguments)
-            .fetch_one(self.database.as_ref())
-            .await?;
-
+        let rm = self.read_model();
+        let stmt = rm.select().cond_where(filter).to_owned();
+        let row = rm.fetch_one_row(&stmt).await?;
         self.row_to_view(row)
     }
 
     async fn find_one_by(&self, filter: Condition) -> Result<Option<UserView>, crate::Error> {
-        let statement = self.select().cond_where(filter).to_owned();
-        let (sql, arguments) = self.database.build_query(&statement);
-
-        let row = sqlx::query_with(&sql, arguments)
-            .fetch_optional(self.database.as_ref())
-            .await?;
-
+        let rm = self.read_model();
+        let stmt = rm.select().cond_where(filter).to_owned();
+        let row = rm.fetch_optional_row(&stmt).await?;
         row.map(|r| self.row_to_view(r)).transpose()
     }
 
@@ -209,63 +171,43 @@ impl Query<AnyRow> for UserRepository {
     }
 
     async fn find_many_by(&self, filter: Condition) -> Result<Vec<UserView>, crate::Error> {
-        let statement = self.select().cond_where(filter).to_owned();
-        let (sql, arguments) = self.database.build_query(&statement);
-
-        let rows = sqlx::query_with(&sql, arguments)
-            .fetch_all(self.database.as_ref())
-            .await?;
-
+        let rm = self.read_model();
+        let stmt = rm.select().cond_where(filter).to_owned();
+        let rows = rm.fetch_all_rows(&stmt).await?;
         rows.into_iter().map(|row| self.row_to_view(row)).collect()
     }
 
     async fn all(&self) -> Result<Vec<UserView>, crate::Error> {
-        let (sql, arguments) = self.database.build_query(&self.select());
-
-        let rows = sqlx::query_with(&sql, arguments)
-            .fetch_all(self.database.as_ref())
-            .await?;
-
+        let rm = self.read_model();
+        let stmt = rm.select();
+        let rows = rm.fetch_all_rows(&stmt).await?;
         rows.into_iter().map(|row| self.row_to_view(row)).collect()
     }
 
     async fn count_by(&self, filter: Condition) -> Result<u64, crate::Error> {
-        let statement = self.select_count().cond_where(filter).to_owned();
-        let (sql, arguments) = self.database.build_query(&statement);
-
-        let row = sqlx::query_with(&sql, arguments)
-            .fetch_one(self.database.as_ref())
-            .await?;
-
-        let n: i64 = row.try_get(0)?;
-        #[allow(clippy::cast_sign_loss)]
-        Ok(n as u64)
+        let rm = self.read_model();
+        let stmt = rm.select_count().cond_where(filter).to_owned();
+        rm.count_rows(&stmt).await
     }
 
     async fn count(&self) -> Result<u64, crate::Error> {
-        let (sql, arguments) = self.database.build_query(&self.select_count());
-
-        let row = sqlx::query_with(&sql, arguments)
-            .fetch_one(self.database.as_ref())
-            .await?;
-
-        let n: i64 = row.try_get(0)?;
-        #[allow(clippy::cast_sign_loss)]
-        Ok(n as u64)
+        let rm = self.read_model();
+        let stmt = rm.select_count();
+        rm.count_rows(&stmt).await
     }
 }
 
 #[async_trait]
 impl Getter<User> for UserRepository {
-    async fn get(&self, id: &UserId) -> Result<eventually::aggregate::Root<User>, GetError> {
-        self.repository.get(id).await
+    async fn get(&self, id: &UserId) -> Result<Root<User>, GetError> {
+        self.store.get(id).await
     }
 }
 
 #[async_trait]
 impl Saver<User> for UserRepository {
-    async fn save(&self, root: &mut eventually::aggregate::Root<User>) -> Result<(), SaveError> {
-        self.repository.save(root).await
+    async fn save(&self, root: &mut Root<User>) -> Result<(), SaveError> {
+        self.store.save(root).await
     }
 }
 
@@ -277,8 +219,6 @@ impl UserRepositoryTrait for UserRepository {
         &self,
         email: &str,
     ) -> Result<Option<(String, String, String)>, Self::Error> {
-        // Calls the inherent method defined above; inherent methods take
-        // priority over trait methods in method resolution, so this is not recursive.
         self.find_credentials_by_email(email).await
     }
 }

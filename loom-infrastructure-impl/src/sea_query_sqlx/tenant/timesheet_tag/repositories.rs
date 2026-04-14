@@ -1,7 +1,7 @@
-use std::ops::Deref;
-use std::str::FromStr;
+use std::{ops::Deref, str::FromStr};
 
 use async_trait::async_trait;
+use eventually::aggregate::Root;
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
@@ -11,17 +11,17 @@ use loom_core::tenant::timesheet_tag::{
 };
 use sqlx::{Row, any::AnyRow};
 
-use crate::ConnectedTenantPool;
+use crate::{ConnectedTenantPool, snapshot::SnapshotRepository};
 
 pub struct TimesheetTagRepository {
-    pool: ConnectedTenantPool,
-    repository: Repository<TimesheetTag, Json<TimesheetTag>, Json<TimesheetTagEvent>>,
+    store: SnapshotRepository<TimesheetTag, ConnectedTenantPool>,
 }
 
 impl Deref for TimesheetTagRepository {
     type Target = Repository<TimesheetTag, Json<TimesheetTag>, Json<TimesheetTagEvent>>;
+
     fn deref(&self) -> &Self::Target {
-        &self.repository
+        &self.store
     }
 }
 
@@ -30,9 +30,9 @@ impl TimesheetTagRepository {
     ///
     /// Returns an error if the event store repository cannot be initialized.
     pub async fn from_pool(pool: ConnectedTenantPool) -> Result<Self, sqlx::migrate::MigrateError> {
-        let repository =
-            Repository::new(pool.as_ref().clone(), Json::default(), Json::default()).await?;
-        Ok(Self { pool, repository })
+        Ok(Self {
+            store: SnapshotRepository::from_pool(pool).await?,
+        })
     }
 
     /// # Errors
@@ -40,7 +40,7 @@ impl TimesheetTagRepository {
     /// Returns an error if the database query fails.
     pub async fn all(&self) -> Result<Vec<TimesheetTagRow>, crate::Error> {
         let rows = sqlx::query("SELECT id, name FROM projections__timesheet_tags ORDER BY name")
-            .fetch_all(self.pool.as_ref())
+            .fetch_all(self.store.pool.as_ref())
             .await?;
         rows.into_iter().map(|r| Self::map_row(&r)).collect()
     }
@@ -60,7 +60,7 @@ impl TimesheetTagRepository {
              ORDER BY t.name",
         )
         .bind(timesheet_id)
-        .fetch_all(self.pool.as_ref())
+        .fetch_all(self.store.pool.as_ref())
         .await?;
         rows.into_iter().map(|r| Self::map_row(&r)).collect()
     }
@@ -75,21 +75,15 @@ impl TimesheetTagRepository {
 
 #[async_trait]
 impl Getter<TimesheetTag> for TimesheetTagRepository {
-    async fn get(
-        &self,
-        id: &TimesheetTagId,
-    ) -> Result<eventually::aggregate::Root<TimesheetTag>, GetError> {
-        self.repository.get(id).await
+    async fn get(&self, id: &TimesheetTagId) -> Result<Root<TimesheetTag>, GetError> {
+        self.store.get(id).await
     }
 }
 
 #[async_trait]
 impl Saver<TimesheetTag> for TimesheetTagRepository {
-    async fn save(
-        &self,
-        root: &mut eventually::aggregate::Root<TimesheetTag>,
-    ) -> Result<(), SaveError> {
-        self.repository.save(root).await
+    async fn save(&self, root: &mut Root<TimesheetTag>) -> Result<(), SaveError> {
+        self.store.save(root).await
     }
 }
 

@@ -1,7 +1,7 @@
-use std::ops::Deref;
-use std::str::FromStr;
+use std::{ops::Deref, str::FromStr};
 
 use async_trait::async_trait;
+use eventually::aggregate::Root;
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
@@ -10,17 +10,17 @@ use loom_core::tenant::activity::{
 };
 use sqlx::{Row, any::AnyRow};
 
-use crate::ConnectedTenantPool;
+use crate::{ConnectedTenantPool, snapshot::SnapshotRepository};
 
 pub struct ActivityRepository {
-    pool: ConnectedTenantPool,
-    repository: Repository<Activity, Json<Activity>, Json<ActivityEvent>>,
+    store: SnapshotRepository<Activity, ConnectedTenantPool>,
 }
 
 impl Deref for ActivityRepository {
     type Target = Repository<Activity, Json<Activity>, Json<ActivityEvent>>;
+
     fn deref(&self) -> &Self::Target {
-        &self.repository
+        &self.store
     }
 }
 
@@ -29,9 +29,9 @@ impl ActivityRepository {
     ///
     /// Returns an error if the event store repository cannot be initialized.
     pub async fn from_pool(pool: ConnectedTenantPool) -> Result<Self, sqlx::migrate::MigrateError> {
-        let repository =
-            Repository::new(pool.as_ref().clone(), Json::default(), Json::default()).await?;
-        Ok(Self { pool, repository })
+        Ok(Self {
+            store: SnapshotRepository::from_pool(pool).await?,
+        })
     }
 
     /// # Errors
@@ -40,7 +40,7 @@ impl ActivityRepository {
     pub async fn all(&self) -> Result<Vec<ActivityRow>, crate::Error> {
         let rows =
             sqlx::query("SELECT id, name, comment FROM projections__activities ORDER BY name")
-                .fetch_all(self.pool.as_ref())
+                .fetch_all(self.store.pool.as_ref())
                 .await?;
         rows.into_iter().map(|r| Self::map_row(&r)).collect()
     }
@@ -56,21 +56,15 @@ impl ActivityRepository {
 
 #[async_trait]
 impl Getter<Activity> for ActivityRepository {
-    async fn get(
-        &self,
-        id: &ActivityId,
-    ) -> Result<eventually::aggregate::Root<Activity>, GetError> {
-        self.repository.get(id).await
+    async fn get(&self, id: &ActivityId) -> Result<Root<Activity>, GetError> {
+        self.store.get(id).await
     }
 }
 
 #[async_trait]
 impl Saver<Activity> for ActivityRepository {
-    async fn save(
-        &self,
-        root: &mut eventually::aggregate::Root<Activity>,
-    ) -> Result<(), SaveError> {
-        self.repository.save(root).await
+    async fn save(&self, root: &mut Root<Activity>) -> Result<(), SaveError> {
+        self.store.save(root).await
     }
 }
 

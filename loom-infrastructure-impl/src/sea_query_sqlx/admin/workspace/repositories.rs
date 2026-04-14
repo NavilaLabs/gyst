@@ -1,6 +1,7 @@
 use std::{ops::Deref, str::FromStr};
 
 use async_trait::async_trait;
+use eventually::aggregate::Root;
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
@@ -9,47 +10,34 @@ use loom_core::admin::workspace::{
     WorkspaceView,
 };
 use loom_infrastructure::query::{Query, RowToView};
-use sea_query::{Alias, Condition, Expr, ExprTrait, Func, SelectStatement};
+use sea_query::{Alias, Condition, Expr, ExprTrait};
 use sqlx::{Row, any::AnyRow, types::Uuid};
 
-use crate::ConnectedAdminPool;
+use crate::{
+    ConnectedAdminPool, infrastructure::read_model::SeaQueryReadModel, snapshot::SnapshotRepository,
+};
 
 const TABLE: &str = "projections__workspaces";
 
 pub struct WorkspaceRepository {
-    database: ConnectedAdminPool,
-    repository: Repository<Workspace, Json<Workspace>, Json<WorkspaceEvent>>,
+    store: SnapshotRepository<Workspace, ConnectedAdminPool>,
 }
 
 impl Deref for WorkspaceRepository {
     type Target = Repository<Workspace, Json<Workspace>, Json<WorkspaceEvent>>;
 
     fn deref(&self) -> &Self::Target {
-        &self.repository
+        &self.store
     }
 }
 
 impl WorkspaceRepository {
-    #[must_use]
-    pub const fn new(
-        database: ConnectedAdminPool,
-        repository: Repository<Workspace, Json<Workspace>, Json<WorkspaceEvent>>,
-    ) -> Self {
-        Self {
-            database,
-            repository,
-        }
-    }
-
     /// # Errors
     ///
     /// Returns an error if the event store repository cannot be initialized.
     pub async fn from_pool(pool: ConnectedAdminPool) -> Result<Self, sqlx::migrate::MigrateError> {
-        let repository =
-            Repository::new(pool.as_ref().clone(), Json::default(), Json::default()).await?;
         Ok(Self {
-            database: pool,
-            repository,
+            store: SnapshotRepository::from_pool(pool).await?,
         })
     }
 
@@ -57,7 +45,11 @@ impl WorkspaceRepository {
     pub const fn event_store(
         &self,
     ) -> &Repository<Workspace, Json<Workspace>, Json<WorkspaceEvent>> {
-        &self.repository
+        self.store.event_store()
+    }
+
+    const fn read_model(&self) -> SeaQueryReadModel<'_> {
+        SeaQueryReadModel::new(&self.store.pool, TABLE)
     }
 
     /// Returns all (`workspace_id`, `workspace_name`) pairs the given user belongs to.
@@ -76,7 +68,7 @@ impl WorkspaceRepository {
              WHERE r.user_id = ?",
         )
         .bind(user_id)
-        .fetch_all(self.database.as_ref())
+        .fetch_all(self.store.pool.as_ref())
         .await?;
 
         rows.into_iter()
@@ -98,8 +90,6 @@ impl WorkspaceRepository {
         &self,
         user_id: &str,
     ) -> Result<Option<String>, crate::Error> {
-        use sea_query::{Alias, Expr, ExprTrait};
-
         let statement = sea_query::Query::select()
             .expr(Expr::col(Alias::new("workspace_id")))
             .from(Alias::new("projections__workspace_user_roles"))
@@ -107,9 +97,9 @@ impl WorkspaceRepository {
             .limit(1)
             .to_owned();
 
-        let (sql, arguments) = self.database.build_query(&statement);
+        let (sql, arguments) = self.store.pool.build_query(&statement);
         let row = sqlx::query_with(&sql, arguments)
-            .fetch_optional(self.database.as_ref())
+            .fetch_optional(self.store.pool.as_ref())
             .await?;
 
         row.map(|r| r.try_get::<String, _>(0usize).map_err(crate::Error::from))
@@ -122,32 +112,13 @@ impl WorkspaceRepository {
     ///
     /// Returns an error if the database query fails.
     pub async fn find_view_by_id(&self, id: &str) -> Result<Option<WorkspaceView>, crate::Error> {
-        let statement = sea_query::Query::select()
-            .expr(Expr::col(sea_query::Asterisk))
-            .from(Alias::new(TABLE))
+        let rm = self.read_model();
+        let stmt = rm
+            .select()
             .and_where(Expr::col(Alias::new("id")).eq(id))
             .to_owned();
-        let (sql, arguments) = self.database.build_query(&statement);
-        let row = sqlx::query_with(&sql, arguments)
-            .fetch_optional(self.database.as_ref())
-            .await?;
+        let row = rm.fetch_optional_row(&stmt).await?;
         row.map(|r| self.row_to_view(r)).transpose()
-    }
-
-    #[allow(clippy::unused_self)]
-    fn select(&self) -> SelectStatement {
-        sea_query::Query::select()
-            .expr(Expr::col(sea_query::Asterisk))
-            .from(TABLE)
-            .to_owned()
-    }
-
-    #[allow(clippy::unused_self)]
-    fn select_count(&self) -> SelectStatement {
-        sea_query::Query::select()
-            .expr(Func::count(Expr::col(sea_query::Asterisk)))
-            .from(TABLE)
-            .to_owned()
     }
 }
 
@@ -197,20 +168,16 @@ impl Query<AnyRow> for WorkspaceRepository {
     }
 
     async fn get_one_by(&self, filter: Condition) -> Result<WorkspaceView, crate::Error> {
-        let statement = self.select().cond_where(filter).to_owned();
-        let (sql, arguments) = self.database.build_query(&statement);
-        let row = sqlx::query_with(&sql, arguments)
-            .fetch_one(self.database.as_ref())
-            .await?;
+        let rm = self.read_model();
+        let stmt = rm.select().cond_where(filter).to_owned();
+        let row = rm.fetch_one_row(&stmt).await?;
         self.row_to_view(row)
     }
 
     async fn find_one_by(&self, filter: Condition) -> Result<Option<WorkspaceView>, crate::Error> {
-        let statement = self.select().cond_where(filter).to_owned();
-        let (sql, arguments) = self.database.build_query(&statement);
-        let row = sqlx::query_with(&sql, arguments)
-            .fetch_optional(self.database.as_ref())
-            .await?;
+        let rm = self.read_model();
+        let stmt = rm.select().cond_where(filter).to_owned();
+        let row = rm.fetch_optional_row(&stmt).await?;
         row.map(|r| self.row_to_view(r)).transpose()
     }
 
@@ -223,61 +190,43 @@ impl Query<AnyRow> for WorkspaceRepository {
     }
 
     async fn find_many_by(&self, filter: Condition) -> Result<Vec<WorkspaceView>, crate::Error> {
-        let statement = self.select().cond_where(filter).to_owned();
-        let (sql, arguments) = self.database.build_query(&statement);
-        let rows = sqlx::query_with(&sql, arguments)
-            .fetch_all(self.database.as_ref())
-            .await?;
+        let rm = self.read_model();
+        let stmt = rm.select().cond_where(filter).to_owned();
+        let rows = rm.fetch_all_rows(&stmt).await?;
         rows.into_iter().map(|row| self.row_to_view(row)).collect()
     }
 
     async fn all(&self) -> Result<Vec<WorkspaceView>, crate::Error> {
-        let (sql, arguments) = self.database.build_query(&self.select());
-        let rows = sqlx::query_with(&sql, arguments)
-            .fetch_all(self.database.as_ref())
-            .await?;
+        let rm = self.read_model();
+        let stmt = rm.select();
+        let rows = rm.fetch_all_rows(&stmt).await?;
         rows.into_iter().map(|row| self.row_to_view(row)).collect()
     }
 
     async fn count_by(&self, filter: Condition) -> Result<u64, crate::Error> {
-        let statement = self.select_count().cond_where(filter).to_owned();
-        let (sql, arguments) = self.database.build_query(&statement);
-        let row = sqlx::query_with(&sql, arguments)
-            .fetch_one(self.database.as_ref())
-            .await?;
-        let n: i64 = row.try_get(0)?;
-        #[allow(clippy::cast_sign_loss)]
-        Ok(n as u64)
+        let rm = self.read_model();
+        let stmt = rm.select_count().cond_where(filter).to_owned();
+        rm.count_rows(&stmt).await
     }
 
     async fn count(&self) -> Result<u64, crate::Error> {
-        let (sql, arguments) = self.database.build_query(&self.select_count());
-        let row = sqlx::query_with(&sql, arguments)
-            .fetch_one(self.database.as_ref())
-            .await?;
-        let n: i64 = row.try_get(0)?;
-        #[allow(clippy::cast_sign_loss)]
-        Ok(n as u64)
+        let rm = self.read_model();
+        let stmt = rm.select_count();
+        rm.count_rows(&stmt).await
     }
 }
 
 #[async_trait]
 impl Getter<Workspace> for WorkspaceRepository {
-    async fn get(
-        &self,
-        id: &WorkspaceId,
-    ) -> Result<eventually::aggregate::Root<Workspace>, GetError> {
-        self.repository.get(id).await
+    async fn get(&self, id: &WorkspaceId) -> Result<Root<Workspace>, GetError> {
+        self.store.get(id).await
     }
 }
 
 #[async_trait]
 impl Saver<Workspace> for WorkspaceRepository {
-    async fn save(
-        &self,
-        root: &mut eventually::aggregate::Root<Workspace>,
-    ) -> Result<(), SaveError> {
-        self.repository.save(root).await
+    async fn save(&self, root: &mut Root<Workspace>) -> Result<(), SaveError> {
+        self.store.save(root).await
     }
 }
 
