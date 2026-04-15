@@ -21,17 +21,16 @@ async fn _login(email: String, password: String) -> Result<(), ServerFnError> {
     use dioxus::fullstack::extract;
     use tower_sessions::Session;
 
-    let token =
-        loom::auth::login_user(email, password)
-            .await
-            .map_err(|e| ServerFnError::ServerError {
-                message: e.to_string(),
-                code: 401,
-                details: None,
-            })?;
+    let token = loom::authentication::login_user(&email, &password)
+        .await
+        .map_err(|e| ServerFnError::ServerError {
+            message: e.to_string(),
+            code: 401,
+            details: None,
+        })?;
 
     let current_user =
-        loom::auth::validate_token(&token).map_err(|e| ServerFnError::ServerError {
+        loom::authentication::validate_token(&token).map_err(|e| ServerFnError::ServerError {
             message: e.to_string(),
             code: 401,
             details: None,

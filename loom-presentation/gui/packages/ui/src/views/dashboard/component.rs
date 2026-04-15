@@ -2,7 +2,7 @@ use crate::components::atoms::card::{Card, CardContent};
 use crate::components::atoms::{Button, ButtonVariant, Select, SelectOption, ToastExt, Toasts};
 use crate::formatting;
 use crate::layouts::DefaultLayout;
-use crate::{ActivitiesCache, ProjectsCache, TimesheetsCache};
+use crate::{ActivitiesCache, TimesheetsCache};
 use chrono::{Datelike, Duration, Utc};
 use dioxus::prelude::*;
 use dioxus_charts::{BarChart, PieChart};
@@ -78,7 +78,6 @@ fn compute_stats(timesheets: &[api::timesheet::TimesheetDto]) -> DashStats {
         .iter()
         .filter(|ts| {
             ts.duration.is_some()
-                && ts.billable
                 && parse_date(&ts.start_time)
                     .map(|d| d >= week_start)
                     .unwrap_or(false)
@@ -98,9 +97,7 @@ fn compute_stats(timesheets: &[api::timesheet::TimesheetDto]) -> DashStats {
             let day = today - Duration::days(6 - i as i64);
             timesheets
                 .iter()
-                .filter(|ts| {
-                    ts.duration.is_some() && parse_date(&ts.start_time) == Some(day)
-                })
+                .filter(|ts| ts.duration.is_some() && parse_date(&ts.start_time) == Some(day))
                 .map(|ts| ts.duration.unwrap_or(0) as f32 / 3600.0)
                 .sum::<f32>()
         })
@@ -134,24 +131,17 @@ pub fn Dashboard() -> Element {
     let mut running: crate::RunningTimer = use_context();
     let mut toasts: Toasts = use_context();
     let user_settings: crate::UserSettings = use_context();
-    let workspace_settings: crate::WorkspaceSettings = use_context();
 
     let timesheets_cache: TimesheetsCache = use_context();
-    let projects_cache: ProjectsCache = use_context();
     let activities_cache: ActivitiesCache = use_context();
 
-    let mut projects = use_signal(|| projects_cache.read().clone());
     let mut activities = use_signal(|| activities_cache.read().clone());
     let mut recent = use_signal(|| timesheets_cache.read().clone());
 
-    let mut selected_project_id = use_signal(|| Option::<String>::None);
     let mut selected_activity_id = use_signal(|| Option::<String>::None);
     let elapsed_secs: crate::RunningElapsed = use_context();
 
     use_resource(move || async move {
-        if let Ok(list) = api::project::list_projects().await {
-            projects.set(list);
-        }
         if let Ok(list) = api::activity::list_activities().await {
             activities.set(list);
         }
@@ -161,12 +151,10 @@ pub fn Dashboard() -> Element {
     });
 
     let on_start = move |_| async move {
-        let pid = selected_project_id.peek().clone();
         let aid = selected_activity_id.peek().clone();
-        match api::timesheet::start_timesheet(pid, aid, None, true).await {
+        match api::timesheet::start_timesheet(aid, None).await {
             Ok(dto) => {
                 running.set(Some(dto));
-                selected_project_id.set(None);
                 selected_activity_id.set(None);
             }
             Err(e) => toasts.push_error(e.to_string()),
@@ -201,9 +189,6 @@ pub fn Dashboard() -> Element {
                 // ── Quick Start / Running Timer ──────────────────────────────
                 match running.read().clone() {
                     Some(ts) => {
-                        let proj_name = ts.project_id.as_ref()
-                            .and_then(|pid| projects.read().iter().find(|p| &p.id == pid).map(|p| p.name.clone()))
-                            .unwrap_or_else(|| "Unassigned".to_string());
                         let act_name = ts.activity_id.as_ref()
                             .and_then(|aid| activities.read().iter().find(|a| &a.id == aid).map(|a| a.name.clone()))
                             .unwrap_or_else(|| "Unassigned".to_string());
@@ -230,7 +215,7 @@ pub fn Dashboard() -> Element {
                                             }
                                         }
                                         div { class: "dashboard-timer-meta",
-                                            span { class: "text-sm font-medium", "{proj_name} · {act_name}" }
+                                            span { class: "text-sm font-medium", "{act_name}" }
                                             if let Some(ref desc) = ts.description {
                                                 span { class: "text-xs text-secondary", "{desc}" }
                                             }
@@ -247,14 +232,6 @@ pub fn Dashboard() -> Element {
                                     div { class: "qs-header",
                                         span { class: "qs-label", "Quick Start" }
                                         Icon { icon: HiLightningBolt, width: 14, height: 14 }
-                                    }
-                                    Select::<String> {
-                                        options: projects.read().iter()
-                                            .map(|p| SelectOption::new(p.id.clone(), p.name.clone()))
-                                            .collect(),
-                                        value: selected_project_id.read().clone(),
-                                        on_change: move |id: String| selected_project_id.set(Some(id)),
-                                        placeholder: "Select project…".to_string(),
                                     }
                                     Select::<String> {
                                         options: activities.read().iter()
@@ -406,9 +383,6 @@ pub fn Dashboard() -> Element {
                         div { class: "flex flex-col gap-2",
                             for ts in recent.read().iter().take(5) {
                                 {
-                                    let proj_name = ts.project_id.as_ref()
-                                        .and_then(|pid| projects.read().iter().find(|p| &p.id == pid).map(|p| p.name.clone()))
-                                        .unwrap_or_else(|| "—".to_string());
                                     let act_name = ts.activity_id.as_ref()
                                         .and_then(|aid| activities.read().iter().find(|a| &a.id == aid).map(|a| a.name.clone()))
                                         .unwrap_or_else(|| "—".to_string());
@@ -421,9 +395,6 @@ pub fn Dashboard() -> Element {
                                         let s = user_settings.read();
                                         formatting::format_datetime(&ts.start_time, &s.timezone, &s.date_format)
                                     };
-                                    let rate_str = ts.rate.map(|r| {
-                                        formatting::format_money(r, &workspace_settings.read().currency)
-                                    });
                                     rsx! {
                                         Card { key: "{ts.id}",
                                             CardContent {
@@ -433,23 +404,17 @@ pub fn Dashboard() -> Element {
                                                             if let Some(ref desc) = ts.description {
                                                                 "{desc}"
                                                             } else {
-                                                                "{proj_name} / {act_name}"
+                                                                "{act_name}"
                                                             }
                                                         }
                                                         span { class: "text-xs text-secondary",
-                                                            "{proj_name} · {act_name}"
+                                                            "{act_name}"
                                                         }
                                                         span { class: "text-xs text-secondary", "{date_str}" }
                                                     }
                                                     div { class: "flex flex-col items-end gap-1",
                                                         if let Some(ref d) = duration_str {
                                                             span { class: "text-sm font-medium", "{d}" }
-                                                        }
-                                                        if let Some(ref r) = rate_str {
-                                                            span { class: "text-xs text-secondary", "{r}" }
-                                                        }
-                                                        if ts.billable {
-                                                            span { class: "text-xs text-success", "Billable" }
                                                         }
                                                     }
                                                 }

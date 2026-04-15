@@ -107,7 +107,7 @@ pub mod tests {
         let repo = make_repository(&db).await;
         let view = repo.find_one(id.0).await.expect("query must succeed");
         assert!(view.is_some(), "projected permission must be findable");
-        assert_eq!(view.unwrap().get_name(), "can_invite");
+        assert_eq!(view.unwrap().name(), "can_invite");
     }
 
     /// The projector is idempotent — sending the same event twice must not error.

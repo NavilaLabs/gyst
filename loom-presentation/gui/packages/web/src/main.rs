@@ -9,11 +9,11 @@ use ui::{
         organisms::{Header, Sidebar},
     },
     views::{
-        setup::Setup, Activities, Customers, Dashboard, Database, Login, Projects, SelectWorkspace,
-        Settings, Tags, Timesheets,
+        setup::Setup, Activities, Dashboard, Database, Login, SelectWorkspace, Settings, Tags,
+        Timesheets,
     },
-    ActivitiesCache, CustomersCache, GlobalStyles, ProjectsCache, RunningElapsed, RunningTimer,
-    TagsCache, TimesheetsCache, UserSettings, WorkspaceSettings, FAVICON,
+    ActivitiesCache, GlobalStyles, RunningElapsed, RunningTimer, TagsCache, TimesheetsCache,
+    UserSettings, WorkspaceSettings, FAVICON,
 };
 
 /// Three-state auth signal shared across the whole app.
@@ -55,12 +55,6 @@ enum Route {
                 #[layout(RequireWorkspace)]
                     #[route("/dashboard")]
                     Dashboard {},
-
-                    #[route("/customers")]
-                    Customers {},
-
-                    #[route("/projects")]
-                    Projects {},
 
                     #[route("/activities")]
                     Activities {},
@@ -134,13 +128,11 @@ fn App() -> Element {
                 Route::Setup { .. } => 1,
                 Route::SelectWorkspace { .. } => 2,
                 Route::Dashboard { .. } => 3,
-                Route::Customers { .. } => 4,
-                Route::Projects { .. } => 5,
-                Route::Activities { .. } => 6,
-                Route::Timesheets { .. } => 7,
-                Route::Tags { .. } => 8,
-                Route::Settings { .. } => 9,
-                Route::Database { .. } => 10,
+                Route::Activities { .. } => 4,
+                Route::Timesheets { .. } => 5,
+                Route::Tags { .. } => 6,
+                Route::Settings { .. } => 7,
+                Route::Database { .. } => 8,
                 _ => -1,
             }
         }
@@ -204,8 +196,6 @@ fn Layout() -> Element {
         use_context_provider(|| Signal::new(None::<api::timesheet::TimesheetDto>));
 
     // Provide entity caches — views read from these to avoid the empty-then-loaded flash.
-    let mut customers_cache: CustomersCache = use_context_provider(|| Signal::new(Vec::new()));
-    let mut projects_cache: ProjectsCache = use_context_provider(|| Signal::new(Vec::new()));
     let mut activities_cache: ActivitiesCache = use_context_provider(|| Signal::new(Vec::new()));
     let mut tags_cache: TagsCache = use_context_provider(|| Signal::new(Vec::new()));
     let mut timesheets_cache: TimesheetsCache = use_context_provider(|| Signal::new(Vec::new()));
@@ -273,16 +263,10 @@ fn Layout() -> Element {
             workspace_settings.set(s);
         }
         // Pre-populate entity caches so views render with data immediately on mount.
-        if let Ok(list) = api::customer::list_customers().await {
-            customers_cache.set(list);
-        }
-        if let Ok(list) = api::project::list_projects().await {
-            projects_cache.set(list);
-        }
         if let Ok(list) = api::activity::list_activities().await {
             activities_cache.set(list);
         }
-        if let Ok(list) = api::tag::list_tags().await {
+        if let Ok(list) = api::timesheet_tag::list_tags().await {
             tags_cache.set(list);
         }
         if let Ok(list) = api::timesheet::list_timesheets().await {
@@ -293,8 +277,6 @@ fn Layout() -> Element {
     let route: Route = use_route();
     let view_title = match &route {
         Route::Dashboard {} => "Dashboard",
-        Route::Customers {} => "Customers",
-        Route::Projects {} => "Projects",
         Route::Activities {} => "Activities",
         Route::Timesheets {} => "Timesheets",
         Route::Tags {} => "Tags",

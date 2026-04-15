@@ -206,7 +206,7 @@ pub mod tests {
             .await
             .expect("query must succeed");
         assert!(result.is_some(), "running timesheet must be returned");
-        assert_eq!(result.unwrap().get_start_time(), "2024-01-01T09:00:00Z");
+        assert_eq!(result.unwrap().start_time(), "2024-01-01T09:00:00Z");
     }
 
     /// `running_for_user` returns `None` once the timesheet has been stopped.

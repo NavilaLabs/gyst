@@ -214,7 +214,7 @@ pub mod tests {
         // Tags are projected to `projections__timesheet_tags`.
         // Verify the tag row exists via `all()`:
         let all_tags = repo.all().await.expect("all() must succeed");
-        let found = all_tags.iter().any(|t| t.get_name() == "release");
+        let found = all_tags.iter().any(|t| t.name() == "release");
         assert!(found, "projected tag must appear in all()");
 
         // Verify for_timesheet works (returns nothing when no tagging done):
@@ -253,6 +253,6 @@ pub mod tests {
             .expect("for_timesheet must succeed");
 
         assert_eq!(tags.len(), 1);
-        assert_eq!(tags[0].get_name(), "backend");
+        assert_eq!(tags[0].name(), "backend");
     }
 }

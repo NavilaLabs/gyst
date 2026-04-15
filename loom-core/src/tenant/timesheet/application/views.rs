@@ -42,42 +42,42 @@ impl TimesheetRow {
     }
 
     #[must_use]
-    pub const fn get_id(&self) -> &TimesheetId {
+    pub const fn id(&self) -> &TimesheetId {
         &self.id
     }
 
     #[must_use]
-    pub const fn get_user_id(&self) -> &UserId {
+    pub const fn user_id(&self) -> &UserId {
         &self.user_id
     }
 
     #[must_use]
-    pub const fn get_activity_id(&self) -> Option<&ActivityId> {
+    pub const fn activity_id(&self) -> Option<&ActivityId> {
         self.activity_id.as_ref()
     }
 
     #[must_use]
-    pub fn get_start_time(&self) -> &str {
+    pub fn start_time(&self) -> &str {
         &self.start_time
     }
 
     #[must_use]
-    pub fn get_end_time(&self) -> Option<&str> {
+    pub fn end_time(&self) -> Option<&str> {
         self.end_time.as_deref()
     }
 
     #[must_use]
-    pub const fn get_duration(&self) -> Option<i32> {
+    pub const fn duration(&self) -> Option<i32> {
         self.duration
     }
 
     #[must_use]
-    pub fn get_description(&self) -> Option<&str> {
+    pub fn description(&self) -> Option<&str> {
         self.description.as_deref()
     }
 
     #[must_use]
-    pub fn get_timezone(&self) -> &str {
+    pub fn timezone(&self) -> &str {
         &self.timezone
     }
 }

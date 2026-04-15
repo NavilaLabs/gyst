@@ -12,7 +12,7 @@ pub trait CreateDatabaseUri {
     /// # Errors
     ///
     /// Returns an error if the URI cannot be constructed or parsed.
-    fn get_uri(
+    fn uri(
         &self,
         database_type: &str,
         tenant_token: Option<&str>,
@@ -47,13 +47,13 @@ pub enum DatabaseUriType {
 pub struct AdminDatabaseUri;
 
 impl CreateDatabaseUri for AdminDatabaseUri {
-    fn get_uri(
+    fn uri(
         &self,
         database_type: &str,
         _tenant_token: Option<&str>,
     ) -> Result<DatabaseUri, crate::Error> {
-        let base_uri = CONFIG.get_database().get_base_uri();
-        let admin_database_name = CONFIG.get_database().get_databases().get_admin().get_name();
+        let base_uri = CONFIG.database().base_uri();
+        let admin_database_name = CONFIG.database().databases().admin().name();
         let admin_uri = Url::parse(&format!("{base_uri}/{admin_database_name}"))?;
         let admin_uri = self.ensure_sqlite_extension(database_type, admin_uri.into())?;
 
@@ -64,17 +64,17 @@ impl CreateDatabaseUri for AdminDatabaseUri {
 pub struct TenantDatabaseUri;
 
 impl CreateDatabaseUri for TenantDatabaseUri {
-    fn get_uri(
+    fn uri(
         &self,
         database_type: &str,
         tenant_token: Option<&str>,
     ) -> Result<DatabaseUri, crate::Error> {
-        let base_uri = CONFIG.get_database().get_base_uri();
+        let base_uri = CONFIG.database().base_uri();
         let tenant_token =
             tenant_token.map_or_else(|| Err(crate::database::Error::NoTenantTokenProvided), Ok)?;
         let mut database_name_builder = TenantDatabaseNameConcreteBuilder::new();
         TenantDatabaseNameDirector::construct(&mut database_name_builder, tenant_token);
-        let database_name = database_name_builder.get_tenant_database_name();
+        let database_name = database_name_builder.tenant_database_name();
         let tenant_uri = Url::parse(&format!("{base_uri}/{database_name}"))?;
         let tenant_uri = self.ensure_sqlite_extension(database_type, tenant_uri.into())?;
 
@@ -101,7 +101,7 @@ mod tests {
     /// Thin helper that lets us call `ensure_sqlite_extension` without CONFIG.
     struct TestUri;
     impl CreateDatabaseUri for TestUri {
-        fn get_uri(
+        fn uri(
             &self,
             _database_type: &str,
             _tenant_token: Option<&str>,

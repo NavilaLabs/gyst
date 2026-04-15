@@ -64,8 +64,8 @@ impl RowToView<AnyRow> for PermissionRepository {
 impl Query<AnyRow> for PermissionRepository {
     type Filter = Condition;
 
-    async fn get_one(&self, id: Uuid) -> Result<PermissionView, crate::Error> {
-        self.get_one_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
+    async fn une(&self, id: Uuid) -> Result<PermissionView, crate::Error> {
+        self.une_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
             .await
     }
 
@@ -74,7 +74,7 @@ impl Query<AnyRow> for PermissionRepository {
             .await
     }
 
-    async fn get_one_by(&self, filter: Condition) -> Result<PermissionView, crate::Error> {
+    async fn une_by(&self, filter: Condition) -> Result<PermissionView, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_one_row(&stmt).await?;

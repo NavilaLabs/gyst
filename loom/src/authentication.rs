@@ -45,7 +45,7 @@ pub fn validate_token(token: &str) -> Result<CurrentUser> {
         exp: usize,
     }
 
-    let secret = CONFIG.get_application().get_authentication_secret();
+    let secret = CONFIG.application().authentication_secret();
     let token_data = decode::<Claims>(
         token,
         &DecodingKey::from_secret(secret.as_bytes()),

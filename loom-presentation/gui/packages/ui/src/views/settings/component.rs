@@ -1,5 +1,7 @@
 use crate::components::atoms::card::{Card, CardContent, CardFooter, CardHeader, CardTitle};
-use crate::components::atoms::{Button, Input, SearchableSelect, Select, SelectOption, ToastExt, Toasts};
+use crate::components::atoms::{
+    Button, Input, SearchableSelect, Select, SelectOption, ToastExt, Toasts,
+};
 use crate::layouts::DefaultLayout;
 use chrono::NaiveDate;
 use dioxus::prelude::*;
@@ -62,10 +64,14 @@ pub fn currency_options() -> Vec<SelectOption<String>> {
 }
 
 fn week_start_options() -> Vec<SelectOption<String>> {
-    [("monday", "Monday"), ("sunday", "Sunday"), ("saturday", "Saturday")]
-        .into_iter()
-        .map(|(val, label)| SelectOption::new(val.to_string(), label))
-        .collect()
+    [
+        ("monday", "Monday"),
+        ("sunday", "Sunday"),
+        ("saturday", "Saturday"),
+    ]
+    .into_iter()
+    .map(|(val, label)| SelectOption::new(val.to_string(), label))
+    .collect()
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -103,7 +109,11 @@ pub fn Settings() -> Element {
 
     // ── Workspace settings state (seeded from global context) ─────────────────
     let mut ws_name = {
-        let v = global_workspace_settings.peek().name.clone().unwrap_or_default();
+        let v = global_workspace_settings
+            .peek()
+            .name
+            .clone()
+            .unwrap_or_default();
         use_signal(move || v)
     };
     let mut ws_timezone = {
@@ -158,7 +168,13 @@ pub fn Settings() -> Element {
         let language = user_language.peek().clone();
 
         user_saving.set(true);
-        match api::settings::update_user_settings(timezone.clone(), date_format.clone(), language.clone()).await {
+        match api::settings::update_user_settings(
+            timezone.clone(),
+            date_format.clone(),
+            language.clone(),
+        )
+        .await
+        {
             Ok(()) => {
                 // Push to global context so other views update immediately.
                 global_user_settings.write().timezone = timezone;
@@ -173,14 +189,26 @@ pub fn Settings() -> Element {
 
     let on_save_workspace = move |_| async move {
         let name_raw = ws_name.peek().clone();
-        let name = if name_raw.trim().is_empty() { None } else { Some(name_raw.trim().to_string()) };
+        let name = if name_raw.trim().is_empty() {
+            None
+        } else {
+            Some(name_raw.trim().to_string())
+        };
         let timezone = ws_timezone.peek().clone();
         let date_format = ws_date_format.peek().clone();
         let currency = ws_currency.peek().clone();
         let week_start = ws_week_start.peek().clone();
 
         ws_saving.set(true);
-        match api::settings::update_workspace_settings(name.clone(), timezone.clone(), date_format.clone(), currency.clone(), week_start.clone()).await {
+        match api::settings::update_workspace_settings(
+            name.clone(),
+            timezone.clone(),
+            date_format.clone(),
+            currency.clone(),
+            week_start.clone(),
+        )
+        .await
+        {
             Ok(()) => {
                 // Push to global context so other views update immediately.
                 {

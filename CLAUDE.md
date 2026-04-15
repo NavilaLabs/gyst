@@ -165,4 +165,4 @@ test_lifecycle::after()   // resets to .env.dev
 
 Integration tests that touch shared SQLite files must be annotated with `#[serial]` (from `serial_test`) to prevent parallel execution races. Add `#[serial]` before `#[with_lifecycle(...)]` on any test that calls `refresh_databases`.
 
-Migrations must use `manager.get_database_backend()` (runtime detection) rather than `#[cfg(feature = "...")]` guards when the logic differs between SQLite and Postgres, because the integration test binary is compiled with only the `sqlite` feature by default.
+Migrations must use `manager.database_backend()` (runtime detection) rather than `#[cfg(feature = "...")]` guards when the logic differs between SQLite and Postgres, because the integration test binary is compiled with only the `sqlite` feature by default.

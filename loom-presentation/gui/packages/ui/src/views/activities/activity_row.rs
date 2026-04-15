@@ -3,8 +3,6 @@ use crate::components::atoms::{
 };
 use crate::form_machine::{new_form, FormAction, State};
 use api::activity::ActivityDto;
-use api::customer::CustomerDto;
-use api::project::ProjectDto;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{HiPencil, HiRefresh, HiSave, HiX};
 use dioxus_free_icons::Icon;
@@ -17,8 +15,6 @@ use loom_core::{
 pub(super) struct ActivityRowProps {
     pub activity: ActivityDto,
     pub activities: Signal<Vec<ActivityDto>>,
-    pub projects: Signal<Vec<ProjectDto>>,
-    pub customers: Signal<Vec<CustomerDto>>,
     pub editing_id: Signal<Option<String>>,
     pub col_count: usize,
 }
@@ -30,13 +26,8 @@ pub(super) fn ActivityRow(props: ActivityRowProps) -> Element {
     let a = props.activity.clone();
     let aid = a.id.clone();
     let mut activities = props.activities;
-    let projects = props.projects;
     let mut editing_id = props.editing_id;
     let is_editing = editing_id.read().as_deref() == Some(a.id.as_str());
-
-    let project_name = a.project_id.as_ref().and_then(|pid| {
-        projects.read().iter().find(|p| &p.id == pid).map(|p| p.name.clone())
-    });
 
     let mut edit_form = use_signal(new_form);
     let mut edit_name = use_signal(String::new);
@@ -52,10 +43,12 @@ pub(super) fn ActivityRow(props: ActivityRowProps) -> Element {
         let name = edit_name.peek().clone();
         let comment = {
             let s = edit_comment.peek().clone();
-            if s.is_empty() { None } else { Some(s) }
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
         };
-        let visible = *edit_visible.peek();
-        let billable = *edit_billable.peek();
 
         edit_form.write().handle(&FormAction::Submit);
         if let Err(e) = (UpdateActivityInput { name: name.clone() }).validate() {
@@ -65,9 +58,7 @@ pub(super) fn ActivityRow(props: ActivityRowProps) -> Element {
             return;
         }
 
-        if let Err(e) =
-            api::activity::update_activity(id.clone(), name, comment, visible, billable).await
-        {
+        if let Err(e) = api::activity::update_activity(id.clone(), name, comment).await {
             edit_form.write().handle(&FormAction::Fail(e.to_string()));
             toasts.push_error(e.to_string());
             return;
@@ -87,25 +78,8 @@ pub(super) fn ActivityRow(props: ActivityRowProps) -> Element {
     let edit_submitting = matches!(edit_form.read().state(), State::Submitting {});
 
     rsx! {
-        TableRow { key: "{a.id}", muted: !a.visible,
+        TableRow { key: "{a.id}",
             TableCell { "{a.name}" }
-            TableCell {
-                if let Some(pn) = project_name {
-                    span { "{pn}" }
-                } else {
-                    span { class: "text-secondary text-xs", "Global" }
-                }
-            }
-            TableCell {
-                div { class: "flex gap-2 text-xs",
-                    if a.billable {
-                        span { class: "text-success", "Billable" }
-                    }
-                    if !a.visible {
-                        span { class: "text-warning", "Hidden" }
-                    }
-                }
-            }
             TableCell {
                 if is_editing {
                     Button {
@@ -122,8 +96,6 @@ pub(super) fn ActivityRow(props: ActivityRowProps) -> Element {
                             if let Some(ac) = act {
                                 edit_name.set(ac.name.clone());
                                 edit_comment.set(ac.comment.clone().unwrap_or_default());
-                                edit_visible.set(ac.visible);
-                                edit_billable.set(ac.billable);
                                 edit_form.write().handle(&FormAction::Reset);
                                 editing_id.set(Some(ac.id));
                             }

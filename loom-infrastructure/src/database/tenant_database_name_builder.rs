@@ -20,7 +20,7 @@ impl Display for TenantDatabaseName {
 pub trait Builder {
     fn with_prefix(&mut self, prefix: &str);
     fn with_tenant_token(&mut self, tenant_token: &str);
-    fn get_tenant_database_name(self) -> TenantDatabaseName;
+    fn tenant_database_name(self) -> TenantDatabaseName;
 }
 
 pub struct ConcreteBuilder(TenantDatabaseName);
@@ -47,7 +47,7 @@ impl Builder for ConcreteBuilder {
         self.0 = TenantDatabaseName(format!("{}{}", self.0.0, tenant_token));
     }
 
-    fn get_tenant_database_name(self) -> TenantDatabaseName {
+    fn tenant_database_name(self) -> TenantDatabaseName {
         self.0
     }
 }
@@ -56,13 +56,7 @@ pub struct Director;
 
 impl Director {
     pub fn construct<T: Builder>(builder: &mut T, tenant_token: &str) {
-        builder.with_prefix(
-            CONFIG
-                .get_database()
-                .get_databases()
-                .get_tenant()
-                .get_name_prefix(),
-        );
+        builder.with_prefix(CONFIG.database().databases().tenant().name_prefix());
         builder.with_tenant_token(tenant_token);
     }
 }

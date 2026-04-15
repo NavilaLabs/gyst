@@ -4,21 +4,17 @@ use crate::components::atoms::{
 };
 use crate::formatting;
 use api::activity::ActivityDto;
-use api::project::ProjectDto;
-use api::tag::TagDto;
 use api::timesheet::TimesheetDto;
+use api::timesheet_tag::TimesheetsTagDto;
 use dioxus::prelude::*;
-use dioxus_free_icons::icons::hi_solid_icons::{
-    HiDownload, HiPencil, HiSave, HiTag, HiX,
-};
+use dioxus_free_icons::icons::hi_solid_icons::{HiPencil, HiSave, HiTag, HiX};
 use dioxus_free_icons::Icon;
 
 #[derive(Clone, PartialEq, Props)]
 pub(super) struct EntryTableProps {
     pub timesheets: Signal<Vec<TimesheetDto>>,
-    pub projects: Signal<Vec<ProjectDto>>,
     pub activities: Signal<Vec<ActivityDto>>,
-    pub all_tags: Signal<Vec<TagDto>>,
+    pub all_tags: Signal<Vec<TimesheetsTagDto>>,
     pub page: Signal<usize>,
     pub loading: Signal<bool>,
 }
@@ -27,16 +23,13 @@ pub(super) struct EntryTableProps {
 pub(super) fn EntryTable(props: EntryTableProps) -> Element {
     let mut toasts: Toasts = use_context();
     let user_settings: crate::UserSettings = use_context();
-    let workspace_settings: crate::WorkspaceSettings = use_context();
 
     let mut timesheets = props.timesheets;
-    let projects = props.projects;
     let activities = props.activities;
     let all_tags = props.all_tags;
     let mut page = props.page;
 
     let mut editing_id = use_signal(|| Option::<String>::None);
-    let mut edit_project_id = use_signal(|| Option::<String>::None);
     let mut edit_activity_id = use_signal(|| Option::<String>::None);
     let mut edit_description = use_signal(String::new);
     let mut edit_billable = use_signal(|| true);
@@ -44,7 +37,7 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
     let mut edit_end_time = use_signal(|| Option::<String>::None);
 
     let mut tagging_id = use_signal(|| Option::<String>::None);
-    let mut ts_tags = use_signal(Vec::<TagDto>::new);
+    let mut ts_tags = use_signal(Vec::<TimesheetsTagDto>::new);
 
     let on_save_edit = move |_| async move {
         let id = match editing_id.peek().clone() {
@@ -60,9 +53,12 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                 .peek()
                 .as_deref()
                 .map(|s| formatting::from_input(s, &tz));
-            if let Err(e) =
-                api::timesheet::update_timesheet_time(id.clone(), new_start.clone(), new_end.clone())
-                    .await
+            if let Err(e) = api::timesheet::update_timesheet_time(
+                id.clone(),
+                new_start.clone(),
+                new_end.clone(),
+            )
+            .await
             {
                 toasts.push_error(e.to_string());
                 return;
@@ -73,23 +69,17 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
             }
         }
 
-        let new_pid = edit_project_id.peek().clone();
         let new_aid = edit_activity_id.peek().clone();
 
-        if let (Some(ref pid), Some(ref aid)) = (&new_pid, &new_aid) {
+        if let Some(ref aid) = &new_aid {
             let needs_reassign = timesheets
                 .read()
                 .iter()
                 .find(|x| x.id == id)
-                .map(|ts| {
-                    ts.project_id.as_deref() != Some(pid.as_str())
-                        || ts.activity_id.as_deref() != Some(aid.as_str())
-                })
+                .map(|ts| ts.activity_id.as_deref() != Some(aid.as_str()))
                 .unwrap_or(false);
             if needs_reassign {
-                if let Err(e) =
-                    api::timesheet::reassign_timesheet(id.clone(), pid.clone(), aid.clone()).await
-                {
+                if let Err(e) = api::timesheet::reassign_timesheet(id.clone(), aid.clone()).await {
                     toasts.push_error(e.to_string());
                     return;
                 }
@@ -98,19 +88,18 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
 
         let desc = {
             let s = edit_description.peek().clone();
-            if s.is_empty() { None } else { Some(s) }
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
         };
-        let bill = *edit_billable.peek();
-        if let Err(e) = api::timesheet::update_timesheet(id.clone(), desc.clone(), bill).await {
+        if let Err(e) = api::timesheet::update_timesheet(id.clone(), desc.clone()).await {
             toasts.push_error(e.to_string());
             return;
         }
         if let Some(item) = timesheets.write().iter_mut().find(|x| x.id == id) {
             item.description = desc;
-            item.billable = bill;
-            if let Some(pid) = new_pid {
-                item.project_id = Some(pid);
-            }
             if let Some(aid) = new_aid {
                 item.activity_id = Some(aid);
             }
@@ -159,9 +148,6 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                         let tsid2 = t.id.clone();
                         let is_editing = editing_id.read().as_deref() == Some(t.id.as_str());
                         let is_tagging = tagging_id.read().as_deref() == Some(t.id.as_str());
-                        let proj_name = t.project_id.as_ref()
-                            .and_then(|pid| projects.read().iter().find(|p| &p.id == pid).map(|p| p.name.clone()))
-                            .unwrap_or_else(|| "—".to_string());
                         let act_name = t.activity_id.as_ref()
                             .and_then(|aid| activities.read().iter().find(|a| &a.id == aid).map(|a| a.name.clone()))
                             .unwrap_or_else(|| "—".to_string());
@@ -176,10 +162,9 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                         };
 
                         rsx! {
-                            TableRow { key: "{t.id}", muted: t.exported,
+                            TableRow { key: "{t.id}",
                                 TableCell {
                                     div { class: "flex flex-col gap-0.5",
-                                        span { class: "font-medium text-sm", "{proj_name}" }
                                         span { class: "text-xs text-secondary", "{act_name}" }
                                         if let Some(ref desc) = t.description {
                                             span { class: "text-xs text-secondary italic", "{desc}" }
@@ -192,21 +177,6 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                         span { "{d}" }
                                     } else {
                                         span { class: "text-secondary", "—" }
-                                    }
-                                }
-                                TableCell {
-                                    div { class: "flex flex-col gap-0.5 text-xs",
-                                        if t.billable {
-                                            span { class: "text-success", "Billable" }
-                                        }
-                                        if let Some(r) = t.rate {
-                                            span { class: "font-medium",
-                                                { formatting::format_money(r, &workspace_settings.read().currency) }
-                                            }
-                                        }
-                                        if t.exported {
-                                            span { class: "text-secondary", "Exported" }
-                                        }
                                     }
                                 }
                                 TableCell {
@@ -224,10 +194,8 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                                         .find(|x| x.id == tsid)
                                                         .cloned();
                                                     if let Some(et) = edit_ts {
-                                                        edit_project_id.set(et.project_id.clone());
                                                         edit_activity_id.set(et.activity_id.clone());
                                                         edit_description.set(et.description.clone().unwrap_or_default());
-                                                        edit_billable.set(et.billable);
                                                         let tz = user_settings.peek().timezone.clone();
                                                         edit_start_time.set(formatting::to_input(&et.start_time, &tz));
                                                         edit_end_time.set(et.end_time.as_deref().map(|s| formatting::to_input(s, &tz)));
@@ -244,7 +212,7 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                                         if tagging_id.peek().as_deref() == Some(tsid2.as_str()) {
                                                             tagging_id.set(None);
                                                         } else {
-                                                            match api::tag::list_timesheet_tags(tsid2.clone()).await {
+                                                            match api::timesheet_tag::list_timesheet_tags(tsid2.clone()).await {
                                                                 Ok(tags) => ts_tags.set(tags),
                                                                 Err(e) => toasts.push_error(e.to_string()),
                                                             }
@@ -254,30 +222,6 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                                     }
                                                 },
                                                 Icon { icon: HiTag, width: 14, height: 14 }
-                                            }
-                                            if !t.exported && t.end_time.is_some() {
-                                                {
-                                                    let tsid_ex = t.id.clone();
-                                                    rsx! {
-                                                        Button {
-                                                            onclick: move |_| {
-                                                                let tsid_ex = tsid_ex.clone();
-                                                                async move {
-                                                                    match api::timesheet::export_timesheet(tsid_ex.clone()).await {
-                                                                        Ok(()) => {
-                                                                            if let Some(item) = timesheets.write().iter_mut().find(|x| x.id == tsid_ex) {
-                                                                                item.exported = true;
-                                                                            }
-                                                                            toasts.push_success("Marked as exported");
-                                                                        }
-                                                                        Err(e) => toasts.push_error(e.to_string()),
-                                                                    }
-                                                                }
-                                                            },
-                                                            Icon { icon: HiDownload, width: 14, height: 14 }
-                                                        }
-                                                    }
-                                                }
                                             }
                                         }
                                     }
@@ -310,17 +254,6 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                                         edit_end_time.set(if v.is_empty() { None } else { Some(v) });
                                                     },
                                                 }
-                                            }
-                                        }
-                                        div { class: "form-field",
-                                            label { class: "form-label", "Project" }
-                                            Select::<String> {
-                                                options: projects.read().iter()
-                                                    .map(|p| SelectOption::new(p.id.clone(), p.name.clone()))
-                                                    .collect(),
-                                                value: edit_project_id.read().clone(),
-                                                on_change: move |id: String| edit_project_id.set(Some(id)),
-                                                placeholder: "Select project…".to_string(),
                                             }
                                         }
                                         div { class: "form-field",
@@ -392,12 +325,12 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                                                     let _ = tag_id2.clone();
                                                                     async move {
                                                                         let result = if is_applied {
-                                                                            api::tag::untag_timesheet(tag_id.clone(), tsid_a.clone()).await
+                                                                            api::timesheet_tag::untag_timesheet(tag_id.clone(), tsid_a.clone()).await
                                                                         } else {
-                                                                            api::tag::tag_timesheet(tag_id.clone(), tsid_a.clone()).await
+                                                                            api::timesheet_tag::tag_timesheet(tag_id.clone(), tsid_a.clone()).await
                                                                         };
                                                                         if result.is_ok() {
-                                                                            if let Ok(tags) = api::tag::list_timesheet_tags(tsid_b.clone()).await {
+                                                                            if let Ok(tags) = api::timesheet_tag::list_timesheet_tags(tsid_b.clone()).await {
                                                                                 ts_tags.set(tags);
                                                                             }
                                                                         }

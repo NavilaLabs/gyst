@@ -14,17 +14,17 @@ impl ActivityRow {
     }
 
     #[must_use]
-    pub const fn get_id(&self) -> &ActivityId {
+    pub const fn id(&self) -> &ActivityId {
         &self.id
     }
 
     #[must_use]
-    pub fn get_name(&self) -> &str {
+    pub fn name(&self) -> &str {
         &self.name
     }
 
     #[must_use]
-    pub fn get_comment(&self) -> Option<&str> {
+    pub fn comment(&self) -> Option<&str> {
         self.comment.as_deref()
     }
 }

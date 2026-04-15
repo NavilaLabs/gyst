@@ -23,12 +23,12 @@ impl<Scope> Pool<Scope, StateDisconnected> {
         sqlx::any::install_default_drivers();
 
         let mut pool = AnyPoolOptions::new();
-        let pool_config = CONFIG.get_database().get_pool();
-        let max_size = pool_config.get_max_size();
+        let pool_config = CONFIG.database().pool();
+        let max_size = pool_config.max_size();
         pool = pool.max_connections(max_size);
-        let min_size = pool_config.get_min_size();
+        let min_size = pool_config.min_size();
         pool = pool.min_connections(min_size);
-        let timeout_seconds = pool_config.get_timeout_seconds();
+        let timeout_seconds = pool_config.timeout_seconds();
         pool = pool.idle_timeout(Duration::from_secs(timeout_seconds));
         let database_type = match uri.scheme() {
             "postgres" => DatabaseType::Postgres,
@@ -65,7 +65,7 @@ impl Pool<ScopeTenant, StateDisconnected> {
         tenant_token: &str,
     ) -> Result<Pool<ScopeTenant, StateConnected>, Error> {
         let uri = database_uri_factory::Factory::new_database_uri(&DatabaseUriType::Tenant)
-            .get_uri(&DatabaseType::Sqlite.to_string(), Some(tenant_token))?;
+            .uri(&DatabaseType::Sqlite.to_string(), Some(tenant_token))?;
 
         Self::connect(&uri).await
     }
@@ -77,7 +77,7 @@ impl Pool<ScopeAdmin, StateDisconnected> {
     /// Returns an error if the admin URI cannot be built or the pool cannot connect.
     pub async fn connect_admin() -> Result<Pool<ScopeAdmin, StateConnected>, Error> {
         let uri = database_uri_factory::Factory::new_database_uri(&DatabaseUriType::Admin)
-            .get_uri(&DatabaseType::Sqlite.to_string(), None)?;
+            .uri(&DatabaseType::Sqlite.to_string(), None)?;
 
         Self::connect(&uri).await
     }

@@ -43,12 +43,12 @@ impl WorkspaceView {
     }
 
     #[must_use]
-    pub const fn get_id(&self) -> &WorkspaceId {
+    pub const fn id(&self) -> &WorkspaceId {
         &self.id
     }
 
     #[must_use]
-    pub fn get_name(&self) -> Option<&str> {
+    pub fn name(&self) -> Option<&str> {
         self.name.as_deref()
     }
 }

@@ -4,11 +4,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ActivityDto {
     pub id: String,
-    pub project_id: Option<String>,
     pub name: String,
     pub comment: Option<String>,
-    pub visible: bool,
-    pub billable: bool,
 }
 
 #[get("/api/activities")]
@@ -19,22 +16,23 @@ pub async fn list_activities() -> Result<Vec<ActivityDto>, ServerFnError> {
     }
     #[cfg(not(feature = "server"))]
     {
-        Ok(vec![])
+        Err(ServerFnError::ServerError {
+            message: "server only".into(),
+            code: 500,
+            details: None,
+        })
     }
 }
 
 #[post("/api/activities")]
-pub async fn create_activity(
-    project_id: Option<String>,
-    name: String,
-) -> Result<ActivityDto, ServerFnError> {
+pub async fn create_activity(name: String) -> Result<ActivityDto, ServerFnError> {
     #[cfg(feature = "server")]
     {
-        _create_activity(project_id, name).await
+        _create_activity(name).await
     }
     #[cfg(not(feature = "server"))]
     {
-        let _ = (project_id, name);
+        let _ = (name);
         Err(ServerFnError::ServerError {
             message: "server only".into(),
             code: 500,
@@ -48,17 +46,19 @@ pub async fn update_activity(
     id: String,
     name: String,
     comment: Option<String>,
-    visible: bool,
-    billable: bool,
 ) -> Result<(), ServerFnError> {
     #[cfg(feature = "server")]
     {
-        _update_activity(id, name, comment, visible, billable).await
+        _update_activity(id, name, comment).await
     }
     #[cfg(not(feature = "server"))]
     {
-        let _ = (id, name, comment, visible, billable);
-        Ok(())
+        let _ = (id, name, comment);
+        Err(ServerFnError::ServerError {
+            message: "server only".into(),
+            code: 500,
+            details: None,
+        })
     }
 }
 
@@ -73,37 +73,28 @@ async fn _list_activities() -> Result<Vec<ActivityDto>, ServerFnError> {
     Ok(rows
         .into_iter()
         .map(|r| ActivityDto {
-            id: r.id,
-            project_id: r.project_id,
-            name: r.name,
-            comment: r.comment,
-            visible: r.visible,
-            billable: r.billable,
+            id: r.id().to_string(),
+            name: r.name().to_string(),
+            comment: r.comment().map(String::from),
         })
         .collect())
 }
 
 #[cfg(feature = "server")]
-async fn _create_activity(
-    project_id: Option<String>,
-    name: String,
-) -> Result<ActivityDto, ServerFnError> {
+async fn _create_activity(name: String) -> Result<ActivityDto, ServerFnError> {
     use crate::session;
     use loom::core::permissions;
 
     let (user, workspace_id) = session::session_workspace().await?;
     session::require_permission(&user, permissions::ACTIVITY_CREATE).await?;
 
-    let r = loom::tenant::activity::create(&workspace_id, project_id, name)
+    let r = loom::tenant::activity::create(&workspace_id, name, None)
         .await
         .map_err(session::internal)?;
     Ok(ActivityDto {
-        id: r.id,
-        project_id: r.project_id,
-        name: r.name,
-        comment: r.comment,
-        visible: r.visible,
-        billable: r.billable,
+        id: r.id().to_string(),
+        name: r.name().to_string(),
+        comment: r.comment().map(String::from),
     })
 }
 
@@ -112,8 +103,6 @@ async fn _update_activity(
     id: String,
     name: String,
     comment: Option<String>,
-    visible: bool,
-    billable: bool,
 ) -> Result<(), ServerFnError> {
     use crate::session;
     use loom::core::permissions;
@@ -121,7 +110,7 @@ async fn _update_activity(
     let (user, workspace_id) = session::session_workspace().await?;
     session::require_permission(&user, permissions::ACTIVITY_UPDATE).await?;
 
-    loom::tenant::activity::update(&workspace_id, &id, name, comment, visible, billable)
+    loom::tenant::activity::update(&workspace_id, &id, name, comment)
         .await
         .map_err(session::internal)
 }

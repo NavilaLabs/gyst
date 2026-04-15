@@ -90,17 +90,11 @@ pub type UserSettings = Signal<api::settings::UserSettingsDto>;
 /// Loaded once in `Layout` and available to every component via context.
 pub type WorkspaceSettings = Signal<api::settings::WorkspaceSettingsDto>;
 
-/// Global cache of all customers. Pre-populated in `Layout` so views start with data.
-pub type CustomersCache = Signal<Vec<api::customer::CustomerDto>>;
-
-/// Global cache of all projects. Pre-populated in `Layout` so views start with data.
-pub type ProjectsCache = Signal<Vec<api::project::ProjectDto>>;
-
 /// Global cache of all activities. Pre-populated in `Layout` so views start with data.
 pub type ActivitiesCache = Signal<Vec<api::activity::ActivityDto>>;
 
 /// Global cache of all tags. Pre-populated in `Layout` so views start with data.
-pub type TagsCache = Signal<Vec<api::tag::TagDto>>;
+pub type TagsCache = Signal<Vec<api::timesheet_tag::TimesheetsTagDto>>;
 
 /// Global cache of recent timesheets. Pre-populated in `Layout` so views start with data.
 pub type TimesheetsCache = Signal<Vec<api::timesheet::TimesheetDto>>;

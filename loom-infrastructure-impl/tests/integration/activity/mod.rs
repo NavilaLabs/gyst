@@ -202,7 +202,7 @@ pub mod tests {
             .unwrap();
 
         let all = repo.all().await.expect("all must succeed");
-        let found = all.iter().any(|r| r.get_name() == "Sprint-review");
+        let found = all.iter().any(|r| r.name() == "Sprint-review");
         assert!(found, "projected activity must appear in all()");
     }
 }

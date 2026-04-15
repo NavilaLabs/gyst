@@ -42,17 +42,13 @@ async fn reset_entire_database(pool: &ConnectedDefaultPool) -> Result<(), Error>
     .execute(pool.as_ref())
     .await?;
 
-    let admin_database_name = CONFIG.get_database().get_databases().get_admin().get_name();
+    let admin_database_name = CONFIG.database().databases().admin().name();
     let safe_admin_name = escape_pg_identifier(admin_database_name);
     sqlx::query(&format!("DROP DATABASE IF EXISTS \"{safe_admin_name}\""))
         .execute(pool.as_ref())
         .await?;
 
-    let tenant_database_name_prefix = CONFIG
-        .get_database()
-        .get_databases()
-        .get_tenant()
-        .get_name_prefix();
+    let tenant_database_name_prefix = CONFIG.database().databases().tenant().name_prefix();
     let safe_prefix = escape_pg_like_prefix(tenant_database_name_prefix);
     let tenants: Vec<(String,)> = sqlx::query_as(&format!(
         "SELECT datname::TEXT FROM pg_database WHERE datname LIKE '{safe_prefix}%' ESCAPE '\\'"
@@ -70,14 +66,14 @@ async fn reset_entire_database(pool: &ConnectedDefaultPool) -> Result<(), Error>
 }
 
 #[allow(dead_code)]
-async fn get_default_pool() -> Result<ConnectedDefaultPool, Error> {
+async fn uefault_pool() -> Result<ConnectedDefaultPool, Error> {
     let database_url = "postgres://postgres:postgres@postgres-test:5432/postgres";
     Pool::connect(&DatabaseUri::from(Url::parse(database_url).unwrap())).await
 }
 
 #[allow(dead_code)]
 async fn get_admin_pool() -> Result<Pool<ScopeAdmin, StateConnected>, Error> {
-    let admin_database_name = CONFIG.get_database().get_databases().get_admin().get_name();
+    let admin_database_name = CONFIG.database().databases().admin().name();
     let database_url =
         format!("postgres://postgres:postgres@postgres-test:5432/{admin_database_name}");
     Pool::connect(&DatabaseUri::from(Url::parse(&database_url).unwrap())).await
@@ -87,7 +83,7 @@ async fn get_admin_pool() -> Result<Pool<ScopeAdmin, StateConnected>, Error> {
 async fn get_tenant_pool(tenant_token: &str) -> Result<Pool<ScopeTenant, StateConnected>, Error> {
     let mut database_name_builder = TenantDatabaseNameConcreteBuilder::new();
     TenantDatabaseNameDirector::construct(&mut database_name_builder, tenant_token);
-    let database_name = database_name_builder.get_tenant_database_name();
+    let database_name = database_name_builder.tenant_database_name();
     let database_url = format!("postgres://postgres:postgres@postgres-test:5432/{database_name}",);
     Pool::connect(&DatabaseUri::from(Url::parse(&database_url).unwrap())).await
 }

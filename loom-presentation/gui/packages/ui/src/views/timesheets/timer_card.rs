@@ -2,14 +2,12 @@ use crate::components::atoms::card::{Card, CardContent, CardFooter, CardHeader, 
 use crate::components::atoms::{Button, Input, Select, SelectOption, ToastExt, Toasts};
 use crate::formatting;
 use api::activity::ActivityDto;
-use api::project::ProjectDto;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{HiClock, HiPlay, HiPlus, HiRefresh, HiStop};
 use dioxus_free_icons::Icon;
 
 #[derive(Clone, PartialEq, Props)]
 pub(super) struct TimerCardProps {
-    pub projects: Signal<Vec<ProjectDto>>,
     pub activities: Signal<Vec<ActivityDto>>,
     pub on_timer_changed: EventHandler<()>,
 }
@@ -20,7 +18,6 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
     let user_settings: crate::UserSettings = use_context();
     let mut toasts: Toasts = use_context();
 
-    let projects = props.projects;
     let activities = props.activities;
 
     let mut manual_mode = use_signal(|| false);
@@ -32,7 +29,6 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
     let mut billable = use_signal(|| true);
 
     // Manual entry form
-    let mut manual_project_id = use_signal(|| Option::<String>::None);
     let mut manual_activity_id = use_signal(|| Option::<String>::None);
     let mut manual_start = use_signal(String::new);
     let mut manual_end = use_signal(String::new);
@@ -49,10 +45,8 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
     // Sync run_* fields when running changes
     use_effect(move || {
         if let Some(ref ts) = *running.read() {
-            run_project_id.set(ts.project_id.clone());
             run_activity_id.set(ts.activity_id.clone());
             run_description.set(ts.description.clone().unwrap_or_default());
-            run_billable.set(ts.billable);
         }
     });
 
@@ -65,14 +59,7 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
             return;
         };
         let desc_opt = if desc.is_empty() { None } else { Some(desc) };
-        match api::timesheet::start_timesheet(
-            Some(pid.clone()),
-            Some(aid.clone()),
-            desc_opt.clone(),
-            bill,
-        )
-        .await
-        {
+        match api::timesheet::start_timesheet(Some(aid.clone()), desc_opt.clone()).await {
             Ok(dto) => {
                 run_project_id.set(Some(pid));
                 run_activity_id.set(Some(aid));
@@ -99,24 +86,23 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
         // Persist description / billable changes.
         let desc = {
             let s = run_description.peek().clone();
-            if s.is_empty() { None } else { Some(s) }
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
         };
-        let bill = *run_billable.peek();
-        if let Err(e) = api::timesheet::update_timesheet(ts_id.clone(), desc, bill).await {
+        if let Err(e) = api::timesheet::update_timesheet(ts_id.clone(), desc).await {
             toasts.push_error(e.to_string());
             return;
         }
 
-        // Persist project / activity reassignment if changed.
-        let new_pid = run_project_id.peek().clone();
+        // Persist activity reassignment if changed.
         let new_aid = run_activity_id.peek().clone();
-        if let (Some(pid), Some(aid)) = (new_pid.clone(), new_aid.clone()) {
-            let needs_reassign = ts.project_id.as_deref() != Some(pid.as_str())
-                || ts.activity_id.as_deref() != Some(aid.as_str());
+        if let Some(aid) = new_aid.clone() {
+            let needs_reassign = ts.activity_id.as_deref() != Some(aid.as_str());
             if needs_reassign {
-                if let Err(e) =
-                    api::timesheet::reassign_timesheet(ts_id.clone(), pid, aid).await
-                {
+                if let Err(e) = api::timesheet::reassign_timesheet(ts_id.clone(), aid).await {
                     toasts.push_error(e.to_string());
                     return;
                 }
@@ -135,10 +121,8 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
     let on_create_manual = move |_| async move {
         let start_local = manual_start.peek().clone();
         let end_local = manual_end.peek().clone();
-        let pid = manual_project_id.peek().clone();
         let aid = manual_activity_id.peek().clone();
         let desc_raw = manual_description.peek().clone();
-        let bill = *manual_billable.peek();
 
         if start_local.is_empty() || end_local.is_empty() {
             toasts.push_error("Start and end time are required");
@@ -148,15 +132,17 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
         let tz = user_settings.peek().timezone.clone();
         let start = formatting::from_input(&start_local, &tz);
         let end = formatting::from_input(&end_local, &tz);
-        let desc = if desc_raw.is_empty() { None } else { Some(desc_raw) };
-        match api::timesheet::create_timesheet_manual(pid, aid, start, end, desc, bill).await {
+        let desc = if desc_raw.is_empty() {
+            None
+        } else {
+            Some(desc_raw)
+        };
+        match api::timesheet::create_timesheet_manual(aid, start, end, desc).await {
             Ok(_dto) => {
-                manual_project_id.set(None);
                 manual_activity_id.set(None);
                 manual_start.set(String::new());
                 manual_end.set(String::new());
                 manual_description.set(String::new());
-                manual_billable.set(true);
                 toasts.push_success("Timesheet created");
                 props.on_timer_changed.call(());
             }
@@ -186,17 +172,6 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
                         }
                         CardContent {
                             div { class: "grid grid-cols-1 gap-4 md:grid-cols-2",
-                                div { class: "form-field",
-                                    label { class: "form-label", "Project" }
-                                    Select::<String> {
-                                        options: projects.read().iter()
-                                            .map(|p| SelectOption::new(p.id.clone(), p.name.clone()))
-                                            .collect(),
-                                        value: run_project_id.read().clone(),
-                                        on_change: move |id: String| run_project_id.set(Some(id)),
-                                        placeholder: "Select project…".to_string(),
-                                    }
-                                }
                                 div { class: "form-field",
                                     label { class: "form-label", "Activity" }
                                     Select::<String> {
@@ -271,17 +246,6 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
                         CardContent {
                             div { class: "grid grid-cols-1 gap-4 md:grid-cols-2",
                                 div { class: "form-field",
-                                    label { class: "form-label", "Project" }
-                                    Select::<String> {
-                                        options: projects.read().iter()
-                                            .map(|p| SelectOption::new(p.id.clone(), p.name.clone()))
-                                            .collect(),
-                                        value: project_id.read().clone(),
-                                        on_change: move |id: String| project_id.set(Some(id)),
-                                        placeholder: "Select project…".to_string(),
-                                    }
-                                }
-                                div { class: "form-field",
                                     label { class: "form-label", "Activity" }
                                     Select::<String> {
                                         options: activities.read().iter()
@@ -339,17 +303,6 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
                                         class: "input",
                                         value: manual_end.read().clone(),
                                         oninput: move |e: FormEvent| manual_end.set(e.value()),
-                                    }
-                                }
-                                div { class: "form-field",
-                                    label { class: "form-label", "Project" }
-                                    Select::<String> {
-                                        options: projects.read().iter()
-                                            .map(|p| SelectOption::new(p.id.clone(), p.name.clone()))
-                                            .collect(),
-                                        value: manual_project_id.read().clone(),
-                                        on_change: move |id: String| manual_project_id.set(Some(id)),
-                                        placeholder: "Select project…".to_string(),
                                     }
                                 }
                                 div { class: "form-field",

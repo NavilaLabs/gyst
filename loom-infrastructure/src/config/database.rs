@@ -8,15 +8,15 @@ pub struct Database {
 }
 
 impl Database {
-    pub fn get_base_uri(&self) -> &str {
+    pub fn base_uri(&self) -> &str {
         &self.base_uri
     }
 
-    pub const fn get_databases(&self) -> &Databases {
+    pub const fn databases(&self) -> &Databases {
         &self.databases
     }
 
-    pub const fn get_pool(&self) -> &Pool {
+    pub const fn pool(&self) -> &Pool {
         &self.pool
     }
 }
@@ -28,11 +28,11 @@ pub struct Databases {
 }
 
 impl Databases {
-    pub const fn get_admin(&self) -> &AdminDatabase {
+    pub const fn admin(&self) -> &AdminDatabase {
         &self.admin
     }
 
-    pub const fn get_tenant(&self) -> &TenantDatabase {
+    pub const fn tenant(&self) -> &TenantDatabase {
         &self.tenant
     }
 }
@@ -43,7 +43,7 @@ pub struct AdminDatabase {
 }
 
 impl AdminDatabase {
-    pub fn get_name(&self) -> &str {
+    pub fn name(&self) -> &str {
         &self.name
     }
 }
@@ -54,7 +54,7 @@ pub struct TenantDatabase {
 }
 
 impl TenantDatabase {
-    pub fn get_name_prefix(&self) -> &str {
+    pub fn name_prefix(&self) -> &str {
         &self.name_prefix
     }
 }
@@ -67,15 +67,15 @@ pub struct Pool {
 }
 
 impl Pool {
-    pub const fn get_max_size(&self) -> u32 {
+    pub const fn max_size(&self) -> u32 {
         self.max_size
     }
 
-    pub const fn get_min_size(&self) -> u32 {
+    pub const fn min_size(&self) -> u32 {
         self.min_size
     }
 
-    pub const fn get_timeout_seconds(&self) -> u64 {
+    pub const fn timeout_seconds(&self) -> u64 {
         self.timeout_seconds
     }
 }

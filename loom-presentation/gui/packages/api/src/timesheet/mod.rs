@@ -5,21 +5,12 @@ use serde::{Deserialize, Serialize};
 pub struct TimesheetDto {
     pub id: String,
     pub user_id: String,
-    pub project_id: Option<String>,
     pub activity_id: Option<String>,
     pub start_time: String,
     pub end_time: Option<String>,
     pub duration: Option<i32>,
     pub description: Option<String>,
     pub timezone: String,
-    pub billable: bool,
-    pub exported: bool,
-    /// Billable hourly rate snapshot in cents.
-    pub hourly_rate: Option<i64>,
-    /// Internal (cost) rate snapshot in cents.
-    pub internal_rate: Option<i64>,
-    /// Total billable amount in cents (`hourly_rate * duration / 3600`).
-    pub rate: Option<i64>,
 }
 
 #[get("/api/timesheets/recent")]
@@ -48,18 +39,16 @@ pub async fn running_timesheet() -> Result<Option<TimesheetDto>, ServerFnError> 
 
 #[post("/api/timesheets/start")]
 pub async fn start_timesheet(
-    project_id: Option<String>,
     activity_id: Option<String>,
     description: Option<String>,
-    billable: bool,
 ) -> Result<TimesheetDto, ServerFnError> {
     #[cfg(feature = "server")]
     {
-        _start_timesheet(project_id, activity_id, description, billable).await
+        _start_timesheet(activity_id, description).await
     }
     #[cfg(not(feature = "server"))]
     {
-        let _ = (project_id, activity_id, description, billable);
+        let _ = (activity_id, description, billable);
         Err(ServerFnError::ServerError {
             message: "server only".into(),
             code: 500,
@@ -71,16 +60,15 @@ pub async fn start_timesheet(
 #[post("/api/timesheets/reassign")]
 pub async fn reassign_timesheet(
     timesheet_id: String,
-    project_id: String,
     activity_id: String,
 ) -> Result<(), ServerFnError> {
     #[cfg(feature = "server")]
     {
-        _reassign_timesheet(timesheet_id, project_id, activity_id).await
+        _reassign_timesheet(timesheet_id, activity_id).await
     }
     #[cfg(not(feature = "server"))]
     {
-        let _ = (timesheet_id, project_id, activity_id);
+        let _ = (timesheet_id, activity_id);
         Ok(())
     }
 }
@@ -89,35 +77,32 @@ pub async fn reassign_timesheet(
 pub async fn update_timesheet(
     timesheet_id: String,
     description: Option<String>,
-    billable: bool,
 ) -> Result<(), ServerFnError> {
     #[cfg(feature = "server")]
     {
-        _update_timesheet(timesheet_id, description, billable).await
+        _update_timesheet(timesheet_id, description).await
     }
     #[cfg(not(feature = "server"))]
     {
-        let _ = (timesheet_id, description, billable);
+        let _ = (timesheet_id, description);
         Ok(())
     }
 }
 
 #[post("/api/timesheets/create-manual")]
 pub async fn create_timesheet_manual(
-    project_id: Option<String>,
     activity_id: Option<String>,
     start_time: String,
     end_time: String,
     description: Option<String>,
-    billable: bool,
 ) -> Result<TimesheetDto, ServerFnError> {
     #[cfg(feature = "server")]
     {
-        _create_timesheet_manual(project_id, activity_id, start_time, end_time, description, billable).await
+        _create_timesheet_manual(activity_id, start_time, end_time, description).await
     }
     #[cfg(not(feature = "server"))]
     {
-        let _ = (project_id, activity_id, start_time, end_time, description, billable);
+        let _ = (activity_id, start_time, end_time, description);
         Err(ServerFnError::ServerError {
             message: "server only".into(),
             code: 500,
@@ -156,38 +141,17 @@ pub async fn stop_timesheet(timesheet_id: String) -> Result<(), ServerFnError> {
     }
 }
 
-#[post("/api/timesheets/export")]
-pub async fn export_timesheet(timesheet_id: String) -> Result<(), ServerFnError> {
-    #[cfg(feature = "server")]
-    {
-        _export_timesheet(timesheet_id).await
-    }
-    #[cfg(not(feature = "server"))]
-    {
-        let _ = timesheet_id;
-        Ok(())
-    }
-}
-
 #[cfg(feature = "server")]
-fn row_to_dto(
-    r: loom::infrastructure::tenant::timesheet::repositories::TimesheetRow,
-) -> TimesheetDto {
+fn row_to_dto(r: loom::core::tenant::timesheet::TimesheetRow) -> TimesheetDto {
     TimesheetDto {
-        id: r.id,
-        user_id: r.user_id,
-        project_id: r.project_id,
-        activity_id: r.activity_id,
-        start_time: r.start_time,
-        end_time: r.end_time,
-        duration: r.duration,
-        description: r.description,
-        timezone: r.timezone,
-        billable: r.billable,
-        exported: r.exported,
-        hourly_rate: r.hourly_rate,
-        internal_rate: r.internal_rate,
-        rate: r.rate,
+        id: r.id().to_string(),
+        user_id: r.user_id().to_string(),
+        activity_id: r.activity_id().map(|id| id.to_string()),
+        start_time: r.start_time().to_string(),
+        end_time: r.end_time().map(String::from),
+        duration: r.duration(),
+        description: r.description().map(String::from),
+        timezone: r.timezone().to_string(),
     }
 }
 
@@ -215,10 +179,8 @@ async fn _running_timesheet() -> Result<Option<TimesheetDto>, ServerFnError> {
 
 #[cfg(feature = "server")]
 async fn _start_timesheet(
-    project_id: Option<String>,
     activity_id: Option<String>,
     description: Option<String>,
-    billable: bool,
 ) -> Result<TimesheetDto, ServerFnError> {
     use crate::session;
     use loom::core::permissions;
@@ -229,10 +191,8 @@ async fn _start_timesheet(
     let r = loom::tenant::timesheet::start(
         &workspace_id,
         &user.id,
-        project_id,
-        activity_id,
+        activity_id.as_deref(),
         description,
-        billable,
     )
     .await
     .map_err(session::internal)?;
@@ -242,7 +202,6 @@ async fn _start_timesheet(
 #[cfg(feature = "server")]
 async fn _reassign_timesheet(
     timesheet_id: String,
-    project_id: String,
     activity_id: String,
 ) -> Result<(), ServerFnError> {
     use crate::session;
@@ -251,7 +210,7 @@ async fn _reassign_timesheet(
     let (user, workspace_id) = session::session_workspace().await?;
     session::require_permission(&user, permissions::TIMESHEET_UPDATE).await?;
 
-    loom::tenant::timesheet::reassign(&workspace_id, &timesheet_id, project_id, activity_id)
+    loom::tenant::timesheet::reassign(&workspace_id, &timesheet_id, &activity_id)
         .await
         .map_err(session::internal)
 }
@@ -260,7 +219,6 @@ async fn _reassign_timesheet(
 async fn _update_timesheet(
     timesheet_id: String,
     description: Option<String>,
-    billable: bool,
 ) -> Result<(), ServerFnError> {
     use crate::session;
     use loom::core::permissions;
@@ -268,7 +226,7 @@ async fn _update_timesheet(
     let (user, workspace_id) = session::session_workspace().await?;
     session::require_permission(&user, permissions::TIMESHEET_UPDATE).await?;
 
-    loom::tenant::timesheet::update(&workspace_id, &timesheet_id, description, billable)
+    loom::tenant::timesheet::update(&workspace_id, &timesheet_id, description)
         .await
         .map_err(session::internal)
 }
@@ -289,12 +247,10 @@ async fn _stop_timesheet(timesheet_id: String) -> Result<(), ServerFnError> {
 
 #[cfg(feature = "server")]
 async fn _create_timesheet_manual(
-    project_id: Option<String>,
     activity_id: Option<String>,
     start_time: String,
     end_time: String,
     description: Option<String>,
-    billable: bool,
 ) -> Result<TimesheetDto, ServerFnError> {
     use crate::session;
     use loom::core::permissions;
@@ -305,12 +261,10 @@ async fn _create_timesheet_manual(
     let r = loom::tenant::timesheet::create_manual(
         &workspace_id,
         &user.id,
-        project_id,
-        activity_id,
-        start_time,
-        end_time,
+        activity_id.as_deref(),
+        &start_time,
+        &end_time,
         description,
-        billable,
     )
     .await
     .map_err(session::internal)?;
@@ -329,20 +283,12 @@ async fn _update_timesheet_time(
     let (_user, workspace_id) = session::session_workspace().await?;
     session::require_permission(&_user, permissions::TIMESHEET_UPDATE).await?;
 
-    loom::tenant::timesheet::update_time(&workspace_id, &timesheet_id, start_time, end_time)
-        .await
-        .map_err(session::internal)
-}
-
-#[cfg(feature = "server")]
-async fn _export_timesheet(timesheet_id: String) -> Result<(), ServerFnError> {
-    use crate::session;
-    use loom::core::permissions;
-
-    let (user, workspace_id) = session::session_workspace().await?;
-    session::require_permission(&user, permissions::TIMESHEET_EXPORT).await?;
-
-    loom::tenant::timesheet::export(&workspace_id, &timesheet_id)
-        .await
-        .map_err(session::internal)
+    loom::tenant::timesheet::update_time(
+        &workspace_id,
+        &timesheet_id,
+        &start_time,
+        end_time.as_deref(),
+    )
+    .await
+    .map_err(session::internal)
 }

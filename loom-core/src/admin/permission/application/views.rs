@@ -13,12 +13,12 @@ impl PermissionView {
     }
 
     #[must_use]
-    pub const fn get_id(&self) -> &PermissionId {
+    pub const fn id(&self) -> &PermissionId {
         &self.id
     }
 
     #[must_use]
-    pub fn get_name(&self) -> &str {
+    pub fn name(&self) -> &str {
         &self.name
     }
 }

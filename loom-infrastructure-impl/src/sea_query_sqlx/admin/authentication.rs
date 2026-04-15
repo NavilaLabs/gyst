@@ -54,7 +54,7 @@ pub mod jwt {
                 exp: now + JWT_LIFETIME_SECS,
             };
 
-            let secret = CONFIG.get_application().get_authentication_secret();
+            let secret = CONFIG.application().authentication_secret();
             encode(
                 &Header::new(Algorithm::HS256),
                 &claims,

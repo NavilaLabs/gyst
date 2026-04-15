@@ -21,7 +21,7 @@ pub trait Query<R>: RowToView<R> {
     type Filter: Send + 'static;
 
     /// Returns the record, or an error if it does not exist.
-    async fn get_one(&self, id: Uuid) -> Result<Self::View, Self::Error>;
+    async fn une(&self, id: Uuid) -> Result<Self::View, Self::Error>;
 
     /// Returns the record wrapped in `Some`, or `None` if it does not exist.
     async fn find_one(&self, id: Uuid) -> Result<Option<Self::View>, Self::Error>;
@@ -32,7 +32,7 @@ pub trait Query<R>: RowToView<R> {
     }
 
     /// Returns the first record matching `filter`, or an error if none match.
-    async fn get_one_by(&self, filter: Self::Filter) -> Result<Self::View, Self::Error>;
+    async fn une_by(&self, filter: Self::Filter) -> Result<Self::View, Self::Error>;
 
     /// Returns the first record matching `filter`, or `None` if none match.
     async fn find_one_by(&self, filter: Self::Filter) -> Result<Option<Self::View>, Self::Error>;

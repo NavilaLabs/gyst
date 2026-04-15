@@ -107,7 +107,7 @@ impl<Scope> Pool<Scope, StateConnected> {
     }
 
     #[must_use]
-    pub fn get_uri(&self) -> url::Url {
+    pub fn uri(&self) -> url::Url {
         self.state.pool.connect_options().database_url.clone()
     }
 }

@@ -3,7 +3,7 @@
 /// These tests exercise `loom::auth::validate_token` — the boundary where
 /// an untrusted string token is converted into a trusted `CurrentUser`.
 /// They run without a database but DO require `.env.test` to be loaded so
-/// that `CONFIG.get_application().get_authentication_secret()` returns a
+/// that `CONFIG.application().authentication_secret()` returns a
 /// deterministic value.
 ///
 /// Attack scenarios covered:

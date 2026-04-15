@@ -44,7 +44,7 @@ async fn _migrate_database() -> Result<(), ServerFnError> {
         details: None,
     })?;
 
-    let current_user = loom::auth::CurrentUser {
+    let current_user = loom::authentication::CurrentUser {
         id: user.id,
         email: user.email,
     };
@@ -137,7 +137,7 @@ async fn _migrate_tenant_database() -> Result<(), ServerFnError> {
         details: None,
     })?;
 
-    let current_user = loom::auth::CurrentUser {
+    let current_user = loom::authentication::CurrentUser {
         id: user.id.clone(),
         email: user.email.clone(),
     };

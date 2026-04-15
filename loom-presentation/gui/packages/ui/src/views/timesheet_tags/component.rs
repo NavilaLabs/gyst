@@ -4,7 +4,7 @@ use crate::components::atoms::{
 };
 use crate::layouts::DefaultLayout;
 use crate::TagsCache;
-use api::tag::TagDto;
+use api::timesheet_tag::TimesheetsTagDto;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{HiPencil, HiPlus, HiSave, HiTag, HiX};
 use dioxus_free_icons::Icon;
@@ -25,7 +25,7 @@ pub fn Tags() -> Element {
     let mut edit_name = use_signal(String::new);
 
     use_resource(move || async move {
-        match api::tag::list_tags().await {
+        match api::timesheet_tag::list_tags().await {
             Ok(list) => tags.set(list),
             Err(e) => toasts.push_error(e.to_string()),
         }
@@ -37,7 +37,7 @@ pub fn Tags() -> Element {
         if name.is_empty() {
             return;
         }
-        match api::tag::create_tag(name).await {
+        match api::timesheet_tag::create_tag(name).await {
             Ok(dto) => {
                 tags.write().push(dto);
                 new_name.set(String::new());
@@ -56,7 +56,7 @@ pub fn Tags() -> Element {
         if name.is_empty() {
             return;
         }
-        if let Err(e) = api::tag::rename_tag(id.clone(), name.clone()).await {
+        if let Err(e) = api::timesheet_tag::rename_tag(id.clone(), name.clone()).await {
             toasts.push_error(e.to_string());
             return;
         }
@@ -69,7 +69,7 @@ pub fn Tags() -> Element {
 
     let total = tags.read().len();
     let current_page = *page.read();
-    let page_items: Vec<TagDto> = tags
+    let page_items: Vec<TimesheetsTagDto> = tags
         .read()
         .iter()
         .skip(current_page * PAGE_SIZE)
@@ -77,10 +77,7 @@ pub fn Tags() -> Element {
         .cloned()
         .collect();
 
-    let columns = vec![
-        ColumnDef::new("Name"),
-        ColumnDef::new("").width("80px"),
-    ];
+    let columns = vec![ColumnDef::new("Name"), ColumnDef::new("").width("80px")];
     let col_count = columns.len();
 
     rsx! {

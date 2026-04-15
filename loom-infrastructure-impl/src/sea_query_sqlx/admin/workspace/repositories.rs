@@ -157,8 +157,8 @@ impl RowToView<AnyRow> for WorkspaceRepository {
 impl Query<AnyRow> for WorkspaceRepository {
     type Filter = Condition;
 
-    async fn get_one(&self, id: Uuid) -> Result<WorkspaceView, crate::Error> {
-        self.get_one_by(Condition::all().add(Expr::col("id").eq(id)))
+    async fn une(&self, id: Uuid) -> Result<WorkspaceView, crate::Error> {
+        self.une_by(Condition::all().add(Expr::col("id").eq(id)))
             .await
     }
 
@@ -167,7 +167,7 @@ impl Query<AnyRow> for WorkspaceRepository {
             .await
     }
 
-    async fn get_one_by(&self, filter: Condition) -> Result<WorkspaceView, crate::Error> {
+    async fn une_by(&self, filter: Condition) -> Result<WorkspaceView, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_one_row(&stmt).await?;

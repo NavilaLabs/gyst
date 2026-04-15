@@ -155,8 +155,8 @@ pub mod tests {
         let view = repo.find_one(rid.0).await.expect("query must succeed");
         assert!(view.is_some(), "projected role must be findable");
         let v = view.unwrap();
-        assert_eq!(v.get_name(), Some("admin"));
-        assert_eq!(v.get_workspace_id(), &wid);
+        assert_eq!(v.name(), Some("admin"));
+        assert_eq!(v.workspace_id(), &wid);
     }
 
     /// After `WorkspaceRolePermissionGranted` the link row is created.

@@ -138,8 +138,8 @@ impl RowToView<AnyRow> for UserRepository {
 impl Query<AnyRow> for UserRepository {
     type Filter = Condition;
 
-    async fn get_one(&self, id: Uuid) -> Result<UserView, crate::Error> {
-        self.get_one_by(Condition::all().add(Expr::col("id").eq(id)))
+    async fn une(&self, id: Uuid) -> Result<UserView, crate::Error> {
+        self.une_by(Condition::all().add(Expr::col("id").eq(id)))
             .await
     }
 
@@ -148,7 +148,7 @@ impl Query<AnyRow> for UserRepository {
             .await
     }
 
-    async fn get_one_by(&self, filter: Condition) -> Result<UserView, crate::Error> {
+    async fn une_by(&self, filter: Condition) -> Result<UserView, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_one_row(&stmt).await?;

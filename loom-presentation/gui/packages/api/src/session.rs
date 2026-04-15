@@ -60,17 +60,17 @@ pub async fn require_permission(
     user: &crate::auth::UserInfo,
     permission: &str,
 ) -> Result<(), ServerFnError> {
-    use loom::auth::CurrentUser;
+    use loom::authentication::CurrentUser;
     use loom::authorization::AuthorizationService;
 
-    let workspace_id =
-        user.workspace_id
-            .as_deref()
-            .ok_or_else(|| ServerFnError::ServerError {
-                message: "no workspace selected".into(),
-                code: 401,
-                details: None,
-            })?;
+    let workspace_id = user
+        .workspace_id
+        .as_deref()
+        .ok_or_else(|| ServerFnError::ServerError {
+            message: "no workspace selected".into(),
+            code: 401,
+            details: None,
+        })?;
 
     let current_user = CurrentUser {
         id: user.id.clone(),

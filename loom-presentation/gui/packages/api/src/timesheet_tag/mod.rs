@@ -2,13 +2,13 @@ use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct TagDto {
+pub struct TimesheetsTagDto {
     pub id: String,
     pub name: String,
 }
 
 #[get("/api/tags")]
-pub async fn list_tags() -> Result<Vec<TagDto>, ServerFnError> {
+pub async fn list_tags() -> Result<Vec<TimesheetsTagDto>, ServerFnError> {
     #[cfg(feature = "server")]
     {
         _list_tags().await
@@ -20,7 +20,9 @@ pub async fn list_tags() -> Result<Vec<TagDto>, ServerFnError> {
 }
 
 #[post("/api/tags/for-timesheet")]
-pub async fn list_timesheet_tags(timesheet_id: String) -> Result<Vec<TagDto>, ServerFnError> {
+pub async fn list_timesheet_tags(
+    timesheet_id: String,
+) -> Result<Vec<TimesheetsTagDto>, ServerFnError> {
     #[cfg(feature = "server")]
     {
         _list_timesheet_tags(timesheet_id).await
@@ -33,7 +35,7 @@ pub async fn list_timesheet_tags(timesheet_id: String) -> Result<Vec<TagDto>, Se
 }
 
 #[post("/api/tags")]
-pub async fn create_tag(name: String) -> Result<TagDto, ServerFnError> {
+pub async fn create_tag(name: String) -> Result<TimesheetsTagDto, ServerFnError> {
     #[cfg(feature = "server")]
     {
         _create_tag(name).await
@@ -89,17 +91,17 @@ pub async fn untag_timesheet(tag_id: String, timesheet_id: String) -> Result<(),
 }
 
 #[cfg(feature = "server")]
-async fn _list_tags() -> Result<Vec<TagDto>, ServerFnError> {
+async fn _list_tags() -> Result<Vec<TimesheetsTagDto>, ServerFnError> {
     use crate::session;
 
     let (_, workspace_id) = session::session_workspace().await?;
-    loom::tenant::tag::list(&workspace_id)
+    loom::tenant::timesheet_tag::list(&workspace_id)
         .await
         .map(|rows| {
             rows.into_iter()
-                .map(|r| TagDto {
-                    id: r.id,
-                    name: r.name,
+                .map(|r| TimesheetsTagDto {
+                    id: r.id().to_string(),
+                    name: r.name().to_string(),
                 })
                 .collect()
         })
@@ -107,17 +109,19 @@ async fn _list_tags() -> Result<Vec<TagDto>, ServerFnError> {
 }
 
 #[cfg(feature = "server")]
-async fn _list_timesheet_tags(timesheet_id: String) -> Result<Vec<TagDto>, ServerFnError> {
+async fn _list_timesheet_tags(
+    timesheet_id: String,
+) -> Result<Vec<TimesheetsTagDto>, ServerFnError> {
     use crate::session;
 
     let (_, workspace_id) = session::session_workspace().await?;
-    loom::tenant::tag::list_for_timesheet(&workspace_id, &timesheet_id)
+    loom::tenant::timesheet_tag::list_for_timesheet(&workspace_id, &timesheet_id)
         .await
         .map(|rows| {
             rows.into_iter()
-                .map(|r| TagDto {
-                    id: r.id,
-                    name: r.name,
+                .map(|r| TimesheetsTagDto {
+                    id: r.id().to_string(),
+                    name: r.name().to_string(),
                 })
                 .collect()
         })
@@ -125,18 +129,18 @@ async fn _list_timesheet_tags(timesheet_id: String) -> Result<Vec<TagDto>, Serve
 }
 
 #[cfg(feature = "server")]
-async fn _create_tag(name: String) -> Result<TagDto, ServerFnError> {
+async fn _create_tag(name: String) -> Result<TimesheetsTagDto, ServerFnError> {
     use crate::session;
     use loom::core::permissions;
 
     let (user, workspace_id) = session::session_workspace().await?;
     session::require_permission(&user, permissions::TAG_MANAGE).await?;
 
-    loom::tenant::tag::create(&workspace_id, name)
+    loom::tenant::timesheet_tag::create(&workspace_id, name)
         .await
-        .map(|r| TagDto {
-            id: r.id,
-            name: r.name,
+        .map(|r| TimesheetsTagDto {
+            id: r.id().to_string(),
+            name: r.name().to_string(),
         })
         .map_err(session::internal)
 }
@@ -149,7 +153,7 @@ async fn _rename_tag(id: String, name: String) -> Result<(), ServerFnError> {
     let (user, workspace_id) = session::session_workspace().await?;
     session::require_permission(&user, permissions::TAG_MANAGE).await?;
 
-    loom::tenant::tag::rename(&workspace_id, &id, name)
+    loom::tenant::timesheet_tag::rename(&workspace_id, &id, name)
         .await
         .map_err(session::internal)
 }
@@ -162,7 +166,7 @@ async fn _tag_timesheet(tag_id: String, timesheet_id: String) -> Result<(), Serv
     let (user, workspace_id) = session::session_workspace().await?;
     session::require_permission(&user, permissions::TAG_MANAGE).await?;
 
-    loom::tenant::tag::tag_timesheet(&workspace_id, &tag_id, &timesheet_id)
+    loom::tenant::timesheet_tag::tag_timesheet(&workspace_id, &tag_id, &timesheet_id)
         .await
         .map_err(session::internal)
 }
@@ -175,7 +179,7 @@ async fn _untag_timesheet(tag_id: String, timesheet_id: String) -> Result<(), Se
     let (user, workspace_id) = session::session_workspace().await?;
     session::require_permission(&user, permissions::TAG_MANAGE).await?;
 
-    loom::tenant::tag::untag_timesheet(&workspace_id, &tag_id, &timesheet_id)
+    loom::tenant::timesheet_tag::untag_timesheet(&workspace_id, &tag_id, &timesheet_id)
         .await
         .map_err(session::internal)
 }

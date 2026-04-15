@@ -1,9 +1,7 @@
 use crate::components::atoms::card::{Card, CardContent, CardFooter, CardHeader, CardTitle};
-use crate::components::atoms::{Button, Input, Select, SelectOption, ToastExt, Toasts};
+use crate::components::atoms::{Button, Input, ToastExt, Toasts};
 use crate::form_machine::{new_form, FormAction, State};
 use api::activity::ActivityDto;
-use api::customer::CustomerDto;
-use api::project::ProjectDto;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{HiPlus, HiRefresh, HiTag};
 use dioxus_free_icons::Icon;
@@ -14,26 +12,20 @@ use loom_core::{
 
 #[derive(Clone, PartialEq, Props)]
 pub(super) struct ActivityCreateFormProps {
-    pub projects: Signal<Vec<ProjectDto>>,
-    pub customers: Signal<Vec<CustomerDto>>,
     pub on_created: EventHandler<ActivityDto>,
 }
 
 #[component]
 pub(super) fn ActivityCreateForm(props: ActivityCreateFormProps) -> Element {
     let mut toasts: Toasts = use_context();
-    let projects = props.projects;
-    let customers = props.customers;
 
     let mut create_form = use_signal(new_form);
     let mut new_name = use_signal(String::new);
     let mut new_comment = use_signal(String::new);
-    let mut new_project_id = use_signal(|| Option::<String>::None);
     let mut new_billable = use_signal(|| true);
 
     let on_create = move |_| async move {
         let name = new_name.peek().clone();
-        let project_id = new_project_id.peek().clone();
 
         create_form.write().handle(&FormAction::Submit);
         if let Err(e) = (CreateActivityInput { name: name.clone() }).validate() {
@@ -42,11 +34,10 @@ pub(super) fn ActivityCreateForm(props: ActivityCreateFormProps) -> Element {
                 .handle(&FormAction::Fail(validation_summary(&e)));
             return;
         }
-        match api::activity::create_activity(project_id, name).await {
+        match api::activity::create_activity(name).await {
             Ok(dto) => {
                 new_name.set(String::new());
                 new_comment.set(String::new());
-                new_project_id.set(None);
                 create_form
                     .write()
                     .handle(&FormAction::Succeed("Activity created".into()));
@@ -81,29 +72,6 @@ pub(super) fn ActivityCreateForm(props: ActivityCreateFormProps) -> Element {
                             placeholder: "Development",
                             value: new_name.read().clone(),
                             oninput: move |e: FormEvent| new_name.set(e.value()),
-                        }
-                    }
-                    div { class: "form-field",
-                        label { class: "form-label", "Project (optional)" }
-                        Select::<String> {
-                            options: {
-                                let mut opts = vec![SelectOption::new("".to_string(), "— Global —".to_string())];
-                                opts.extend(projects.read().iter().map(|p| {
-                                    let customer_name = customers.read()
-                                        .iter()
-                                        .find(|c| c.id == p.customer_id)
-                                        .map(|c| c.name.clone());
-                                    let mut opt = SelectOption::new(p.id.clone(), p.name.clone());
-                                    if let Some(cn) = customer_name { opt = opt.sublabel(cn); }
-                                    opt
-                                }));
-                                opts
-                            },
-                            value: new_project_id.read().clone(),
-                            on_change: move |id: String| {
-                                new_project_id.set(if id.is_empty() { None } else { Some(id) })
-                            },
-                            placeholder: "Global activity…".to_string(),
                         }
                     }
                     div { class: "form-field md:col-span-2",

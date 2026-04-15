@@ -129,7 +129,7 @@ async fn _get_workspace_settings() -> Result<WorkspaceSettingsDto, ServerFnError
         .await
         .map_err(session::internal)?;
     Ok(WorkspaceSettingsDto {
-        name: view.get_name().map(ToString::to_string),
+        name: view.name().map(ToString::to_string),
         timezone: view.timezone,
         date_format: view.date_format,
         currency: view.currency,
@@ -148,7 +148,14 @@ async fn _update_workspace_settings(
     use crate::session;
 
     let (_user, workspace_id) = session::session_workspace().await?;
-    loom::workspace::update_workspace_settings(&workspace_id, name, timezone, date_format, currency, week_start)
-        .await
-        .map_err(session::internal)
+    loom::workspace::update_workspace_settings(
+        &workspace_id,
+        name,
+        timezone,
+        date_format,
+        currency,
+        week_start,
+    )
+    .await
+    .map_err(session::internal)
 }

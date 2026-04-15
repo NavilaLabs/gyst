@@ -10,19 +10,19 @@ pub struct Application {
 }
 
 impl Application {
-    pub fn get_environment(&self) -> &str {
+    pub fn environment(&self) -> &str {
         &self.environment
     }
 
-    pub fn get_name(&self) -> &str {
+    pub fn name(&self) -> &str {
         &self.name
     }
 
-    pub fn get_project_root(&self) -> &str {
+    pub fn project_root(&self) -> &str {
         &self.project_root
     }
 
-    pub fn get_authentication_secret(&self) -> &str {
+    pub fn authentication_secret(&self) -> &str {
         &self.authentication_secret
     }
 }

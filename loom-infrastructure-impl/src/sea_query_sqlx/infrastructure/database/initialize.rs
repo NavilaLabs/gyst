@@ -88,7 +88,7 @@ pub trait InitializationStrategy {
     ) -> Result<bool, Error> {
         let admin_database_uri =
             database_uri_factory::Factory::new_database_uri(&DatabaseUriType::Admin)
-                .get_uri(&pool.database_type().to_string(), None)?;
+                .uri(&pool.database_type().to_string(), None)?;
 
         self.check_is_initialized(pool, &admin_database_uri).await
     }
@@ -100,7 +100,7 @@ pub trait InitializationStrategy {
     ) -> Result<bool, Error> {
         let database_uri =
             database_uri_factory::Factory::new_database_uri(&DatabaseUriType::Tenant)
-                .get_uri(&pool.database_type().to_string(), tenant_token)?;
+                .uri(&pool.database_type().to_string(), tenant_token)?;
         self.check_is_initialized(pool, &database_uri).await
     }
 
@@ -166,7 +166,7 @@ impl InitializationStrategy for PostgresInitializationStrategy {
             info!("Admin database already initialized");
             return Ok(());
         }
-        let database_name = CONFIG.get_database().get_databases().get_admin().get_name();
+        let database_name = CONFIG.database().databases().admin().name();
         info!("Initializing admin database: {}", database_name);
         let query = format!(r#"CREATE DATABASE "{database_name}""#);
         sqlx::query(query.as_str()).execute(pool.as_ref()).await?;
@@ -193,7 +193,7 @@ impl InitializationStrategy for PostgresInitializationStrategy {
         )?;
         let mut database_name_builder = TenantDatabaseNameConcreteBuilder::new();
         TenantDatabaseNameDirector::construct(&mut database_name_builder, tenant_token);
-        let database_name = database_name_builder.get_tenant_database_name();
+        let database_name = database_name_builder.tenant_database_name();
 
         info!("Initializing tenant database: {}", database_name);
         let query = format!(r#"CREATE DATABASE "{database_name}""#);
@@ -230,7 +230,7 @@ impl InitializationStrategy for SqliteInitializationStrategy {
             return Ok(());
         }
         let uri = database_uri_factory::Factory::new_database_uri(&DatabaseUriType::Admin)
-            .get_uri(&DatabaseType::Sqlite.to_string(), None)?;
+            .uri(&DatabaseType::Sqlite.to_string(), None)?;
         let uri = uri.to_string().replace("sqlite://", "");
         info!("Initializing admin database: {}", uri);
         std::fs::File::create(&uri)?;
@@ -256,7 +256,7 @@ impl InitializationStrategy for SqliteInitializationStrategy {
             Ok,
         )?;
         let uri = database_uri_factory::Factory::new_database_uri(&DatabaseUriType::Tenant)
-            .get_uri(&DatabaseType::Sqlite.to_string(), Some(tenant_token))?;
+            .uri(&DatabaseType::Sqlite.to_string(), Some(tenant_token))?;
         let uri = uri.to_string().replace("sqlite://", "");
         info!("Initializing tenant database: {}", uri);
         std::fs::File::create(&uri)?;

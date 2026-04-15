@@ -64,7 +64,7 @@ async fn main() -> Result<()> {
     let mut daemon = ProjectionDaemon::new();
 
     for workspace in workspaces {
-        let tenant_token = workspace.get_id().to_string();
+        let tenant_token = workspace.id().to_string();
 
         let pool = match Pool::connect_tenant(&tenant_token).await {
             Ok(p) => p,

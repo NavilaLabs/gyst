@@ -23,12 +23,12 @@ pub struct Config {
 
 impl Config {
     #[must_use]
-    pub const fn get_application(&self) -> &application::Application {
+    pub const fn application(&self) -> &application::Application {
         &self.application
     }
 
     #[must_use]
-    pub const fn get_database(&self) -> &database::Database {
+    pub const fn database(&self) -> &database::Database {
         &self.database
     }
 }
@@ -69,14 +69,10 @@ mod tests {
     #[with_lifecycle(test_lifecycle)]
     #[test]
     fn test_load_config() {
-        assert_eq!(CONFIG.get_application().get_environment(), "test");
-        assert_eq!(CONFIG.get_application().get_name(), "Loom");
+        assert_eq!(CONFIG.application().environment(), "test");
+        assert_eq!(CONFIG.application().name(), "Loom");
         assert_eq!(
-            CONFIG
-                .get_database()
-                .get_databases()
-                .get_tenant()
-                .get_name_prefix(),
+            CONFIG.database().databases().tenant().name_prefix(),
             "test_loom_tenant_"
         );
     }
