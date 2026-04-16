@@ -48,7 +48,7 @@ pub async fn start_timesheet(
     }
     #[cfg(not(feature = "server"))]
     {
-        let _ = (activity_id, description, billable);
+        let _ = (activity_id, description);
         Err(ServerFnError::ServerError {
             message: "server only".into(),
             code: 500,

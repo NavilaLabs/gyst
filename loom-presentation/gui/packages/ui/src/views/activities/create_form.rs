@@ -22,7 +22,6 @@ pub(super) fn ActivityCreateForm(props: ActivityCreateFormProps) -> Element {
     let mut create_form = use_signal(new_form);
     let mut new_name = use_signal(String::new);
     let mut new_comment = use_signal(String::new);
-    let mut new_billable = use_signal(|| true);
 
     let on_create = move |_| async move {
         let name = new_name.peek().clone();
@@ -81,15 +80,6 @@ pub(super) fn ActivityCreateForm(props: ActivityCreateFormProps) -> Element {
                             placeholder: "Optional description…",
                             value: new_comment.read().clone(),
                             oninput: move |e: FormEvent| new_comment.set(e.value()),
-                        }
-                    }
-                    div { class: "form-field flex items-center gap-3",
-                        label { class: "form-label", "Billable by default" }
-                        input {
-                            r#type: "checkbox",
-                            class: "form-checkbox",
-                            checked: *new_billable.read(),
-                            oninput: move |_| { let v = *new_billable.peek(); new_billable.set(!v); },
                         }
                     }
                 }

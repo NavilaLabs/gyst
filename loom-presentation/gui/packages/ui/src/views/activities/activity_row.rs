@@ -32,8 +32,6 @@ pub(super) fn ActivityRow(props: ActivityRowProps) -> Element {
     let mut edit_form = use_signal(new_form);
     let mut edit_name = use_signal(String::new);
     let mut edit_comment = use_signal(String::new);
-    let mut edit_visible = use_signal(|| true);
-    let mut edit_billable = use_signal(|| true);
 
     let on_save = move |_| async move {
         let id = match editing_id.peek().clone() {
@@ -123,24 +121,6 @@ pub(super) fn ActivityRow(props: ActivityRowProps) -> Element {
                             placeholder: "Optional description…",
                             value: edit_comment.read().clone(),
                             oninput: move |e: FormEvent| edit_comment.set(e.value()),
-                        }
-                    }
-                    div { class: "form-field flex items-center gap-3",
-                        label { class: "form-label", "Visible" }
-                        input {
-                            r#type: "checkbox",
-                            class: "form-checkbox",
-                            checked: *edit_visible.read(),
-                            oninput: move |_| { let v = *edit_visible.peek(); edit_visible.set(!v); },
-                        }
-                    }
-                    div { class: "form-field flex items-center gap-3",
-                        label { class: "form-label", "Billable" }
-                        input {
-                            r#type: "checkbox",
-                            class: "form-checkbox",
-                            checked: *edit_billable.read(),
-                            oninput: move |_| { let v = *edit_billable.peek(); edit_billable.set(!v); },
                         }
                     }
                 }

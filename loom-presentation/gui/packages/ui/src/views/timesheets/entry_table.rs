@@ -32,7 +32,6 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
     let mut editing_id = use_signal(|| Option::<String>::None);
     let mut edit_activity_id = use_signal(|| Option::<String>::None);
     let mut edit_description = use_signal(String::new);
-    let mut edit_billable = use_signal(|| true);
     let mut edit_start_time = use_signal(String::new);
     let mut edit_end_time = use_signal(|| Option::<String>::None);
 
@@ -123,7 +122,6 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
         ColumnDef::new("Project / Activity"),
         ColumnDef::new("Start").width("160px"),
         ColumnDef::new("Duration").right().width("90px"),
-        ColumnDef::new("Flags").width("100px"),
         ColumnDef::new("").width("100px"),
     ];
     let col_count = ts_columns.len();
@@ -274,15 +272,6 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                                 placeholder: "Optional notes…",
                                                 value: edit_description.read().clone(),
                                                 oninput: move |e: FormEvent| edit_description.set(e.value()),
-                                            }
-                                        }
-                                        div { class: "form-field flex items-center gap-3",
-                                            label { class: "form-label", "Billable" }
-                                            input {
-                                                r#type: "checkbox",
-                                                class: "form-checkbox",
-                                                checked: *edit_billable.read(),
-                                                oninput: move |_| { let v = *edit_billable.peek(); edit_billable.set(!v); },
                                             }
                                         }
                                     }

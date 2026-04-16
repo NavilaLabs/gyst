@@ -5,7 +5,7 @@ use crate::layouts::DefaultLayout;
 use crate::{ActivitiesCache, TimesheetsCache};
 use chrono::{Datelike, Duration, Utc};
 use dioxus::prelude::*;
-use dioxus_charts::{BarChart, PieChart};
+use dioxus_charts::BarChart;
 use dioxus_free_icons::icons::hi_solid_icons::{HiLightningBolt, HiPlay, HiStop};
 use dioxus_free_icons::Icon;
 
@@ -44,9 +44,6 @@ fn fmt_hours_axis(v: f32) -> String {
 struct DashStats {
     today_hours: f32,
     week_hours: f32,
-    billable_hours: f32,
-    non_billable_hours: f32,
-    billable_pct: i32,
     hours_by_day: Vec<f32>,
     day_labels: Vec<String>,
     has_week_data: bool,
@@ -74,24 +71,6 @@ fn compute_stats(timesheets: &[api::timesheet::TimesheetDto]) -> DashStats {
         .map(|ts| ts.duration.unwrap_or(0) as f32 / 3600.0)
         .sum();
 
-    let billable_hours: f32 = timesheets
-        .iter()
-        .filter(|ts| {
-            ts.duration.is_some()
-                && parse_date(&ts.start_time)
-                    .map(|d| d >= week_start)
-                    .unwrap_or(false)
-        })
-        .map(|ts| ts.duration.unwrap_or(0) as f32 / 3600.0)
-        .sum();
-
-    let non_billable_hours = (week_hours - billable_hours).max(0.0);
-    let billable_pct = if week_hours > 0.0 {
-        (billable_hours / week_hours * 100.0).round() as i32
-    } else {
-        0
-    };
-
     let hours_by_day: Vec<f32> = (0..7)
         .map(|i| {
             let day = today - Duration::days(6 - i as i64);
@@ -115,9 +94,6 @@ fn compute_stats(timesheets: &[api::timesheet::TimesheetDto]) -> DashStats {
     DashStats {
         today_hours,
         week_hours,
-        billable_hours,
-        non_billable_hours,
-        billable_pct,
         hours_by_day,
         day_labels,
         has_week_data,
@@ -178,7 +154,6 @@ pub fn Dashboard() -> Element {
 
     // Compute all stats before entering rsx! (drops the borrow immediately).
     let stats = compute_stats(&recent.read());
-    let nb_pct = 100 - stats.billable_pct;
 
     rsx! {
         document::Link { rel: "stylesheet", href: asset!("./style.css") }
@@ -265,16 +240,6 @@ pub fn Dashboard() -> Element {
                         span { class: "dash-kpi-value", "{fmt_hours(stats.week_hours)}" }
                         span { class: "dash-kpi-sub", "tracked" }
                     }
-                    div { class: "dash-kpi-card",
-                        span { class: "dash-kpi-label", "Billable" }
-                        span { class: "dash-kpi-value dash-kpi-value--accent", "{stats.billable_pct}%" }
-                        span { class: "dash-kpi-sub", "{fmt_hours(stats.billable_hours)} this week" }
-                    }
-                    div { class: "dash-kpi-card",
-                        span { class: "dash-kpi-label", "Non-Billable" }
-                        span { class: "dash-kpi-value dash-kpi-value--muted", "{fmt_hours(stats.non_billable_hours)}" }
-                        span { class: "dash-kpi-sub", "this week" }
-                    }
                 }
 
                 // ── Charts ───────────────────────────────────────────────────
@@ -313,61 +278,6 @@ pub fn Dashboard() -> Element {
                                     class_grid_line: "dx-grid-line",
                                     class_grid_label: "dx-grid-label",
                                     class_grid_labels: "dx-grid-labels",
-                                }
-                            }
-                        }
-
-                        // Billable split — donut chart
-                        div { class: "island dash-chart-island",
-                            div { class: "island-header",
-                                span { class: "island-title", "Billable Split" }
-                                span { class: "island-subtitle", "this week" }
-                            }
-                            div { class: "dash-donut-wrap",
-                                div { class: "dash-chart-area",
-                                    PieChart {
-                                        series: vec![
-                                            stats.billable_hours.max(0.001),
-                                            stats.non_billable_hours.max(0.0),
-                                        ],
-                                        labels: Some(vec![
-                                            "Billable".to_string(),
-                                            "Non-billable".to_string(),
-                                        ]),
-                                        donut: true,
-                                        donut_width: 55.0,
-                                        show_labels: false,
-                                        padding: 10.0,
-                                        width: "100%",
-                                        height: "100%",
-                                        viewbox_width: 240,
-                                        viewbox_height: 240,
-                                        class_chart: "dx-pie-chart",
-                                        class_series: "dx-series",
-                                        class_slice: "dx-slice",
-                                        class_label: "dx-label",
-                                    }
-                                }
-                                // Legend
-                                div { class: "dash-donut-legend",
-                                    div { class: "dash-legend-item",
-                                        span { class: "dash-legend-dot dash-legend-dot--primary" }
-                                        span { class: "dash-legend-text",
-                                            "Billable"
-                                            span { class: "dash-legend-val",
-                                                " {fmt_hours(stats.billable_hours)} ({stats.billable_pct}%)"
-                                            }
-                                        }
-                                    }
-                                    div { class: "dash-legend-item",
-                                        span { class: "dash-legend-dot dash-legend-dot--muted" }
-                                        span { class: "dash-legend-text",
-                                            "Non-billable"
-                                            span { class: "dash-legend-val",
-                                                " {fmt_hours(stats.non_billable_hours)} ({nb_pct}%)"
-                                            }
-                                        }
-                                    }
                                 }
                             }
                         }

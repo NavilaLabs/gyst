@@ -1,7 +1,6 @@
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{
-    HiBriefcase, HiClock, HiCog, HiHashtag, HiHome, HiLogout, HiOfficeBuilding, HiPlay, HiStop,
-    HiTag,
+    HiClock, HiCog, HiHashtag, HiHome, HiLogout, HiPlay, HiStop, HiTag,
 };
 use dioxus_free_icons::Icon;
 
@@ -73,34 +72,20 @@ pub fn Sidebar() -> Element {
                     }
                     NavbarItem {
                         index: 2usize,
-                        value: "customers".to_string(),
-                        to: "/customers",
-                        Icon { icon: HiOfficeBuilding, width: 16, height: 16 }
-                        "Customers"
-                    }
-                    NavbarItem {
-                        index: 3usize,
-                        value: "projects".to_string(),
-                        to: "/projects",
-                        Icon { icon: HiBriefcase, width: 16, height: 16 }
-                        "Projects"
-                    }
-                    NavbarItem {
-                        index: 4usize,
                         value: "activities".to_string(),
                         to: "/activities",
                         Icon { icon: HiTag, width: 16, height: 16 }
                         "Activities"
                     }
                     NavbarItem {
-                        index: 5usize,
+                        index: 3usize,
                         value: "tags".to_string(),
                         to: "/tags",
                         Icon { icon: HiHashtag, width: 16, height: 16 }
                         "Tags"
                     }
                     NavbarItem {
-                        index: 6usize,
+                        index: 4usize,
                         value: "settings".to_string(),
                         to: "/settings",
                         Icon { icon: HiCog, width: 16, height: 16 }

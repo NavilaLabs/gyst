@@ -26,21 +26,18 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
     let mut project_id = use_signal(|| Option::<String>::None);
     let mut activity_id = use_signal(|| Option::<String>::None);
     let mut description = use_signal(String::new);
-    let mut billable = use_signal(|| true);
 
     // Manual entry form
     let mut manual_activity_id = use_signal(|| Option::<String>::None);
     let mut manual_start = use_signal(String::new);
     let mut manual_end = use_signal(String::new);
     let mut manual_description = use_signal(String::new);
-    let mut manual_billable = use_signal(|| true);
     let mut manual_submitting = use_signal(|| false);
 
     // Edit state for running timer
     let mut run_project_id = use_signal(|| Option::<String>::None);
     let mut run_activity_id = use_signal(|| Option::<String>::None);
     let mut run_description = use_signal(String::new);
-    let mut run_billable = use_signal(|| true);
 
     // Sync run_* fields when running changes
     use_effect(move || {
@@ -54,7 +51,6 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
         let pid = project_id.peek().clone();
         let aid = activity_id.peek().clone();
         let desc = description.peek().clone();
-        let bill = *billable.peek();
         let (Some(pid), Some(aid)) = (pid, aid) else {
             return;
         };
@@ -64,12 +60,10 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
                 run_project_id.set(Some(pid));
                 run_activity_id.set(Some(aid));
                 run_description.set(desc_opt.unwrap_or_default());
-                run_billable.set(bill);
                 running.set(Some(dto));
                 project_id.set(None);
                 activity_id.set(None);
                 description.set(String::new());
-                billable.set(true);
                 props.on_timer_changed.call(());
             }
             Err(e) => toasts.push_error(e.to_string()),
@@ -83,7 +77,7 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
         let Some(ts) = maybe_ts else { return };
         let ts_id = ts.id.clone();
 
-        // Persist description / billable changes.
+        // Persist description changes.
         let desc = {
             let s = run_description.peek().clone();
             if s.is_empty() {
@@ -192,15 +186,6 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
                                         oninput: move |e: FormEvent| run_description.set(e.value()),
                                     }
                                 }
-                                div { class: "form-field flex items-center gap-3",
-                                    label { class: "form-label", "Billable" }
-                                    input {
-                                        r#type: "checkbox",
-                                        class: "form-checkbox",
-                                        checked: *run_billable.read(),
-                                        oninput: move |_| { let v = *run_billable.peek(); run_billable.set(!v); },
-                                    }
-                                }
                             }
                         }
                         CardFooter {
@@ -265,15 +250,6 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
                                         oninput: move |e: FormEvent| description.set(e.value()),
                                     }
                                 }
-                                div { class: "form-field flex items-center gap-3",
-                                    label { class: "form-label", "Billable" }
-                                    input {
-                                        r#type: "checkbox",
-                                        class: "form-checkbox",
-                                        checked: *billable.read(),
-                                        oninput: move |_| { let v = *billable.peek(); billable.set(!v); },
-                                    }
-                                }
                             }
                         }
                         CardFooter {
@@ -323,15 +299,6 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
                                         placeholder: "Optional notes…",
                                         value: manual_description.read().clone(),
                                         oninput: move |e: FormEvent| manual_description.set(e.value()),
-                                    }
-                                }
-                                div { class: "form-field flex items-center gap-3",
-                                    label { class: "form-label", "Billable" }
-                                    input {
-                                        r#type: "checkbox",
-                                        class: "form-checkbox",
-                                        checked: *manual_billable.read(),
-                                        oninput: move |_| { let v = *manual_billable.peek(); manual_billable.set(!v); },
                                     }
                                 }
                             }
