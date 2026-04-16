@@ -41,6 +41,19 @@ pub async fn create_activity(name: String) -> Result<ActivityDto, ServerFnError>
     }
 }
 
+#[post("/api/activities/delete")]
+pub async fn delete_activity(id: String) -> Result<(), ServerFnError> {
+    #[cfg(feature = "server")]
+    {
+        _delete_activity(id).await
+    }
+    #[cfg(not(feature = "server"))]
+    {
+        let _ = id;
+        Ok(())
+    }
+}
+
 #[post("/api/activities/update")]
 pub async fn update_activity(
     id: String,
@@ -111,6 +124,19 @@ async fn _update_activity(
     session::require_permission(&user, permissions::ACTIVITY_UPDATE).await?;
 
     loom::tenant::activity::update(&workspace_id, &id, name, comment)
+        .await
+        .map_err(session::internal)
+}
+
+#[cfg(feature = "server")]
+async fn _delete_activity(id: String) -> Result<(), ServerFnError> {
+    use crate::session;
+    use loom::core::permissions;
+
+    let (user, workspace_id) = session::session_workspace().await?;
+    session::require_permission(&user, permissions::ACTIVITY_DELETE).await?;
+
+    loom::tenant::activity::delete(&workspace_id, &id)
         .await
         .map_err(session::internal)
 }

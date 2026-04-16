@@ -40,14 +40,14 @@ impl TimesheetRepository {
     const SELECT: &'static str = "SELECT id, user_id, activity_id, start_time, end_time, duration, description, timezone \
          FROM projections__timesheets";
 
-    /// Most-recent 50 timesheets for a user, newest first.
+    /// Most-recent 50 non-cancelled timesheets for a user, newest first.
     ///
     /// # Errors
     ///
     /// Returns an error if the database query fails.
     pub async fn recent_for_user(&self, user_id: &str) -> Result<Vec<TimesheetRow>, crate::Error> {
         let sql = format!(
-            "{} WHERE user_id = ? ORDER BY start_time DESC LIMIT 50",
+            "{} WHERE user_id = ? AND cancelled_at IS NULL ORDER BY start_time DESC LIMIT 50",
             Self::SELECT
         );
         let rows = sqlx::query(&sql)
@@ -67,7 +67,7 @@ impl TimesheetRepository {
         user_id: &str,
     ) -> Result<Option<TimesheetRow>, crate::Error> {
         let sql = format!(
-            "{} WHERE user_id = ? AND end_time IS NULL ORDER BY start_time DESC LIMIT 1",
+            "{} WHERE user_id = ? AND end_time IS NULL AND cancelled_at IS NULL ORDER BY start_time DESC LIMIT 1",
             Self::SELECT
         );
         let row = sqlx::query(&sql)

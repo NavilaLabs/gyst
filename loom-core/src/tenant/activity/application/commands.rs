@@ -34,6 +34,14 @@ impl ActivityCommand {
         self.record_that(ActivityEvent::Updated { name, comment }.into())
             .map_err(|e| activity::DomainError::AggregateError(e).into())
     }
+
+    /// # Errors
+    ///
+    /// Returns an error if the domain event cannot be applied to the aggregate.
+    pub fn delete(&mut self) -> Result<(), crate::Error> {
+        self.record_that(ActivityEvent::Deleted {}.into())
+            .map_err(|e| activity::DomainError::AggregateError(e).into())
+    }
 }
 
 #[cfg(test)]

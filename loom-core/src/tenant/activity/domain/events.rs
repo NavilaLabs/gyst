@@ -14,6 +14,7 @@ pub enum ActivityEvent {
         name: String,
         comment: Option<String>,
     },
+    Deleted {},
 }
 
 impl Message for ActivityEvent {
@@ -21,6 +22,7 @@ impl Message for ActivityEvent {
         match self {
             Self::Created { .. } => "ActivityCreated",
             Self::Updated { .. } => "ActivityUpdated",
+            Self::Deleted { .. } => "ActivityDeleted",
         }
     }
 }

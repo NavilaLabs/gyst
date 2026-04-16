@@ -55,6 +55,7 @@ impl Aggregate for Activity {
                 a.comment = comment;
                 Ok(a)
             }
+            (Some(a), ActivityEvent::Deleted {}) => Ok(a),
         }
     }
 }

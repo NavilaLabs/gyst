@@ -7,7 +7,7 @@ use api::activity::ActivityDto;
 use api::timesheet::TimesheetDto;
 use api::timesheet_tag::TimesheetsTagDto;
 use dioxus::prelude::*;
-use dioxus_free_icons::icons::hi_solid_icons::{HiPencil, HiSave, HiTag, HiX};
+use dioxus_free_icons::icons::hi_solid_icons::{HiPencil, HiSave, HiTag, HiTrash, HiX};
 use dioxus_free_icons::Icon;
 
 #[derive(Clone, PartialEq, Props)]
@@ -37,6 +37,8 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
 
     let mut tagging_id = use_signal(|| Option::<String>::None);
     let mut ts_tags = use_signal(Vec::<TimesheetsTagDto>::new);
+
+    let mut confirm_cancel_id = use_signal(|| Option::<String>::None);
 
     let on_save_edit = move |_| async move {
         let id = match editing_id.peek().clone() {
@@ -122,7 +124,7 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
         ColumnDef::new("Activity"),
         ColumnDef::new("Start").width("160px"),
         ColumnDef::new("Duration").right().width("90px"),
-        ColumnDef::new("").width("100px"),
+        ColumnDef::new("").width("120px"),
     ];
     let col_count = ts_columns.len();
 
@@ -144,8 +146,10 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                         let t = ts.clone();
                         let tsid = t.id.clone();
                         let tsid2 = t.id.clone();
+                        let tsid3 = t.id.clone();
                         let is_editing = editing_id.read().as_deref() == Some(t.id.as_str());
                         let is_tagging = tagging_id.read().as_deref() == Some(t.id.as_str());
+                        let is_confirming_cancel = confirm_cancel_id.read().as_deref() == Some(t.id.as_str());
                         let act_name = t.activity_id.as_ref()
                             .and_then(|aid| activities.read().iter().find(|a| &a.id == aid).map(|a| a.name.clone()))
                             .unwrap_or_else(|| "—".to_string());
@@ -158,6 +162,7 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                             let s = user_settings.read();
                             formatting::format_datetime(&t.start_time, &s.timezone, &s.date_format)
                         };
+                        let inline_tags = t.tags.clone();
 
                         rsx! {
                             TableRow { key: "{t.id}",
@@ -166,6 +171,13 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                         span { class: "text-xs text-secondary", "{act_name}" }
                                         if let Some(ref desc) = t.description {
                                             span { class: "text-xs text-secondary italic", "{desc}" }
+                                        }
+                                        if !inline_tags.is_empty() {
+                                            div { class: "flex flex-wrap gap-1 mt-0.5",
+                                                for tag in inline_tags {
+                                                    span { class: "tag-pill tag-pill--active tag-pill--sm", "{tag.name}" }
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -179,9 +191,13 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                 }
                                 TableCell {
                                     div { class: "flex gap-1",
-                                        if is_editing || is_tagging {
+                                        if is_editing || is_tagging || is_confirming_cancel {
                                             Button {
-                                                onclick: move |_| { editing_id.set(None); tagging_id.set(None); },
+                                                onclick: move |_| {
+                                                    editing_id.set(None);
+                                                    tagging_id.set(None);
+                                                    confirm_cancel_id.set(None);
+                                                },
                                                 Icon { icon: HiX, width: 14, height: 14 }
                                             }
                                         } else {
@@ -199,6 +215,7 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                                         edit_end_time.set(et.end_time.as_deref().map(|s| formatting::to_input(s, &tz)));
                                                         editing_id.set(Some(et.id));
                                                         tagging_id.set(None);
+                                                        confirm_cancel_id.set(None);
                                                     }
                                                 },
                                                 Icon { icon: HiPencil, width: 14, height: 14 }
@@ -210,16 +227,31 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                                         if tagging_id.peek().as_deref() == Some(tsid2.as_str()) {
                                                             tagging_id.set(None);
                                                         } else {
+                                                            let initial_tags = timesheets.read()
+                                                                .iter()
+                                                                .find(|x| x.id == tsid2)
+                                                                .map(|x| x.tags.clone())
+                                                                .unwrap_or_default();
+                                                            ts_tags.set(initial_tags);
                                                             match api::timesheet_tag::list_timesheet_tags(tsid2.clone()).await {
                                                                 Ok(tags) => ts_tags.set(tags),
                                                                 Err(e) => toasts.push_error(e.to_string()),
                                                             }
                                                             tagging_id.set(Some(tsid2.clone()));
                                                             editing_id.set(None);
+                                                            confirm_cancel_id.set(None);
                                                         }
                                                     }
                                                 },
                                                 Icon { icon: HiTag, width: 14, height: 14 }
+                                            }
+                                            Button {
+                                                onclick: move |_| {
+                                                    confirm_cancel_id.set(Some(tsid3.clone()));
+                                                    editing_id.set(None);
+                                                    tagging_id.set(None);
+                                                },
+                                                Icon { icon: HiTrash, width: 14, height: 14 }
                                             }
                                         }
                                     }
@@ -302,6 +334,7 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                                         let tag_id2 = tag.id.clone();
                                                         let tsid_a = tsid_tag.clone();
                                                         let tsid_b = tsid_tag.clone();
+                                                        let tsid_c = tsid_tag.clone();
                                                         let is_applied = ts_tags.read().iter().any(|t| t.id == tag.id);
                                                         rsx! {
                                                             button {
@@ -311,6 +344,7 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                                                     let tag_id = tag_id.clone();
                                                                     let tsid_a = tsid_a.clone();
                                                                     let tsid_b = tsid_b.clone();
+                                                                    let tsid_c = tsid_c.clone();
                                                                     let _ = tag_id2.clone();
                                                                     async move {
                                                                         let result = if is_applied {
@@ -320,7 +354,10 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                                                         };
                                                                         if result.is_ok() {
                                                                             if let Ok(tags) = api::timesheet_tag::list_timesheet_tags(tsid_b.clone()).await {
-                                                                                ts_tags.set(tags);
+                                                                                ts_tags.set(tags.clone());
+                                                                                if let Some(item) = timesheets.write().iter_mut().find(|x| x.id == tsid_c) {
+                                                                                    item.tags = tags;
+                                                                                }
                                                                             }
                                                                         }
                                                                     }
@@ -329,6 +366,38 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                                             }
                                                         }
                                                     }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if is_confirming_cancel {
+                                {
+                                    let tsid_cancel = t.id.clone();
+                                    rsx! {
+                                        TableExpandRow { col_count,
+                                            div { class: "flex items-center gap-3",
+                                                p { class: "text-sm text-secondary", "Delete this timesheet entry?" }
+                                                Button {
+                                                    onclick: move |_| {
+                                                        let tsid_cancel = tsid_cancel.clone();
+                                                        async move {
+                                                            if let Err(e) = api::timesheet::cancel_timesheet(tsid_cancel.clone()).await {
+                                                                toasts.push_error(e.to_string());
+                                                                return;
+                                                            }
+                                                            timesheets.write().retain(|x| x.id != tsid_cancel);
+                                                            confirm_cancel_id.set(None);
+                                                            toasts.push_success("Timesheet deleted");
+                                                        }
+                                                    },
+                                                    "Yes, delete"
+                                                }
+                                                Button {
+                                                    onclick: move |_| confirm_cancel_id.set(None),
+                                                    "No"
                                                 }
                                             }
                                         }

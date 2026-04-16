@@ -51,6 +51,19 @@ pub async fn create_tag(name: String) -> Result<TimesheetsTagDto, ServerFnError>
     }
 }
 
+#[post("/api/tags/delete")]
+pub async fn delete_tag(id: String) -> Result<(), ServerFnError> {
+    #[cfg(feature = "server")]
+    {
+        _delete_tag(id).await
+    }
+    #[cfg(not(feature = "server"))]
+    {
+        let _ = id;
+        Ok(())
+    }
+}
+
 #[post("/api/tags/rename")]
 pub async fn rename_tag(id: String, name: String) -> Result<(), ServerFnError> {
     #[cfg(feature = "server")]
@@ -180,6 +193,19 @@ async fn _untag_timesheet(tag_id: String, timesheet_id: String) -> Result<(), Se
     session::require_permission(&user, permissions::TAG_MANAGE).await?;
 
     loom::tenant::timesheet_tag::untag_timesheet(&workspace_id, &tag_id, &timesheet_id)
+        .await
+        .map_err(session::internal)
+}
+
+#[cfg(feature = "server")]
+async fn _delete_tag(id: String) -> Result<(), ServerFnError> {
+    use crate::session;
+    use loom::core::permissions;
+
+    let (user, workspace_id) = session::session_workspace().await?;
+    session::require_permission(&user, permissions::TAG_MANAGE).await?;
+
+    loom::tenant::timesheet_tag::delete(&workspace_id, &id)
         .await
         .map_err(session::internal)
 }

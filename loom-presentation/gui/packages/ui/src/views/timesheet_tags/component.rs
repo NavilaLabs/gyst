@@ -6,7 +6,7 @@ use crate::layouts::DefaultLayout;
 use crate::TagsCache;
 use api::timesheet_tag::TimesheetsTagDto;
 use dioxus::prelude::*;
-use dioxus_free_icons::icons::hi_solid_icons::{HiPencil, HiPlus, HiSave, HiTag, HiX};
+use dioxus_free_icons::icons::hi_solid_icons::{HiPencil, HiPlus, HiSave, HiTag, HiTrash, HiX};
 use dioxus_free_icons::Icon;
 
 const PAGE_SIZE: usize = 20;
@@ -23,6 +23,7 @@ pub fn Tags() -> Element {
 
     let mut editing_id = use_signal(|| Option::<String>::None);
     let mut edit_name = use_signal(String::new);
+    let mut confirm_delete_id = use_signal(|| Option::<String>::None);
 
     use_resource(move || async move {
         match api::timesheet_tag::list_tags().await {
@@ -77,7 +78,7 @@ pub fn Tags() -> Element {
         .cloned()
         .collect();
 
-    let columns = vec![ColumnDef::new("Name"), ColumnDef::new("").width("80px")];
+    let columns = vec![ColumnDef::new("Name"), ColumnDef::new("").width("120px")];
     let col_count = columns.len();
 
     rsx! {
@@ -130,7 +131,10 @@ pub fn Tags() -> Element {
                             {
                                 let t = tag.clone();
                                 let tid = t.id.clone();
+                                let tid2 = t.id.clone();
+                                let tid_delete = t.id.clone();
                                 let is_editing = editing_id.read().as_deref() == Some(t.id.as_str());
+                                let is_confirming = confirm_delete_id.read().as_deref() == Some(t.id.as_str());
 
                                 rsx! {
                                     TableRow { key: "{t.id}",
@@ -142,8 +146,28 @@ pub fn Tags() -> Element {
                                                     Icon { icon: HiSave, width: 14, height: 14 }
                                                 }
                                                 Button {
-                                                    onclick: move |_| editing_id.set(None),
+                                                    onclick: move |_| { editing_id.set(None); confirm_delete_id.set(None); },
                                                     Icon { icon: HiX, width: 14, height: 14 }
+                                                }
+                                            } else if is_confirming {
+                                                Button {
+                                                    onclick: move |_| {
+                                                        let id = tid_delete.clone();
+                                                        async move {
+                                                            if let Err(e) = api::timesheet_tag::delete_tag(id.clone()).await {
+                                                                toasts.push_error(e.to_string());
+                                                                return;
+                                                            }
+                                                            tags.write().retain(|x| x.id != id);
+                                                            confirm_delete_id.set(None);
+                                                            toasts.push_success("Tag deleted");
+                                                        }
+                                                    },
+                                                    "Yes, delete"
+                                                }
+                                                Button {
+                                                    onclick: move |_| confirm_delete_id.set(None),
+                                                    "No"
                                                 }
                                             } else {
                                                 Button {
@@ -155,8 +179,16 @@ pub fn Tags() -> Element {
                                                             .unwrap_or_default();
                                                         edit_name.set(tag_name);
                                                         editing_id.set(Some(tid.clone()));
+                                                        confirm_delete_id.set(None);
                                                     },
                                                     Icon { icon: HiPencil, width: 14, height: 14 }
+                                                }
+                                                Button {
+                                                    onclick: move |_| {
+                                                        confirm_delete_id.set(Some(tid2.clone()));
+                                                        editing_id.set(None);
+                                                    },
+                                                    Icon { icon: HiTrash, width: 14, height: 14 }
                                                 }
                                             }
                                         }

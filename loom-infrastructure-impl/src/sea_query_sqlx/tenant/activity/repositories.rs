@@ -38,10 +38,11 @@ impl ActivityRepository {
     ///
     /// Returns an error if the database query fails.
     pub async fn all(&self) -> Result<Vec<ActivityRow>, crate::Error> {
-        let rows =
-            sqlx::query("SELECT id, name, comment FROM projections__activities ORDER BY name")
-                .fetch_all(self.store.pool.as_ref())
-                .await?;
+        let rows = sqlx::query(
+            "SELECT id, name, comment FROM projections__activities WHERE deleted_at IS NULL ORDER BY name",
+        )
+        .fetch_all(self.store.pool.as_ref())
+        .await?;
         rows.into_iter().map(|r| Self::map_row(&r)).collect()
     }
 

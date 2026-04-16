@@ -1,6 +1,8 @@
 use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::timesheet_tag::TimesheetsTagDto;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TimesheetDto {
     pub id: String,
@@ -11,6 +13,7 @@ pub struct TimesheetDto {
     pub duration: Option<i32>,
     pub description: Option<String>,
     pub timezone: String,
+    pub tags: Vec<TimesheetsTagDto>,
 }
 
 #[get("/api/timesheets/recent")]
@@ -141,8 +144,24 @@ pub async fn stop_timesheet(timesheet_id: String) -> Result<(), ServerFnError> {
     }
 }
 
+#[post("/api/timesheets/cancel")]
+pub async fn cancel_timesheet(timesheet_id: String) -> Result<(), ServerFnError> {
+    #[cfg(feature = "server")]
+    {
+        _cancel_timesheet(timesheet_id).await
+    }
+    #[cfg(not(feature = "server"))]
+    {
+        let _ = timesheet_id;
+        Ok(())
+    }
+}
+
 #[cfg(feature = "server")]
-fn row_to_dto(r: loom::core::tenant::timesheet::TimesheetRow) -> TimesheetDto {
+fn row_to_dto(
+    r: loom::core::tenant::timesheet::TimesheetRow,
+    tags: Vec<TimesheetsTagDto>,
+) -> TimesheetDto {
     TimesheetDto {
         id: r.id().to_string(),
         user_id: r.user_id().to_string(),
@@ -152,6 +171,7 @@ fn row_to_dto(r: loom::core::tenant::timesheet::TimesheetRow) -> TimesheetDto {
         duration: r.duration(),
         description: r.description().map(String::from),
         timezone: r.timezone().to_string(),
+        tags,
     }
 }
 
@@ -163,7 +183,29 @@ async fn _list_timesheets() -> Result<Vec<TimesheetDto>, ServerFnError> {
     let rows = loom::tenant::timesheet::recent(&workspace_id, &user.id)
         .await
         .map_err(session::internal)?;
-    Ok(rows.into_iter().map(row_to_dto).collect())
+
+    let ids: Vec<String> = rows.iter().map(|r| r.id().to_string()).collect();
+    let id_refs: Vec<&str> = ids.iter().map(String::as_str).collect();
+    let mut tags_map = loom::tenant::timesheet_tag::for_timesheets_batch(&workspace_id, &id_refs)
+        .await
+        .map_err(session::internal)?;
+
+    Ok(rows
+        .into_iter()
+        .map(|r| {
+            let id = r.id().to_string();
+            let tags = tags_map
+                .remove(&id)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|t| TimesheetsTagDto {
+                    id: t.id().to_string(),
+                    name: t.name().to_string(),
+                })
+                .collect();
+            row_to_dto(r, tags)
+        })
+        .collect())
 }
 
 #[cfg(feature = "server")]
@@ -174,7 +216,7 @@ async fn _running_timesheet() -> Result<Option<TimesheetDto>, ServerFnError> {
     let row = loom::tenant::timesheet::running(&workspace_id, &user.id)
         .await
         .map_err(session::internal)?;
-    Ok(row.map(row_to_dto))
+    Ok(row.map(|r| row_to_dto(r, vec![])))
 }
 
 #[cfg(feature = "server")]
@@ -196,7 +238,7 @@ async fn _start_timesheet(
     )
     .await
     .map_err(session::internal)?;
-    Ok(row_to_dto(r))
+    Ok(row_to_dto(r, vec![]))
 }
 
 #[cfg(feature = "server")]
@@ -268,7 +310,7 @@ async fn _create_timesheet_manual(
     )
     .await
     .map_err(session::internal)?;
-    Ok(row_to_dto(r))
+    Ok(row_to_dto(r, vec![]))
 }
 
 #[cfg(feature = "server")]
@@ -291,4 +333,17 @@ async fn _update_timesheet_time(
     )
     .await
     .map_err(session::internal)
+}
+
+#[cfg(feature = "server")]
+async fn _cancel_timesheet(timesheet_id: String) -> Result<(), ServerFnError> {
+    use crate::session;
+    use loom::core::permissions;
+
+    let (user, workspace_id) = session::session_workspace().await?;
+    session::require_permission(&user, permissions::TIMESHEET_CANCEL).await?;
+
+    loom::tenant::timesheet::cancel(&workspace_id, &timesheet_id)
+        .await
+        .map_err(session::internal)
 }

@@ -75,6 +75,14 @@ impl Projector for ActivityProjector {
                     .execute(self.pool.as_ref())
                     .await?;
             }
+            "ActivityDeleted" => {
+                sqlx::query(
+                    "UPDATE projections__activities SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?",
+                )
+                .bind(event.stream_id.clone())
+                .execute(self.pool.as_ref())
+                .await?;
+            }
             _ => {}
         }
 

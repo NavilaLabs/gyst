@@ -30,6 +30,18 @@ pub async fn create(
     Ok(ActivityRow::new(id, name, comment))
 }
 
+/// Soft-delete an activity (excluded from future queries).
+pub async fn delete(workspace_id: &str, id: &str) -> Result<()> {
+    let pool = super::tenant_pool(workspace_id).await?;
+    let repo = ActivityRepository::from_pool(pool).await?;
+    let agg_id: ActivityId = id.parse()?;
+    let root = repo.get(&agg_id).await?;
+    let mut cmd: ActivityCommand = root.into();
+    cmd.delete()?;
+    repo.save(&mut cmd).await?;
+    Ok(())
+}
+
 /// Update an existing activity's name and optional comment.
 pub async fn update(
     workspace_id: &str,

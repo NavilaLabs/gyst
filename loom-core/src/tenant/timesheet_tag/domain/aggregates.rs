@@ -50,7 +50,8 @@ impl Aggregate for TimesheetTag {
             (
                 Some(t),
                 TimesheetTagEvent::TimesheetTagged { .. }
-                | TimesheetTagEvent::TimesheetUntagged { .. },
+                | TimesheetTagEvent::TimesheetUntagged { .. }
+                | TimesheetTagEvent::Deleted { .. },
             ) => Ok(t),
         }
     }

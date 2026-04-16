@@ -11,11 +11,13 @@
 // Activity domain
 pub const ACTIVITY_CREATE: &str = "activity.create";
 pub const ACTIVITY_UPDATE: &str = "activity.update";
+pub const ACTIVITY_DELETE: &str = "activity.delete";
 
 // Timesheet domain
 pub const TIMESHEET_CREATE: &str = "timesheet.create";
 pub const TIMESHEET_UPDATE: &str = "timesheet.update";
 pub const TIMESHEET_EXPORT: &str = "timesheet.export";
+pub const TIMESHEET_CANCEL: &str = "timesheet.cancel";
 
 // Cross-cutting
 pub const TAG_MANAGE: &str = "tag.manage";
@@ -25,8 +27,10 @@ pub const TAG_MANAGE: &str = "tag.manage";
 pub const ALL: &[&str] = &[
     ACTIVITY_CREATE,
     ACTIVITY_UPDATE,
+    ACTIVITY_DELETE,
     TIMESHEET_CREATE,
     TIMESHEET_UPDATE,
     TIMESHEET_EXPORT,
+    TIMESHEET_CANCEL,
     TAG_MANAGE,
 ];

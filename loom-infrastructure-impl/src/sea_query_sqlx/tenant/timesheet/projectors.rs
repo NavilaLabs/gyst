@@ -168,6 +168,14 @@ impl Projector for TimesheetProjector {
                     .execute(self.pool.as_ref())
                     .await?;
             }
+            "TimesheetCancelled" => {
+                sqlx::query(
+                    "UPDATE projections__timesheets SET cancelled_at = CURRENT_TIMESTAMP WHERE id = ?",
+                )
+                .bind(event.stream_id.clone())
+                .execute(self.pool.as_ref())
+                .await?;
+            }
             _ => {}
         }
 

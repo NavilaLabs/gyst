@@ -1,4 +1,4 @@
-use std::{ops::Deref, str::FromStr};
+use std::{collections::HashMap, ops::Deref, str::FromStr};
 
 use async_trait::async_trait;
 use eventually::aggregate::Root;
@@ -63,6 +63,40 @@ impl TimesheetTagRepository {
         .fetch_all(self.store.pool.as_ref())
         .await?;
         rows.into_iter().map(|r| Self::map_row(&r)).collect()
+    }
+
+    /// Returns all tag assignments for the given timesheet IDs as a map of `timesheet_id` → tags.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    pub async fn for_timesheets_batch(
+        &self,
+        timesheet_ids: &[&str],
+    ) -> Result<HashMap<String, Vec<TimesheetTagRow>>, crate::Error> {
+        if timesheet_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let placeholders = vec!["?"; timesheet_ids.len()].join(", ");
+        let sql = format!(
+            "SELECT tht.timesheet_id, t.id, t.name \
+             FROM projections__timesheet_has_tags tht \
+             JOIN projections__timesheet_tags t ON t.id = tht.timesheet_tag_id \
+             WHERE tht.timesheet_id IN ({placeholders}) \
+             ORDER BY t.name"
+        );
+        let mut q = sqlx::query(&sql);
+        for id in timesheet_ids {
+            q = q.bind(*id);
+        }
+        let rows = q.fetch_all(self.store.pool.as_ref()).await?;
+        let mut result: HashMap<String, Vec<TimesheetTagRow>> = HashMap::new();
+        for row in rows {
+            let ts_id: String = row.try_get("timesheet_id")?;
+            let tag = Self::map_row(&row)?;
+            result.entry(ts_id).or_default().push(tag);
+        }
+        Ok(result)
     }
 
     fn map_row(row: &AnyRow) -> Result<TimesheetTagRow, crate::Error> {

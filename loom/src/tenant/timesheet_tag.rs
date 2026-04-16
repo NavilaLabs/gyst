@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::Result;
 use eventually::aggregate::repository::{Getter, Saver};
 use loom_core::tenant::{
@@ -70,4 +72,25 @@ pub async fn untag_timesheet(workspace_id: &str, tag_id: &str, timesheet_id: &st
     cmd.untag_timesheet(ts_id)?;
     repo.save(&mut cmd).await?;
     Ok(())
+}
+
+pub async fn delete(workspace_id: &str, id: &str) -> Result<()> {
+    let pool = super::tenant_pool(workspace_id).await?;
+    let repo = TimesheetTagRepository::from_pool(pool).await?;
+    let agg_id: TimesheetTagId = id.parse()?;
+    let root = repo.get(&agg_id).await?;
+    let mut cmd: TimesheetTagCommand = root.into();
+    cmd.delete()?;
+    repo.save(&mut cmd).await?;
+    Ok(())
+}
+
+/// Returns all tag assignments for the given timesheet IDs, grouped by `timesheet_id`.
+pub async fn for_timesheets_batch(
+    workspace_id: &str,
+    timesheet_ids: &[&str],
+) -> Result<HashMap<String, Vec<TimesheetTagRow>>> {
+    let pool = super::tenant_pool(workspace_id).await?;
+    let repo = TimesheetTagRepository::from_pool(pool).await?;
+    Ok(repo.for_timesheets_batch(timesheet_ids).await?)
 }

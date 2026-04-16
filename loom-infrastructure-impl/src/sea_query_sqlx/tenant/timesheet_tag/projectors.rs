@@ -121,6 +121,12 @@ impl Projector for TimesheetTagProjector {
                     .execute(self.pool.as_ref())
                     .await?;
             }
+            "TagDeleted" => {
+                sqlx::query("DELETE FROM projections__timesheet_tags WHERE id = ?")
+                    .bind(event.stream_id.clone())
+                    .execute(self.pool.as_ref())
+                    .await?;
+            }
             _ => {}
         }
 

@@ -10,6 +10,7 @@ pub enum TimesheetTagEvent {
     Renamed { name: String },
     TimesheetTagged { timesheet_id: TimesheetId },
     TimesheetUntagged { timesheet_id: TimesheetId },
+    Deleted {},
 }
 
 impl Message for TimesheetTagEvent {
@@ -19,6 +20,7 @@ impl Message for TimesheetTagEvent {
             Self::Renamed { .. } => "TagRenamed",
             Self::TimesheetTagged { .. } => "TagTimesheetTagged",
             Self::TimesheetUntagged { .. } => "TagTimesheetUntagged",
+            Self::Deleted { .. } => "TagDeleted",
         }
     }
 }

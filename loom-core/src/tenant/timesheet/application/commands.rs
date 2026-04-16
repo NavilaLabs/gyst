@@ -66,6 +66,14 @@ impl TimesheetCommand {
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
+    pub fn cancel(&mut self) -> Result<(), crate::Error> {
+        self.record_that(TimesheetEvent::Cancelled {}.into())
+            .map_err(|e| timesheet::DomainError::AggregateError(e).into())
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error if the domain event cannot be applied to the aggregate.
     pub fn update_time(
         &mut self,
         start_time: String,

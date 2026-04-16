@@ -41,6 +41,8 @@ pub enum TimesheetEvent {
         /// Duration in seconds. `None` if the timer is still running.
         duration: Option<i32>,
     },
+    /// Soft-cancels the timesheet — it is excluded from queries and reporting.
+    Cancelled {},
 }
 
 impl Message for TimesheetEvent {
@@ -51,6 +53,7 @@ impl Message for TimesheetEvent {
             Self::Updated { .. } => "TimesheetUpdated",
             Self::Reassigned { .. } => "TimesheetReassigned",
             Self::TimeUpdated { .. } => "TimesheetTimeUpdated",
+            Self::Cancelled { .. } => "TimesheetCancelled",
         }
     }
 }

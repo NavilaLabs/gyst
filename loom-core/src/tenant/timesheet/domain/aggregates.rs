@@ -18,6 +18,7 @@ pub struct Timesheet {
     duration: Option<i32>,
     description: Option<String>,
     timezone: String,
+    cancelled: bool,
 }
 
 impl Timesheet {
@@ -60,6 +61,11 @@ impl Timesheet {
     pub fn timezone(&self) -> &str {
         &self.timezone
     }
+
+    #[must_use]
+    pub const fn cancelled(&self) -> bool {
+        self.cancelled
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -70,6 +76,8 @@ pub enum Error {
     NotFound,
     #[error("timesheet already exported")]
     AlreadyExported,
+    #[error("timesheet already cancelled")]
+    AlreadyCancelled,
 }
 
 impl Aggregate for Timesheet {
@@ -105,6 +113,7 @@ impl Aggregate for Timesheet {
                 duration: None,
                 description: None,
                 timezone,
+                cancelled: false,
             }),
             (Some(_), TimesheetEvent::Started { .. }) => Err(Error::AlreadyExists),
             (None, _) => Err(Error::NotFound),
@@ -138,6 +147,15 @@ impl Aggregate for Timesheet {
                 t.end_time = end_time;
                 t.duration = duration;
                 Ok(t)
+            }
+            (Some(t), TimesheetEvent::Cancelled {}) => {
+                if t.cancelled {
+                    return Err(Error::AlreadyCancelled);
+                }
+                Ok(Self {
+                    cancelled: true,
+                    ..t
+                })
             }
         }
     }

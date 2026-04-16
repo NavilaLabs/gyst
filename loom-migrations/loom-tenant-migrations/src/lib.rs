@@ -8,6 +8,7 @@ mod m20260325_145345_add_global_position;
 mod m20260408_000001_create_activities_projection_tables;
 mod m20260408_000002_create_timesheets_projection_table;
 mod m20260408_000003_create_timesheet_tags_projection_table;
+mod m20260416_000001_add_soft_delete_columns;
 
 pub struct Migrator;
 
@@ -22,6 +23,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260408_000001_create_activities_projection_tables::Migration),
             Box::new(m20260408_000002_create_timesheets_projection_table::Migration),
             Box::new(m20260408_000003_create_timesheet_tags_projection_table::Migration),
+            Box::new(m20260416_000001_add_soft_delete_columns::Migration),
         ]
     }
 }

@@ -47,6 +47,14 @@ impl TimesheetTagCommand {
         self.record_that(TimesheetTagEvent::TimesheetUntagged { timesheet_id }.into())
             .map_err(|e| timesheet_tag::DomainError::AggregateError(e).into())
     }
+
+    /// # Errors
+    ///
+    /// Returns an error if the domain event cannot be applied to the aggregate.
+    pub fn delete(&mut self) -> Result<(), crate::Error> {
+        self.record_that(TimesheetTagEvent::Deleted {}.into())
+            .map_err(|e| timesheet_tag::DomainError::AggregateError(e).into())
+    }
 }
 
 #[cfg(test)]

@@ -172,6 +172,17 @@ pub async fn create_manual(
     ))
 }
 
+pub async fn cancel(workspace_id: &str, timesheet_id: &str) -> Result<()> {
+    let pool = super::tenant_pool(workspace_id).await?;
+    let repo = TimesheetRepository::from_pool(pool).await?;
+    let agg_id: TimesheetId = timesheet_id.parse()?;
+    let root = repo.get(&agg_id).await?;
+    let mut cmd: TimesheetCommand = root.into();
+    cmd.cancel()?;
+    repo.save(&mut cmd).await?;
+    Ok(())
+}
+
 pub async fn update_time(
     workspace_id: &str,
     timesheet_id: &str,
