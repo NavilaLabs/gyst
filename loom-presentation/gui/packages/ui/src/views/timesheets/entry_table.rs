@@ -119,7 +119,7 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
         .collect();
 
     let ts_columns = vec![
-        ColumnDef::new("Project / Activity"),
+        ColumnDef::new("Activity"),
         ColumnDef::new("Start").width("160px"),
         ColumnDef::new("Duration").right().width("90px"),
         ColumnDef::new("").width("100px"),
