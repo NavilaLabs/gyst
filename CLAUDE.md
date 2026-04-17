@@ -123,7 +123,7 @@ A projection daemon (`loom-presentation/gui/packages/api`) runs as a background 
 
 ### Environment & Configuration
 
-Copy `.env.dev.dist` to `.env.dev` and `.env.test.dist` to `.env.test` to get started. Key env vars:
+Copy `.env.dev.dist` to `.env` to get started. Key env vars:
 
 ```
 DATABASE_BASE_URI=sqlite:///workspaces/loom/.devcontainer/database
@@ -160,7 +160,7 @@ The `loom-tests` crate provides helpers (`get_admin_pool`, `get_default_pool`, `
 
 ```rust
 test_lifecycle::before()  // loads .env.test
-test_lifecycle::after()   // resets to .env.dev
+test_lifecycle::after()   // resets to .env
 ```
 
 Integration tests that touch shared SQLite files must be annotated with `#[serial]` (from `serial_test`) to prevent parallel execution races. Add `#[serial]` before `#[with_lifecycle(...)]` on any test that calls `refresh_databases`.

@@ -1,5 +1,5 @@
 set dotenv-load := true
-set dotenv-filename := ".env.dev"
+set dotenv-filename := ".env"
 set shell := ["bash", "-uc"]
 
 serve:
@@ -24,4 +24,4 @@ update:
     cargo update && cd loom-presentation/gui && cargo update
 
 load-dev-env:
-    [ -f .env.dev ] && set -a && source .env.dev && set +a
+    [ -f .env ] && set -a && source .env && set +a

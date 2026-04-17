@@ -85,14 +85,14 @@ enum Route {
 
 #[cfg(not(feature = "server"))]
 fn main() {
-    dotenvy::from_filename_override(".env.dev").ok();
+    dotenvy::from_filename_override(".env").ok();
     dioxus::launch(App);
 }
 
 #[cfg(feature = "server")]
 #[tokio::main]
 async fn main() {
-    dotenvy::from_filename_override(".env.dev").ok();
+    dotenvy::from_filename_override(".env").ok();
 
     // Ensure the admin database exists and is fully migrated before serving.
     loom::setup::init_admin_db()

@@ -146,7 +146,7 @@ pub mod test_lifecycle {
     }
 
     pub fn after() {
-        dotenvy::from_filename_override(".env.dev").ok();
+        dotenvy::from_filename_override(".env").ok();
     }
 }
 

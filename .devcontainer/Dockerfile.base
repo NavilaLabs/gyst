@@ -1,0 +1,31 @@
+FROM rust:1-slim-trixie AS rust-base
+
+FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
+
+COPY --from=rust-base /usr/local/cargo /usr/local/cargo
+COPY --from=rust-base /usr/local/rustup /usr/local/rustup
+COPY --from=rust-base /usr/local/cargo/bin/rust-analyzer /usr/local/bin/rust-analyzer
+
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH="/usr/local/cargo/bin:${PATH}"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential curl libpq-dev pkg-config file \
+    libxdo-dev libssl-dev libayatana-appindicator3-dev \
+    librsvg2-dev lld clang libsoup-3.0-dev \
+    libwebkit2gtk-4.1-dev libgtk-3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN chown -R vscode:vscode /usr/local/cargo /usr/local/rustup
+
+USER vscode
+WORKDIR /home/vscode
+
+RUN rustup target add wasm32-unknown-unknown
+
+RUN curl -L --proto '=https' --tlsv1.2 -sSf \
+    https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+
+RUN cargo binstall -y prek --git https://github.com/j178/prek
+RUN cargo binstall -y cargo-tarpaulin wasm-pack dioxus-cli just sea-orm-cli@^2.0.0-rc
