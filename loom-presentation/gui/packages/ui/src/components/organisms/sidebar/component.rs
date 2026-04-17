@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{
-    HiClock, HiCog, HiHashtag, HiHome, HiLogout, HiPlay, HiStop, HiTag,
+    HiChevronLeft, HiChevronRight, HiClock, HiCog, HiHashtag, HiHome, HiLogout, HiPlay, HiStop,
+    HiTag,
 };
 use dioxus_free_icons::Icon;
 
@@ -18,6 +19,7 @@ pub fn Sidebar() -> Element {
     let mut auth: AuthState = use_context();
     let mut running: crate::RunningTimer = use_context();
     let mut toasts: Toasts = use_context();
+    let mut sidebar_open: crate::SidebarOpen = use_context();
 
     let on_logout = move |_| async move {
         let _ = api::auth::logout().await;
@@ -44,15 +46,41 @@ pub fn Sidebar() -> Element {
     }
 
     let is_running = running.read().is_some();
+    let open = *sidebar_open.read();
+
+    let sidebar_class = if open {
+        "sidebar sidebar--open"
+    } else {
+        "sidebar sidebar--collapsed"
+    };
 
     rsx! {
         document::Link { rel: "stylesheet", href: asset!("./style.css") }
 
-        aside { class: "sidebar",
+        // Mobile backdrop — only visible on small screens via CSS
+        if open {
+            div {
+                class: "sidebar-backdrop",
+                onclick: move |_| sidebar_open.set(false),
+            }
+        }
+
+        aside { class: sidebar_class,
             div { class: "sidebar-top",
                 div { class: "sidebar-brand",
-                    span { class: "sidebar-brand-name", "Loom" }
-                    span { class: "sidebar-brand-sub", "Curated Workspace" }
+                    div { class: "sidebar-brand-text",
+                        span { class: "sidebar-brand-name", "Loom" }
+                        span { class: "sidebar-brand-sub", "Curated Workspace" }
+                    }
+                    button {
+                        class: "sidebar-collapse-btn",
+                        onclick: move |_| sidebar_open.set(!open),
+                        if open {
+                            Icon { icon: HiChevronLeft, width: 16, height: 16 }
+                        } else {
+                            Icon { icon: HiChevronRight, width: 16, height: 16 }
+                        }
+                    }
                 }
                 Navbar {
                     class: "sidebar-nav",
@@ -61,35 +89,35 @@ pub fn Sidebar() -> Element {
                         value: "dashboard".to_string(),
                         to: "/dashboard",
                         Icon { icon: HiHome, width: 16, height: 16 }
-                        "Dashboard"
+                        span { class: "sidebar-label", "Dashboard" }
                     }
                     NavbarItem {
                         index: 1usize,
                         value: "timesheets".to_string(),
                         to: "/timesheets",
                         Icon { icon: HiClock, width: 16, height: 16 }
-                        "Timesheets"
+                        span { class: "sidebar-label", "Timesheets" }
                     }
                     NavbarItem {
                         index: 2usize,
                         value: "activities".to_string(),
                         to: "/activities",
                         Icon { icon: HiTag, width: 16, height: 16 }
-                        "Activities"
+                        span { class: "sidebar-label", "Activities" }
                     }
                     NavbarItem {
                         index: 3usize,
                         value: "tags".to_string(),
                         to: "/tags",
                         Icon { icon: HiHashtag, width: 16, height: 16 }
-                        "Tags"
+                        span { class: "sidebar-label", "Tags" }
                     }
                     NavbarItem {
                         index: 4usize,
                         value: "settings".to_string(),
                         to: "/settings",
                         Icon { icon: HiCog, width: 16, height: 16 }
-                        "Settings"
+                        span { class: "sidebar-label", "Settings" }
                     }
                 }
             }
@@ -99,9 +127,9 @@ pub fn Sidebar() -> Element {
                         div { class: "sidebar-timer-info",
                             div { class: "sidebar-timer-indicator",
                                 span { class: "sidebar-timer-dot" }
-                                span { class: "sidebar-timer-label", "Timer Running" }
+                                span { class: "sidebar-timer-label sidebar-label", "Timer Running" }
                             }
-                            span { class: "sidebar-timer-elapsed",
+                            span { class: "sidebar-timer-elapsed sidebar-label",
                                 {
                                     let e = *elapsed_secs.read();
                                     format!("{:02}:{:02}:{:02}", e / 3600, (e % 3600) / 60, e % 60)
@@ -112,14 +140,19 @@ pub fn Sidebar() -> Element {
                             variant: ButtonVariant::Ghost,
                             onclick: on_stop,
                             Icon { icon: HiStop, width: 14, height: 14 }
-                            "Stop"
+                            span { class: "sidebar-label", "Stop" }
                         }
                     }
                 } else {
                     Button {
-                        onclick: move |_| { nav.push("/timesheets"); },
+                        onclick: move |_| async move {
+                            match api::timesheet::start_timesheet(None, None).await {
+                                Ok(dto) => running.set(Some(dto)),
+                                Err(e) => toasts.write().push(ToastMessage::error(e.to_string())),
+                            }
+                        },
                         Icon { icon: HiPlay, width: 14, height: 14 }
-                        "Start Timer"
+                        span { class: "sidebar-label", "Start Timer" }
                     }
                 }
             }
@@ -128,7 +161,7 @@ pub fn Sidebar() -> Element {
                     variant: ButtonVariant::Ghost,
                     onclick: on_logout,
                     Icon { icon: HiLogout, width: 16, height: 16 }
-                    "Logout"
+                    span { class: "sidebar-label", "Logout" }
                 }
             }
         }

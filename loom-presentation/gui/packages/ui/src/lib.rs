@@ -98,3 +98,8 @@ pub type TagsCache = Signal<Vec<api::timesheet_tag::TimesheetsTagDto>>;
 
 /// Global cache of recent timesheets. Pre-populated in `Layout` so views start with data.
 pub type TimesheetsCache = Signal<Vec<api::timesheet::TimesheetDto>>;
+
+/// Whether the sidebar is open/expanded (`true`) or collapsed/hidden (`false`).
+/// On desktop: `true` = full sidebar, `false` = icon-only collapsed.
+/// On mobile: `true` = drawer visible, `false` = drawer hidden.
+pub type SidebarOpen = Signal<bool>;

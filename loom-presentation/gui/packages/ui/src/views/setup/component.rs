@@ -10,7 +10,6 @@ use dioxus_free_icons::Icon;
 #[component]
 pub fn Setup() -> Element {
     let mut active_tab = use_signal(|| Some("admin".to_string()));
-    let mut username = use_signal(String::new);
     let mut email = use_signal(String::new);
     let mut password = use_signal(String::new);
     let mut confirm_password = use_signal(String::new);
@@ -21,7 +20,6 @@ pub fn Setup() -> Element {
     let navigator = use_navigator();
 
     let on_submit = move |_| {
-        let username = username.read().clone();
         let email = email.read().clone();
         let password = password.read().clone();
         let workspace_name = workspace_name.read().clone();
@@ -30,7 +28,7 @@ pub fn Setup() -> Element {
             submitting.set(true);
             error.set(None);
 
-            match api::setup::setup(username, email, password, workspace_name).await {
+            match api::setup::setup("admin".to_string(), email, password, workspace_name).await {
                 Ok(()) => {
                     navigator.push("/login");
                 }
@@ -61,7 +59,7 @@ pub fn Setup() -> Element {
                             Form {
                                 FormField {
                                     Label { html_for: "username", class: "w-full", "Username" }
-                                    Input { id: "username", class: "w-full", oninput: move |e: FormEvent| username.set(e.value()) }
+                                    Input { id: "username", class: "w-full", disabled: true, placeholder: "admin" }
                                 }
                                 FormField {
                                     Label { html_for: "email", class: "w-full", "Email" }

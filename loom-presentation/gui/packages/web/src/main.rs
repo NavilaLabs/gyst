@@ -12,8 +12,8 @@ use ui::{
         setup::Setup, Activities, Dashboard, Database, Login, SelectWorkspace, Settings, Tags,
         Timesheets,
     },
-    ActivitiesCache, GlobalStyles, RunningElapsed, RunningTimer, TagsCache, TimesheetsCache,
-    UserSettings, WorkspaceSettings, FAVICON,
+    ActivitiesCache, GlobalStyles, RunningElapsed, RunningTimer, SidebarOpen, TagsCache,
+    TimesheetsCache, UserSettings, WorkspaceSettings, FAVICON,
 };
 
 /// Three-state auth signal shared across the whole app.
@@ -190,6 +190,25 @@ fn Layout() -> Element {
 
     // Provide toast context for all descendant views.
     use_context_provider(|| Signal::new(Vec::<ToastMessage>::new()));
+
+    // Provide sidebar open/collapsed state.
+    // On WASM: default false (hidden), then open on first render if viewport is wide.
+    // On server: default true (always expanded for SSR).
+    #[cfg(target_arch = "wasm32")]
+    {
+        let mut sidebar_open: SidebarOpen = use_context_provider(|| Signal::new(false));
+        use_effect(move || {
+            let is_desktop = js_sys::eval("window.innerWidth >= 768")
+                .ok()
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true);
+            sidebar_open.set(is_desktop);
+        });
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _: SidebarOpen = use_context_provider(|| Signal::new(true));
+    }
 
     // Provide global running-timer context for Sidebar, Dashboard, and Timesheets.
     let mut running: RunningTimer =

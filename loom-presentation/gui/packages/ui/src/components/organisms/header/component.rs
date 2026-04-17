@@ -1,4 +1,6 @@
 use dioxus::prelude::*;
+use dioxus_free_icons::icons::hi_solid_icons::HiMenu;
+use dioxus_free_icons::Icon;
 
 use crate::components::molecules::SettingsMenu;
 
@@ -9,15 +11,24 @@ pub fn Header(
     #[props(default)]
     title: String,
 ) -> Element {
+    let mut sidebar_open: crate::SidebarOpen = use_context();
+
     rsx! {
-        // Load global stylesheets here (in addition to DefaultLayout) so they
-        // are never removed from the document head during route transitions.
         document::Link { rel: "stylesheet", href: asset!("/assets/theme.css") }
         document::Link { rel: "stylesheet", href: asset!("/assets/tailwind.css") }
         document::Link { rel: "stylesheet", href: asset!("./style.css") }
 
         header { class: "header",
             div { class: "header-content",
+                // Mobile-only hamburger — hidden on desktop via CSS
+                button {
+                    class: "header-menu-btn",
+                    onclick: move |_| {
+                        let current = *sidebar_open.read();
+                        sidebar_open.set(!current);
+                    },
+                    Icon { icon: HiMenu, width: 20, height: 20 }
+                }
                 if !title.is_empty() {
                     h1 { class: "header-title", "{title}" }
                 }
