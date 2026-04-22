@@ -1,6 +1,12 @@
+use crate::admin::user::User;
+
 pub mod commands;
 pub mod queries;
-pub mod views;
+pub mod rows;
+
+#[derive(Debug)]
+#[eventually_macros::aggregate_root(User)]
+pub struct UserRoot;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

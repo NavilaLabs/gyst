@@ -1,7 +1,7 @@
 use crate::admin::user::UserId;
 
 #[derive(Debug, Clone)]
-pub struct UserView {
+pub struct UserRow {
     id: UserId,
     name: String,
     email: String,
@@ -10,7 +10,7 @@ pub struct UserView {
     pub language: String,
 }
 
-impl UserView {
+impl UserRow {
     #[must_use]
     pub fn new(id: UserId, name: String, email: String) -> Self {
         Self {

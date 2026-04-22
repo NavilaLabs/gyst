@@ -1,27 +1,61 @@
-use eventually::aggregate;
+use std::{fmt::Debug, ops::Deref};
+
+use async_trait::async_trait;
+use eventually::aggregate::{self, Root};
 
 use crate::admin::user::{
-    self,
-    domain::{
+    self, UserRow, domain::{
         aggregates::{User, UserId},
         events::UserEvent,
-    },
+        interfaces::UserRepository,
+    }
 };
 
-#[eventually_macros::aggregate_root(User)]
-pub struct UserCommand;
+#[async_trait]
+pub trait UserCommandTrait<T> {
+    type Error: Debug;
 
-impl UserCommand {
-    /// # Errors
-    ///
-    /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn update_settings(
+    async fn create(
+        id: UserId,
+        name: String,
+        email: String,
+        password: String,
+    ) -> Result<T, Self::Error>;
+
+    async fn update_settings(
         &mut self,
         timezone: String,
         date_format: String,
         language: String,
-    ) -> Result<(), crate::Error> {
-        self.record_that(
+    ) -> Result<(), Self::Error>;
+}
+
+#[derive(Debug)]
+pub struct UserCommand<R>
+where
+    R: Debug + UserRepository,
+{
+    root: Root<User>,
+    repository: R,
+}
+
+#[async_trait]
+impl<R> UserCommandTrait<User> for UserCommand<R>
+where
+    R: Debug + UserRepository<Error = crate::Error<R, UserRow, User>>,
+{
+    type Error = crate::Error<R, UserRow, User>;
+
+    /// # Errors
+    ///
+    /// Returns an error if the domain event cannot be applied to the aggregate.
+    async fn update_settings(
+        &mut self,
+        timezone: String,
+        date_format: String,
+        language: String,
+    ) -> Result<(), <Self as UserCommandTrait<User>>::Error> {
+        self.root.record_that(
             UserEvent::SettingsUpdated {
                 timezone,
                 date_format,
@@ -29,19 +63,21 @@ impl UserCommand {
             }
             .into(),
         )
-        .map_err(|e| user::DomainError::AggregateError(e).into())
+        .map_err(|e| user::DomainError::AggregateError(e))?;
+
+        Ok(self.repository.save(&mut self.root).await?)
     }
 
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn create(
+    async fn create(
         id: UserId,
         name: String,
         email: String,
         password: String,
-    ) -> Result<Self, crate::Error> {
-        Ok(aggregate::Root::<User>::record_new(
+    ) -> Result<User, Self::Error> {
+        Ok(*Root::<User>::record_new(
             UserEvent::Created {
                 id,
                 name,
@@ -50,8 +86,7 @@ impl UserCommand {
             }
             .into(),
         )
-        .map_err(user::DomainError::from)?
-        .into())
+        .map_err(user::DomainError::from)?)
     }
 }
 

@@ -37,7 +37,6 @@ where
     ///
     /// Returns an error if the user is not found, credentials cannot be fetched,
     /// or authentication fails.
-    #[allow(clippy::future_not_send)]
     pub async fn login(&self, email: &str, password: &str) -> Result<String, super::Error> {
         let (user_id, stored_email, password_hash) = self
             .pool

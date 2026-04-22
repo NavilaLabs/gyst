@@ -5,7 +5,7 @@ pub use application::{
     Error as ApplicationError,
     commands::UserCommand,
     queries::{LoginQuery, UserQuery},
-    views::UserView,
+    rows::UserRow,
 };
 pub use domain::{
     Error as DomainError,
