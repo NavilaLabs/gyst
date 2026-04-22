@@ -20,10 +20,10 @@ impl WorkspaceCommand {
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn create(id: WorkspaceId, name: Option<String>) -> Result<Self, crate::Error> {
+    pub fn create(id: WorkspaceId, name: Option<String>) -> Result<Self, workspace::DomainError> {
         Ok(
             aggregate::Root::<Workspace>::record_new(WorkspaceEvent::Created { id, name }.into())
-                .map_err(workspace::DomainError::from)?
+                .map_err(workspace::DomainError::AggregateError)?
                 .into(),
         )
     }
@@ -35,7 +35,7 @@ impl WorkspaceCommand {
         &mut self,
         user_id: UserId,
         workspace_role_id: WorkspaceRoleId,
-    ) -> Result<(), crate::Error> {
+    ) -> Result<(), workspace::DomainError> {
         self.record_that(
             WorkspaceEvent::UserRoleAssigned {
                 user_id,
@@ -43,7 +43,7 @@ impl WorkspaceCommand {
             }
             .into(),
         )
-        .map_err(|e| workspace::DomainError::AggregateError(e).into())
+        .map_err(workspace::DomainError::AggregateError)
     }
 
     /// # Errors
@@ -53,7 +53,7 @@ impl WorkspaceCommand {
         &mut self,
         user_id: UserId,
         workspace_role_id: WorkspaceRoleId,
-    ) -> Result<(), crate::Error> {
+    ) -> Result<(), workspace::DomainError> {
         self.record_that(
             WorkspaceEvent::UserRoleRevoked {
                 user_id,
@@ -61,7 +61,7 @@ impl WorkspaceCommand {
             }
             .into(),
         )
-        .map_err(|e| workspace::DomainError::AggregateError(e).into())
+        .map_err(workspace::DomainError::AggregateError)
     }
 
     /// # Errors
@@ -71,7 +71,7 @@ impl WorkspaceCommand {
         &mut self,
         user_id: UserId,
         permission_id: PermissionId,
-    ) -> Result<(), crate::Error> {
+    ) -> Result<(), workspace::DomainError> {
         self.record_that(
             WorkspaceEvent::UserPermissionGranted {
                 user_id,
@@ -79,7 +79,7 @@ impl WorkspaceCommand {
             }
             .into(),
         )
-        .map_err(|e| workspace::DomainError::AggregateError(e).into())
+        .map_err(workspace::DomainError::AggregateError)
     }
 
     /// # Errors
@@ -89,7 +89,7 @@ impl WorkspaceCommand {
         &mut self,
         user_id: UserId,
         permission_id: PermissionId,
-    ) -> Result<(), crate::Error> {
+    ) -> Result<(), workspace::DomainError> {
         self.record_that(
             WorkspaceEvent::UserPermissionRevoked {
                 user_id,
@@ -97,7 +97,7 @@ impl WorkspaceCommand {
             }
             .into(),
         )
-        .map_err(|e| workspace::DomainError::AggregateError(e).into())
+        .map_err(workspace::DomainError::AggregateError)
     }
 
     /// # Errors
@@ -111,7 +111,7 @@ impl WorkspaceCommand {
         date_format: String,
         currency: String,
         week_start: String,
-    ) -> Result<(), crate::Error> {
+    ) -> Result<(), workspace::DomainError> {
         self.record_that(
             WorkspaceEvent::SettingsUpdated {
                 name,
@@ -122,7 +122,7 @@ impl WorkspaceCommand {
             }
             .into(),
         )
-        .map_err(|e| workspace::DomainError::AggregateError(e).into())
+        .map_err(workspace::DomainError::AggregateError)
     }
 }
 

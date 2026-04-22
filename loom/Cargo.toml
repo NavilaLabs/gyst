@@ -18,9 +18,11 @@ required-features = ["sqlite"]
 
 [dependencies]
 anyhow = "1"
+async-trait = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
 dotenvy = { workspace = true }
 eventually = { version = "0.5", git = "https://github.com/get-eventually/eventually-rs" }
+eventually-macros = { version = "0.1", git = "https://github.com/get-eventually/eventually-rs" }
 jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
 serde = { workspace = true }
 sqlx = { workspace = true }

@@ -4,7 +4,8 @@
       "Bash(cargo build *)",
       "Bash(cargo test *)",
       "Bash(cargo clippy *)",
-      "Bash(git -C /workspaces/loom stash)"
+      "Bash(git -C /workspaces/loom stash)",
+      "Bash(cargo check *)"
     ]
   }
 }

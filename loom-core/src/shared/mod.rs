@@ -1,3 +1,6 @@
+pub mod event_bus;
+pub mod repositories;
+
 use std::{fmt::Display, str::FromStr};
 
 use serde::{Deserialize, Serialize};

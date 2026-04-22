@@ -1,7 +1,7 @@
 use std::{fmt::Debug, ops::Deref};
 
 use async_trait::async_trait;
-use eventually::aggregate::{self, Root};
+use eventually::aggregate::Root;
 
 use crate::admin::user::{
     self, UserRow, domain::{
@@ -65,7 +65,7 @@ where
         )
         .map_err(|e| user::DomainError::AggregateError(e))?;
 
-        Ok(self.repository.save(&mut self.root).await?)
+        self.repository.save(&mut self.root).await.map_err(crate::Error::WriteRepositoryError)
     }
 
     /// # Errors
@@ -77,7 +77,7 @@ where
         email: String,
         password: String,
     ) -> Result<User, Self::Error> {
-        Ok(*Root::<User>::record_new(
+        Ok(Root::<User>::record_new(
             UserEvent::Created {
                 id,
                 name,
@@ -86,7 +86,7 @@ where
             }
             .into(),
         )
-        .map_err(user::DomainError::from)?)
+        .map_err(user::DomainError::from)?.to_aggregate_type())
     }
 }
 

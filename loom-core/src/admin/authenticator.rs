@@ -9,8 +9,8 @@ pub struct Credentials<'a> {
     pub password_hash: &'a str,
 }
 
-pub trait AuthenticationStrategy {
-    type Error: Debug;
+pub trait AuthenticationStrategy: Send + Sync {
+    type Error: Debug + Send + Sync;
 
     /// # Errors
     ///

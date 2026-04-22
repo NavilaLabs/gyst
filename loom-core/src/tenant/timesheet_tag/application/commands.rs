@@ -16,44 +16,44 @@ impl TimesheetTagCommand {
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn create(id: TimesheetTagId, name: String) -> Result<Self, crate::Error> {
+    pub fn create(id: TimesheetTagId, name: String) -> Result<Self, timesheet_tag::DomainError> {
         Ok(aggregate::Root::<TimesheetTag>::record_new(
             TimesheetTagEvent::Created { id, name }.into(),
         )
-        .map_err(timesheet_tag::DomainError::from)?
+        .map_err(timesheet_tag::DomainError::AggregateError)?
         .into())
     }
 
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn rename(&mut self, name: String) -> Result<(), crate::Error> {
+    pub fn rename(&mut self, name: String) -> Result<(), timesheet_tag::DomainError> {
         self.record_that(TimesheetTagEvent::Renamed { name }.into())
-            .map_err(|e| timesheet_tag::DomainError::AggregateError(e).into())
+            .map_err(timesheet_tag::DomainError::AggregateError)
     }
 
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn tag_timesheet(&mut self, timesheet_id: TimesheetId) -> Result<(), crate::Error> {
+    pub fn tag_timesheet(&mut self, timesheet_id: TimesheetId) -> Result<(), timesheet_tag::DomainError> {
         self.record_that(TimesheetTagEvent::TimesheetTagged { timesheet_id }.into())
-            .map_err(|e| timesheet_tag::DomainError::AggregateError(e).into())
+            .map_err(timesheet_tag::DomainError::AggregateError)
     }
 
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn untag_timesheet(&mut self, timesheet_id: TimesheetId) -> Result<(), crate::Error> {
+    pub fn untag_timesheet(&mut self, timesheet_id: TimesheetId) -> Result<(), timesheet_tag::DomainError> {
         self.record_that(TimesheetTagEvent::TimesheetUntagged { timesheet_id }.into())
-            .map_err(|e| timesheet_tag::DomainError::AggregateError(e).into())
+            .map_err(timesheet_tag::DomainError::AggregateError)
     }
 
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn delete(&mut self) -> Result<(), crate::Error> {
+    pub fn delete(&mut self) -> Result<(), timesheet_tag::DomainError> {
         self.record_that(TimesheetTagEvent::Deleted {}.into())
-            .map_err(|e| timesheet_tag::DomainError::AggregateError(e).into())
+            .map_err(timesheet_tag::DomainError::AggregateError)
     }
 }
 

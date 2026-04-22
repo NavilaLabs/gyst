@@ -4161,9 +4161,11 @@ name = "loom"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "chrono",
  "dotenvy",
  "eventually",
+ "eventually-macros",
  "jsonwebtoken",
  "loom-core",
  "loom-infrastructure",

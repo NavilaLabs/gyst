@@ -15,10 +15,10 @@ impl PermissionCommand {
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn create(&self, id: PermissionId, name: String) -> Result<Self, crate::Error> {
+    pub fn create(id: PermissionId, name: String) -> Result<Self, permission::DomainError> {
         Ok(
             aggregate::Root::<Permission>::record_new(PermissionEvent::Created { id, name }.into())
-                .map_err(permission::DomainError::from)?
+                .map_err(permission::DomainError::AggregateError)?
                 .into(),
         )
     }
@@ -50,12 +50,12 @@ mod tests {
 
     #[test]
     fn create_returns_root_with_applied_state() {
-        let shell = make_command_shell(test_id());
+        let _shell = make_command_shell(test_id());
         let id: PermissionId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92"
             .parse()
             .expect("valid UUID");
 
-        let result = shell.create(id.clone(), "can_invite_users".to_string());
+        let result = PermissionCommand::create(id.clone(), "can_invite_users".to_string());
 
         assert!(result.is_ok());
         let cmd = result.unwrap();

@@ -8,7 +8,6 @@ use loom_core::admin::{
     workspace::{WorkspaceEvent, WorkspaceId},
     workspace_role::{WorkspaceRole, WorkspaceRoleEvent, WorkspaceRoleId},
 };
-use loom_infrastructure::query::Query;
 use loom_infrastructure_impl::admin::{
     workspace::projectors::WorkspaceProjector,
     workspace_role::{projectors::WorkspaceRoleProjector, repositories::WorkspaceRoleRepository},
@@ -82,6 +81,8 @@ async fn project_workspace(fixture: &TestFixture, wid: &WorkspaceId) {
 // ── tests ─────────────────────────────────────────────────────────────────────
 
 pub mod tests {
+    use loom_infrastructure::repository::ReadRepository;
+
     use super::*;
 
     /// Round-trip a workspace role through the event store.

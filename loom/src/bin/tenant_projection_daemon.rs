@@ -5,7 +5,7 @@ use loom::infrastructure::{
     BackoffConfig, Pool, ProjectionDaemon, ProjectionRunner, ProjectionSource, SqlCheckpoint,
     tenant::projectors::TenantProjector,
 };
-use loom_infrastructure::query::Query;
+use loom_infrastructure::repository::ReadRepository;
 use loom_infrastructure_impl::ConnectedAdminPool;
 use tracing::warn;
 

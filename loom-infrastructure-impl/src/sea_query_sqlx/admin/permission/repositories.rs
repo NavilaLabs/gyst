@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
 use loom_core::admin::permission::{Permission, PermissionEvent, PermissionView};
-use loom_infrastructure::query::{Query, RowToView};
+use loom_infrastructure::repository::{ReadRepository, EntryToRow};
 use sea_query::{Condition, Expr, ExprTrait};
 use sqlx::{Row, any::AnyRow, types::Uuid};
 
@@ -48,11 +48,11 @@ impl PermissionRepository {
     }
 }
 
-impl RowToView<AnyRow> for PermissionRepository {
-    type View = PermissionView;
+impl EntryToRow<AnyRow> for PermissionRepository {
+    type Row = PermissionView;
     type Error = crate::Error;
 
-    fn row_to_view(&self, row: AnyRow) -> Result<PermissionView, crate::Error> {
+    fn entry_to_row(&self, row: AnyRow) -> Result<PermissionView, crate::Error> {
         let id: String = row.try_get("id")?;
         let id = Uuid::from_str(&id)?;
         let name: String = row.try_get("name")?;
@@ -61,31 +61,31 @@ impl RowToView<AnyRow> for PermissionRepository {
 }
 
 #[async_trait]
-impl Query<AnyRow> for PermissionRepository {
+impl ReadRepository<AnyRow> for PermissionRepository {
     type Filter = Condition;
 
-    async fn une(&self, id: Uuid) -> Result<PermissionView, crate::Error> {
-        self.une_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
+    async fn get_one(&self, id: Uuid) -> Result<PermissionView, crate::Error> {
+        self.get_one_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
             .await
     }
 
     async fn find_one(&self, id: Uuid) -> Result<Option<PermissionView>, crate::Error> {
-        self.find_one_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
+        self.find_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
             .await
     }
 
-    async fn une_by(&self, filter: Condition) -> Result<PermissionView, crate::Error> {
+    async fn get_one_by(&self, filter: Condition) -> Result<PermissionView, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_one_row(&stmt).await?;
-        self.row_to_view(row)
+        self.entry_to_row(row)
     }
 
-    async fn find_one_by(&self, filter: Condition) -> Result<Option<PermissionView>, crate::Error> {
+    async fn find_by(&self, filter: Condition) -> Result<Option<PermissionView>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
-        row.map(|r| self.row_to_view(r)).transpose()
+        row.map(|r| self.entry_to_row(r)).transpose()
     }
 
     async fn find_many(&self, ids: Vec<Uuid>) -> Result<Vec<PermissionView>, crate::Error> {
@@ -101,14 +101,14 @@ impl Query<AnyRow> for PermissionRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.row_to_view(row)).collect()
+        rows.into_iter().map(|row| self.entry_to_row(row)).collect()
     }
 
     async fn all(&self) -> Result<Vec<PermissionView>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.row_to_view(row)).collect()
+        rows.into_iter().map(|row| self.entry_to_row(row)).collect()
     }
 
     async fn count_by(&self, filter: Condition) -> Result<u64, crate::Error> {

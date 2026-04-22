@@ -27,7 +27,7 @@ pub async fn list_for_timesheet(
 }
 
 pub async fn create(workspace_id: &str, name: String) -> Result<TimesheetTagRow> {
-    crate::error::validate(CreateTimesheetTagInput { name: name.clone() })?;
+    crate::error::validate(&CreateTimesheetTagInput { name: name.clone() })?;
 
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = TimesheetTagRepository::from_pool(pool).await?;
@@ -38,7 +38,7 @@ pub async fn create(workspace_id: &str, name: String) -> Result<TimesheetTagRow>
 }
 
 pub async fn rename(workspace_id: &str, id: &str, name: String) -> Result<()> {
-    crate::error::validate(RenameTimesheetTagInput { name: name.clone() })?;
+    crate::error::validate(&RenameTimesheetTagInput { name: name.clone() })?;
 
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = TimesheetTagRepository::from_pool(pool).await?;

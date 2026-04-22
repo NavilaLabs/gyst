@@ -4,7 +4,7 @@ use eventually::aggregate::{
 };
 use eventually_projection::{Projector, RawEvent};
 use loom_core::admin::permission::{Permission, PermissionEvent, PermissionId};
-use loom_infrastructure::query::Query;
+use loom_infrastructure::repository::ReadRepository;
 use loom_infrastructure_impl::admin::permission::{
     projectors::PermissionProjector, repositories::PermissionRepository,
 };

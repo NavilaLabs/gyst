@@ -1,5 +1,12 @@
+use std::fmt::Debug;
+
+use eventually::aggregate::Aggregate;
+
+use crate::shared::repositories::{ReadRepository, WriteRepository};
+
 pub mod admin;
 pub mod permissions;
+pub mod plugin;
 pub mod shared;
 pub mod tenant;
 pub mod validation;
@@ -41,14 +48,24 @@ macro_rules! aggregate_errors {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error {
+pub enum Error<Repo, Row, Agg>
+where
+    Row: Debug,
+    Agg: Debug + Aggregate,
+    Repo: ReadRepository<Row> + WriteRepository<Agg>,
+{
     #[error("{0:?}")]
     AdminDatabaseError(#[from] admin::Error),
     #[error("{0:?}")]
     TenantDatabaseError(#[from] tenant::Error),
+    #[error("{0:?}")]
+    ReadRepositoryError(<Repo as ReadRepository<Row>>::Error),
+    #[error("{0:?}")]
+    WriteRepositoryError(<Repo as WriteRepository<Agg>>::Error),
 
     #[error("{0:?}")]
     ParseUuidError(#[from] uuid::Error),
     #[error("{0:?}")]
     SerdeJsonError(#[from] serde_json::Error),
 }
+

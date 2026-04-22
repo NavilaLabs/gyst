@@ -20,11 +20,10 @@ impl WorkspaceRoleCommand {
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
     pub fn create(
-        &self,
         id: WorkspaceRoleId,
         workspace_id: WorkspaceId,
         name: Option<String>,
-    ) -> Result<Self, crate::Error> {
+    ) -> Result<Self, workspace_role::DomainError> {
         Ok(aggregate::Root::<WorkspaceRole>::record_new(
             WorkspaceRoleEvent::Created {
                 id,
@@ -33,24 +32,24 @@ impl WorkspaceRoleCommand {
             }
             .into(),
         )
-        .map_err(workspace_role::DomainError::from)?
+        .map_err(workspace_role::DomainError::AggregateError)?
         .into())
     }
 
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn grant_permission(&mut self, permission_id: PermissionId) -> Result<(), crate::Error> {
+    pub fn grant_permission(&mut self, permission_id: PermissionId) -> Result<(), workspace_role::DomainError> {
         self.record_that(WorkspaceRoleEvent::PermissionGranted { permission_id }.into())
-            .map_err(|e| workspace_role::DomainError::AggregateError(e).into())
+            .map_err(workspace_role::DomainError::AggregateError)
     }
 
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn revoke_permission(&mut self, permission_id: PermissionId) -> Result<(), crate::Error> {
+    pub fn revoke_permission(&mut self, permission_id: PermissionId) -> Result<(), workspace_role::DomainError> {
         self.record_that(WorkspaceRoleEvent::PermissionRevoked { permission_id }.into())
-            .map_err(|e| workspace_role::DomainError::AggregateError(e).into())
+            .map_err(workspace_role::DomainError::AggregateError)
     }
 }
 
@@ -87,7 +86,7 @@ mod tests {
     #[test]
     fn create_returns_root_with_applied_state() {
         let (_, workspace_id) = test_ids();
-        let shell = make_command_shell(
+        let _shell = make_command_shell(
             "019d0ce8-facb-7c90-b9d7-287ae4f17c91"
                 .parse()
                 .expect("valid UUID"),
@@ -97,7 +96,7 @@ mod tests {
             .parse()
             .expect("valid UUID");
 
-        let result = shell.create(id.clone(), workspace_id, Some("admin".to_string()));
+        let result = WorkspaceRoleCommand::create(id.clone(), workspace_id, Some("admin".to_string()));
 
         assert!(result.is_ok());
         let cmd = result.unwrap();

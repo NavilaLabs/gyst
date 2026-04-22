@@ -9,7 +9,7 @@ use loom_core::admin::workspace::{
     Workspace, WorkspaceEvent, WorkspaceId, WorkspaceRepository as WorkspaceRepositoryTrait,
     WorkspaceView,
 };
-use loom_infrastructure::query::{Query, RowToView};
+use loom_infrastructure::repository::{ReadRepository, EntryToRow};
 use sea_query::{Alias, Condition, Expr, ExprTrait};
 use sqlx::{Row, any::AnyRow, types::Uuid};
 
@@ -118,15 +118,15 @@ impl WorkspaceRepository {
             .and_where(Expr::col(Alias::new("id")).eq(id))
             .to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
-        row.map(|r| self.row_to_view(r)).transpose()
+        row.map(|r| self.entry_to_row(r)).transpose()
     }
 }
 
-impl RowToView<AnyRow> for WorkspaceRepository {
-    type View = WorkspaceView;
+impl EntryToRow<AnyRow> for WorkspaceRepository {
+    type Row = WorkspaceView;
     type Error = crate::Error;
 
-    fn row_to_view(&self, row: AnyRow) -> Result<WorkspaceView, crate::Error> {
+    fn entry_to_row(&self, row: AnyRow) -> Result<WorkspaceView, crate::Error> {
         let id: String = row.try_get("id")?;
         let id = Uuid::from_str(&id)?;
         let name: Option<String> = row.try_get("name")?;
@@ -154,31 +154,31 @@ impl RowToView<AnyRow> for WorkspaceRepository {
 }
 
 #[async_trait]
-impl Query<AnyRow> for WorkspaceRepository {
+impl ReadRepository<AnyRow> for WorkspaceRepository {
     type Filter = Condition;
 
-    async fn une(&self, id: Uuid) -> Result<WorkspaceView, crate::Error> {
-        self.une_by(Condition::all().add(Expr::col("id").eq(id)))
+    async fn get_one(&self, id: Uuid) -> Result<WorkspaceView, crate::Error> {
+        self.get_one_by(Condition::all().add(Expr::col("id").eq(id)))
             .await
     }
 
     async fn find_one(&self, id: Uuid) -> Result<Option<WorkspaceView>, crate::Error> {
-        self.find_one_by(Condition::all().add(Expr::col("id").eq(id)))
+        self.find_by(Condition::all().add(Expr::col("id").eq(id)))
             .await
     }
 
-    async fn une_by(&self, filter: Condition) -> Result<WorkspaceView, crate::Error> {
+    async fn get_one_by(&self, filter: Condition) -> Result<WorkspaceView, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_one_row(&stmt).await?;
-        self.row_to_view(row)
+        self.entry_to_row(row)
     }
 
-    async fn find_one_by(&self, filter: Condition) -> Result<Option<WorkspaceView>, crate::Error> {
+    async fn find_by(&self, filter: Condition) -> Result<Option<WorkspaceView>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
-        row.map(|r| self.row_to_view(r)).transpose()
+        row.map(|r| self.entry_to_row(r)).transpose()
     }
 
     async fn find_many(&self, ids: Vec<Uuid>) -> Result<Vec<WorkspaceView>, crate::Error> {
@@ -193,14 +193,14 @@ impl Query<AnyRow> for WorkspaceRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.row_to_view(row)).collect()
+        rows.into_iter().map(|row| self.entry_to_row(row)).collect()
     }
 
     async fn all(&self) -> Result<Vec<WorkspaceView>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.row_to_view(row)).collect()
+        rows.into_iter().map(|row| self.entry_to_row(row)).collect()
     }
 
     async fn count_by(&self, filter: Condition) -> Result<u64, crate::Error> {

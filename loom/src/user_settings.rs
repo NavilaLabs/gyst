@@ -1,10 +1,10 @@
 use anyhow::Result;
 use eventually::aggregate::repository::{Getter, Saver};
-use loom_core::admin::user::{UserCommand, UserId, UserView};
+use loom_core::admin::user::{UserCommand, UserId, UserRow};
 use loom_infrastructure_impl::{Pool, admin::user::repositories::UserRepository};
 
 /// Returns the current settings for the given user.
-pub async fn get_user_settings(user_id: &str) -> Result<UserView> {
+pub async fn get_user_settings(user_id: &str) -> Result<UserRow> {
     let pool = Pool::connect_admin().await?;
     let repo = UserRepository::from_pool(pool).await?;
     repo.find_view_by_id(user_id)

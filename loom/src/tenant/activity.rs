@@ -18,7 +18,7 @@ pub async fn create(
     name: String,
     comment: Option<String>,
 ) -> Result<ActivityRow> {
-    crate::error::validate(CreateActivityInput { name: name.clone() })?;
+    crate::error::validate(&CreateActivityInput { name: name.clone() })?;
 
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = ActivityRepository::from_pool(pool).await?;
@@ -49,7 +49,7 @@ pub async fn update(
     name: String,
     comment: Option<String>,
 ) -> Result<()> {
-    crate::error::validate(UpdateActivityInput { name: name.clone() })?;
+    crate::error::validate(&UpdateActivityInput { name: name.clone() })?;
 
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = ActivityRepository::from_pool(pool).await?;

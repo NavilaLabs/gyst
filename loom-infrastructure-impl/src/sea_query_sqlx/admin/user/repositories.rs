@@ -6,9 +6,9 @@ use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
 use loom_core::admin::user::{
-    User, UserEvent, UserId, UserRepository as UserRepositoryTrait, UserView,
+    User, UserEvent, UserId, UserRepository as UserRepositoryTrait, UserRow,
 };
-use loom_infrastructure::query::{Query, RowToView};
+use loom_infrastructure::repository::{ReadRepository, EntryToRow};
 use sea_query::{Alias, Condition, Expr, ExprTrait};
 use sqlx::{Row, any::AnyRow, types::Uuid};
 
@@ -95,22 +95,22 @@ impl UserRepository {
     /// # Errors
     ///
     /// Returns an error if the database query fails.
-    pub async fn find_view_by_id(&self, id: &str) -> Result<Option<UserView>, crate::Error> {
+    pub async fn find_view_by_id(&self, id: &str) -> Result<Option<UserRow>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm
             .select()
             .and_where(Expr::col(Alias::new("id")).eq(id))
             .to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
-        row.map(|r| self.row_to_view(r)).transpose()
+        row.map(|r| self.entry_to_row(r)).transpose()
     }
 }
 
-impl RowToView<AnyRow> for UserRepository {
-    type View = UserView;
+impl EntryToRow<AnyRow> for UserRepository {
+    type Row = UserRow;
     type Error = crate::Error;
 
-    fn row_to_view(&self, row: AnyRow) -> Result<UserView, crate::Error> {
+    fn entry_to_row(&self, row: AnyRow) -> Result<UserRow, crate::Error> {
         let id: String = row.try_get("id")?;
         let id = Uuid::from_str(&id)?;
         let name: String = row.try_get("name")?;
@@ -123,7 +123,7 @@ impl RowToView<AnyRow> for UserRepository {
             .unwrap_or_else(|_| "%Y-%m-%d".to_string());
         let language: String = row.try_get("language").unwrap_or_else(|_| "en".to_string());
 
-        Ok(UserView::new_with_settings(
+        Ok(UserRow::new_with_settings(
             id.into(),
             name,
             email,
@@ -135,34 +135,34 @@ impl RowToView<AnyRow> for UserRepository {
 }
 
 #[async_trait]
-impl Query<AnyRow> for UserRepository {
+impl ReadRepository<AnyRow> for UserRepository {
     type Filter = Condition;
 
-    async fn une(&self, id: Uuid) -> Result<UserView, crate::Error> {
-        self.une_by(Condition::all().add(Expr::col("id").eq(id)))
+    async fn get_one(&self, id: Uuid) -> Result<UserRow, crate::Error> {
+        self.get_one_by(Condition::all().add(Expr::col("id").eq(id)))
             .await
     }
 
-    async fn find_one(&self, id: Uuid) -> Result<Option<UserView>, crate::Error> {
-        self.find_one_by(Condition::all().add(Expr::col("id").eq(id)))
+    async fn find_one(&self, id: Uuid) -> Result<Option<UserRow>, crate::Error> {
+        self.find_by(Condition::all().add(Expr::col("id").eq(id)))
             .await
     }
 
-    async fn une_by(&self, filter: Condition) -> Result<UserView, crate::Error> {
+    async fn get_one_by(&self, filter: Condition) -> Result<UserRow, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_one_row(&stmt).await?;
-        self.row_to_view(row)
+        self.entry_to_row(row)
     }
 
-    async fn find_one_by(&self, filter: Condition) -> Result<Option<UserView>, crate::Error> {
+    async fn find_by(&self, filter: Condition) -> Result<Option<UserRow>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
-        row.map(|r| self.row_to_view(r)).transpose()
+        row.map(|r| self.entry_to_row(r)).transpose()
     }
 
-    async fn find_many(&self, ids: Vec<Uuid>) -> Result<Vec<UserView>, crate::Error> {
+    async fn find_many(&self, ids: Vec<Uuid>) -> Result<Vec<UserRow>, crate::Error> {
         if ids.is_empty() {
             return Ok(vec![]);
         }
@@ -170,18 +170,18 @@ impl Query<AnyRow> for UserRepository {
             .await
     }
 
-    async fn find_many_by(&self, filter: Condition) -> Result<Vec<UserView>, crate::Error> {
+    async fn find_many_by(&self, filter: Condition) -> Result<Vec<UserRow>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.row_to_view(row)).collect()
+        rows.into_iter().map(|row| self.entry_to_row(row)).collect()
     }
 
-    async fn all(&self) -> Result<Vec<UserView>, crate::Error> {
+    async fn all(&self) -> Result<Vec<UserRow>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.row_to_view(row)).collect()
+        rows.into_iter().map(|row| self.entry_to_row(row)).collect()
     }
 
     async fn count_by(&self, filter: Condition) -> Result<u64, crate::Error> {

@@ -25,7 +25,7 @@ impl ValidationError {
 ///
 /// Consolidates the three-line `.validate().map_err(|e| ValidationError::new(...))?`
 /// boilerplate that would otherwise appear at every controller create/update call site.
-pub fn validate<T: loom_core::validation::Validate>(input: T) -> anyhow::Result<()> {
+pub fn validate<T: loom_core::validation::Validate>(input: &T) -> anyhow::Result<()> {
     input
         .validate()
         .map_err(|e| ValidationError::new(loom_core::validation::validation_summary(&e)))

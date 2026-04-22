@@ -111,3 +111,20 @@ impl<Scope> Pool<Scope, StateConnected> {
         self.state.pool.connect_options().database_url.clone()
     }
 }
+
+// ── ConnectionProvider ────────────────────────────────────────────────────────
+
+/// Minimal abstraction over anything that can produce a `sqlx::AnyPool`.
+///
+/// Implemented by [`ConnectedAdminPool`] and [`ConnectedTenantPool`] so that
+/// generic infrastructure code and plugin authors can accept a pool without
+/// caring about the scope marker.  Also trivially implementable by test stubs.
+pub trait ConnectionProvider: Send + Sync + Clone {
+    fn any_pool(&self) -> &sqlx::AnyPool;
+}
+
+impl<Scope: Send + Sync + Clone> ConnectionProvider for Pool<Scope, StateConnected> {
+    fn any_pool(&self) -> &sqlx::AnyPool {
+        &self.state.pool
+    }
+}

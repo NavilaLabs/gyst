@@ -19,28 +19,28 @@ impl ActivityCommand {
         id: ActivityId,
         name: String,
         comment: Option<String>,
-    ) -> Result<Self, crate::Error> {
+    ) -> Result<Self, activity::DomainError> {
         Ok(aggregate::Root::<Activity>::record_new(
             ActivityEvent::Created { id, name, comment }.into(),
         )
-        .map_err(activity::DomainError::from)?
+        .map_err(activity::DomainError::AggregateError)?
         .into())
     }
 
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn update(&mut self, name: String, comment: Option<String>) -> Result<(), crate::Error> {
+    pub fn update(&mut self, name: String, comment: Option<String>) -> Result<(), activity::DomainError> {
         self.record_that(ActivityEvent::Updated { name, comment }.into())
-            .map_err(|e| activity::DomainError::AggregateError(e).into())
+            .map_err(activity::DomainError::AggregateError)
     }
 
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn delete(&mut self) -> Result<(), crate::Error> {
+    pub fn delete(&mut self) -> Result<(), activity::DomainError> {
         self.record_that(ActivityEvent::Deleted {}.into())
-            .map_err(|e| activity::DomainError::AggregateError(e).into())
+            .map_err(activity::DomainError::AggregateError)
     }
 }
 

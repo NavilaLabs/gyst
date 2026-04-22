@@ -8,7 +8,7 @@ use eventually_any::snapshot::Repository;
 use loom_core::admin::workspace_role::{
     WorkspaceRole, WorkspaceRoleEvent, WorkspaceRoleId, WorkspaceRoleView,
 };
-use loom_infrastructure::query::{Query, RowToView};
+use loom_infrastructure::repository::{ReadRepository, EntryToRow};
 use sea_query::{Condition, Expr, ExprTrait};
 use sqlx::{Row, any::AnyRow, types::Uuid};
 
@@ -52,11 +52,11 @@ impl WorkspaceRoleRepository {
     }
 }
 
-impl RowToView<AnyRow> for WorkspaceRoleRepository {
-    type View = WorkspaceRoleView;
+impl EntryToRow<AnyRow> for WorkspaceRoleRepository {
+    type Row = WorkspaceRoleView;
     type Error = crate::Error;
 
-    fn row_to_view(&self, row: AnyRow) -> Result<WorkspaceRoleView, crate::Error> {
+    fn entry_to_row(&self, row: AnyRow) -> Result<WorkspaceRoleView, crate::Error> {
         let id: String = row.try_get("id")?;
         let id = Uuid::from_str(&id)?;
         let workspace_id: String = row.try_get("workspace_id")?;
@@ -67,34 +67,34 @@ impl RowToView<AnyRow> for WorkspaceRoleRepository {
 }
 
 #[async_trait]
-impl Query<AnyRow> for WorkspaceRoleRepository {
+impl ReadRepository<AnyRow> for WorkspaceRoleRepository {
     type Filter = Condition;
 
-    async fn une(&self, id: Uuid) -> Result<WorkspaceRoleView, crate::Error> {
-        self.une_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
+    async fn get_one(&self, id: Uuid) -> Result<WorkspaceRoleView, crate::Error> {
+        self.get_one_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
             .await
     }
 
     async fn find_one(&self, id: Uuid) -> Result<Option<WorkspaceRoleView>, crate::Error> {
-        self.find_one_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
+        self.find_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
             .await
     }
 
-    async fn une_by(&self, filter: Condition) -> Result<WorkspaceRoleView, crate::Error> {
+    async fn get_one_by(&self, filter: Condition) -> Result<WorkspaceRoleView, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_one_row(&stmt).await?;
-        self.row_to_view(row)
+        self.entry_to_row(row)
     }
 
-    async fn find_one_by(
+    async fn find_by(
         &self,
         filter: Condition,
     ) -> Result<Option<WorkspaceRoleView>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
-        row.map(|r| self.row_to_view(r)).transpose()
+        row.map(|r| self.entry_to_row(r)).transpose()
     }
 
     async fn find_many(&self, ids: Vec<Uuid>) -> Result<Vec<WorkspaceRoleView>, crate::Error> {
@@ -113,14 +113,14 @@ impl Query<AnyRow> for WorkspaceRoleRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.row_to_view(row)).collect()
+        rows.into_iter().map(|row| self.entry_to_row(row)).collect()
     }
 
     async fn all(&self) -> Result<Vec<WorkspaceRoleView>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.row_to_view(row)).collect()
+        rows.into_iter().map(|row| self.entry_to_row(row)).collect()
     }
 
     async fn count_by(&self, filter: Condition) -> Result<u64, crate::Error> {

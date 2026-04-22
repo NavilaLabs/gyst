@@ -23,7 +23,7 @@ impl TimesheetCommand {
         activity_id: Option<ActivityId>,
         start_time: String,
         timezone: String,
-    ) -> Result<Self, crate::Error> {
+    ) -> Result<Self, timesheet::DomainError> {
         Ok(aggregate::Root::<Timesheet>::record_new(
             TimesheetEvent::Started {
                 id,
@@ -34,7 +34,7 @@ impl TimesheetCommand {
             }
             .into(),
         )
-        .map_err(timesheet::DomainError::from)?
+        .map_err(timesheet::DomainError::AggregateError)?
         .into())
     }
 
@@ -42,33 +42,33 @@ impl TimesheetCommand {
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
     #[allow(clippy::too_many_arguments)]
-    pub fn stop(&mut self, end_time: String, duration: i32) -> Result<(), crate::Error> {
+    pub fn stop(&mut self, end_time: String, duration: i32) -> Result<(), timesheet::DomainError> {
         self.record_that(TimesheetEvent::Stopped { end_time, duration }.into())
-            .map_err(|e| timesheet::DomainError::AggregateError(e).into())
+            .map_err(timesheet::DomainError::AggregateError)
     }
 
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn update(&mut self, description: Option<String>) -> Result<(), crate::Error> {
+    pub fn update(&mut self, description: Option<String>) -> Result<(), timesheet::DomainError> {
         self.record_that(TimesheetEvent::Updated { description }.into())
-            .map_err(|e| timesheet::DomainError::AggregateError(e).into())
+            .map_err(timesheet::DomainError::AggregateError)
     }
 
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn reassign(&mut self, activity_id: ActivityId) -> Result<(), crate::Error> {
+    pub fn reassign(&mut self, activity_id: ActivityId) -> Result<(), timesheet::DomainError> {
         self.record_that(TimesheetEvent::Reassigned { activity_id }.into())
-            .map_err(|e| timesheet::DomainError::AggregateError(e).into())
+            .map_err(timesheet::DomainError::AggregateError)
     }
 
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn cancel(&mut self) -> Result<(), crate::Error> {
+    pub fn cancel(&mut self) -> Result<(), timesheet::DomainError> {
         self.record_that(TimesheetEvent::Cancelled {}.into())
-            .map_err(|e| timesheet::DomainError::AggregateError(e).into())
+            .map_err(timesheet::DomainError::AggregateError)
     }
 
     /// # Errors
@@ -79,7 +79,7 @@ impl TimesheetCommand {
         start_time: String,
         end_time: Option<String>,
         duration: Option<i32>,
-    ) -> Result<(), crate::Error> {
+    ) -> Result<(), timesheet::DomainError> {
         self.record_that(
             TimesheetEvent::TimeUpdated {
                 start_time,
@@ -88,7 +88,7 @@ impl TimesheetCommand {
             }
             .into(),
         )
-        .map_err(|e| timesheet::DomainError::AggregateError(e).into())
+        .map_err(timesheet::DomainError::AggregateError)
     }
 }
 
