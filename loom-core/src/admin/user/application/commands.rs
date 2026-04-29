@@ -1,10 +1,10 @@
-use std::{fmt::Debug, ops::Deref};
+use std::fmt::Debug;
 
 use async_trait::async_trait;
 use eventually::aggregate::Root;
 
 use crate::admin::user::{
-    self, UserRow, domain::{
+    application::UserRoot, domain::{
         aggregates::{User, UserId},
         events::UserEvent,
         interfaces::UserRepository,
@@ -13,9 +13,10 @@ use crate::admin::user::{
 
 #[async_trait]
 pub trait UserCommandTrait<T> {
-    type Error: Debug;
+    type Error: Debug + Sync + Send;
 
     async fn create(
+        &self,
         id: UserId,
         name: String,
         email: String,
@@ -23,7 +24,8 @@ pub trait UserCommandTrait<T> {
     ) -> Result<T, Self::Error>;
 
     async fn update_settings(
-        &mut self,
+        &self,
+        id: UserId,
         timezone: String,
         date_format: String,
         language: String,
@@ -31,47 +33,28 @@ pub trait UserCommandTrait<T> {
 }
 
 #[derive(Debug)]
-pub struct UserCommand<R>
-where
-    R: Debug + UserRepository,
-{
-    root: Root<User>,
+pub struct UserCommand<R> {
     repository: R,
+}
+
+impl<R> UserCommand<R> {
+    pub fn new(repository: R) -> Self {
+        Self { repository }
+    }
 }
 
 #[async_trait]
 impl<R> UserCommandTrait<User> for UserCommand<R>
 where
-    R: Debug + UserRepository<Error = crate::Error<R, UserRow, User>>,
+    R: Debug + UserRepository<Error = crate::Error<R, User>>,
 {
-    type Error = crate::Error<R, UserRow, User>;
-
-    /// # Errors
-    ///
-    /// Returns an error if the domain event cannot be applied to the aggregate.
-    async fn update_settings(
-        &mut self,
-        timezone: String,
-        date_format: String,
-        language: String,
-    ) -> Result<(), <Self as UserCommandTrait<User>>::Error> {
-        self.root.record_that(
-            UserEvent::SettingsUpdated {
-                timezone,
-                date_format,
-                language,
-            }
-            .into(),
-        )
-        .map_err(|e| user::DomainError::AggregateError(e))?;
-
-        self.repository.save(&mut self.root).await.map_err(crate::Error::WriteRepositoryError)
-    }
+    type Error = crate::Error<R, User>;
 
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
     async fn create(
+        &self,
         id: UserId,
         name: String,
         email: String,
@@ -85,13 +68,37 @@ where
                 password,
             }
             .into(),
-        )
-        .map_err(user::DomainError::from)?.to_aggregate_type())
+        )?.to_aggregate_type())
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error if the domain event cannot be applied to the aggregate.
+    async fn update_settings(
+        &self,
+        id: UserId,
+        timezone: String,
+        date_format: String,
+        language: String,
+    ) -> Result<(), <Self as UserCommandTrait<User>>::Error> {
+        let mut root: UserRoot = self.repository.get(id).await.map_err(|e| crate::Error::ReadRepositoryError(e))?.into();
+        root.record_that(
+            UserEvent::SettingsUpdated {
+                timezone,
+                date_format,
+                language,
+            }
+            .into(),
+        )?;
+
+        self.repository.save(&mut root).await.map_err(crate::Error::WriteRepositoryError)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::admin::user::domain::interfaces::in_memory_repository::InMemoryUserRepository;
+
     use super::*;
 
     fn test_id() -> UserId {
@@ -106,7 +113,7 @@ mod tests {
             .parse()
             .expect("valid UUID");
 
-        let result = UserCommand::create(
+        let result = UserCommand::new(InMemoryUserRepository::new()).create(
             id.clone(),
             "Alice".to_string(),
             "alice@example.com".to_string(),
@@ -123,7 +130,7 @@ mod tests {
     #[test]
     fn create_propagates_aggregate_error_on_bad_event() {
         assert!(
-            UserCommand::create(
+            UserCommand::new(InMemoryUserRepository::new())::create(
                 test_id(),
                 "Bob".to_string(),
                 "bob@example.com".to_string(),

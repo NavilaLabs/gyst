@@ -48,24 +48,21 @@ macro_rules! aggregate_errors {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error<Repo, Row, Agg>
+pub enum Error<Repo, Agg>
 where
-    Row: Debug,
+    Repo: ReadRepository<Agg> + WriteRepository<Agg>,
     Agg: Debug + Aggregate,
-    Repo: ReadRepository<Row> + WriteRepository<Agg>,
 {
     #[error("{0:?}")]
-    AdminDatabaseError(#[from] admin::Error),
+    AdminError(#[from] admin::Error),
     #[error("{0:?}")]
-    TenantDatabaseError(#[from] tenant::Error),
+    TenantError(#[from] tenant::Error),
     #[error("{0:?}")]
-    ReadRepositoryError(<Repo as ReadRepository<Row>>::Error),
+    ReadRepositoryError(<Repo as ReadRepository<Agg>>::Error),
     #[error("{0:?}")]
     WriteRepositoryError(<Repo as WriteRepository<Agg>>::Error),
-
     #[error("{0:?}")]
     ParseUuidError(#[from] uuid::Error),
     #[error("{0:?}")]
     SerdeJsonError(#[from] serde_json::Error),
 }
-

@@ -1,6 +1,9 @@
+use crate::admin::workspace::Workspace;
+
 pub mod commands;
 pub mod queries;
 pub mod views;
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {}
+#[eventually_macros::aggregate_root(Workspace)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct WorkspaceRoot;

@@ -8,7 +8,7 @@ use eventually_any::snapshot::Repository;
 use loom_core::admin::workspace_role::{
     WorkspaceRole, WorkspaceRoleEvent, WorkspaceRoleId, WorkspaceRoleView,
 };
-use loom_infrastructure::repository::{ReadRepository, EntryToRow};
+use loom_infrastructure::repository::{EntryToRow, ReadRepository};
 use sea_query::{Condition, Expr, ExprTrait};
 use sqlx::{Row, any::AnyRow, types::Uuid};
 
@@ -87,10 +87,7 @@ impl ReadRepository<AnyRow> for WorkspaceRoleRepository {
         self.entry_to_row(row)
     }
 
-    async fn find_by(
-        &self,
-        filter: Condition,
-    ) -> Result<Option<WorkspaceRoleView>, crate::Error> {
+    async fn find_by(&self, filter: Condition) -> Result<Option<WorkspaceRoleView>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;

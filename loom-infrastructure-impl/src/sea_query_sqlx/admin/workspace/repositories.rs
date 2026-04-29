@@ -9,7 +9,7 @@ use loom_core::admin::workspace::{
     Workspace, WorkspaceEvent, WorkspaceId, WorkspaceRepository as WorkspaceRepositoryTrait,
     WorkspaceView,
 };
-use loom_infrastructure::repository::{ReadRepository, EntryToRow};
+use loom_infrastructure::repository::{EntryToRow, ReadRepository};
 use sea_query::{Alias, Condition, Expr, ExprTrait};
 use sqlx::{Row, any::AnyRow, types::Uuid};
 

@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use eventually::aggregate;
 
 use crate::admin::{
@@ -12,8 +14,40 @@ use crate::admin::{
     },
 };
 
+pub trait WorkspaceRoleCommandTrait<T> {
+    type Error: Debug + Sync + Send;
+
+    fn create(
+        &self,
+        id: WorkspaceRoleId,
+        workspace_id: WorkspaceId,
+        name: Option<String>,
+    ) -> Result<T, Self::Error>;
+}
+
 #[eventually_macros::aggregate_root(WorkspaceRole)]
 pub struct WorkspaceRoleCommand;
+
+impl WorkspaceRoleCommandTrait<WorkspaceRoleCommand> for WorkspaceRoleCommand {
+    type Error = workspace_role::Error;
+
+    fn create(
+        &self,
+        id: WorkspaceRoleId,
+        workspace_id: WorkspaceId,
+        name: Option<String>,
+    ) -> Result<WorkspaceRoleCommand, Self::Error> {
+        Ok(aggregate::Root::<WorkspaceRole>::record_new(
+            WorkspaceRoleEvent::Created {
+                id,
+                workspace_id,
+                name,
+            }
+            .into(),
+        )?
+        .into())
+    }
+}
 
 impl WorkspaceRoleCommand {
     /// # Errors
@@ -23,7 +57,7 @@ impl WorkspaceRoleCommand {
         id: WorkspaceRoleId,
         workspace_id: WorkspaceId,
         name: Option<String>,
-    ) -> Result<Self, workspace_role::DomainError> {
+    ) -> Result<Self, workspace_role::Error> {
         Ok(aggregate::Root::<WorkspaceRole>::record_new(
             WorkspaceRoleEvent::Created {
                 id,
@@ -31,25 +65,22 @@ impl WorkspaceRoleCommand {
                 name,
             }
             .into(),
-        )
-        .map_err(workspace_role::DomainError::AggregateError)?
+        )?
         .into())
     }
 
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn grant_permission(&mut self, permission_id: PermissionId) -> Result<(), workspace_role::DomainError> {
+    pub fn grant_permission(&mut self, permission_id: PermissionId) -> Result<(), workspace_role::Error> {
         self.record_that(WorkspaceRoleEvent::PermissionGranted { permission_id }.into())
-            .map_err(workspace_role::DomainError::AggregateError)
     }
 
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn revoke_permission(&mut self, permission_id: PermissionId) -> Result<(), workspace_role::DomainError> {
+    pub fn revoke_permission(&mut self, permission_id: PermissionId) -> Result<(), workspace_role::Error> {
         self.record_that(WorkspaceRoleEvent::PermissionRevoked { permission_id }.into())
-            .map_err(workspace_role::DomainError::AggregateError)
     }
 }
 
@@ -86,12 +117,6 @@ mod tests {
     #[test]
     fn create_returns_root_with_applied_state() {
         let (_, workspace_id) = test_ids();
-        let _shell = make_command_shell(
-            "019d0ce8-facb-7c90-b9d7-287ae4f17c91"
-                .parse()
-                .expect("valid UUID"),
-            workspace_id.clone(),
-        );
         let id: WorkspaceRoleId = "019d0ce8-facb-7c90-b9d7-287ae4f17c93"
             .parse()
             .expect("valid UUID");

@@ -1,7 +1,7 @@
 use eventually::aggregate::Aggregate;
 use serde::{Deserialize, Serialize};
 
-use crate::{admin::user::UserEvent, shared::AggregateId};
+use crate::{admin::user::{self, UserEvent}, shared::AggregateId};
 
 pub type UserId = AggregateId;
 
@@ -33,16 +33,11 @@ impl User {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("user already exists")]
-    AlreadyExists,
-}
-
-impl Aggregate for User {
+impl Aggregate for User
+{
     type Id = UserId;
     type Event = UserEvent;
-    type Error = Error;
+    type Error = user::Error;
 
     fn type_name() -> &'static str {
         "user"
@@ -72,7 +67,7 @@ impl Aggregate for User {
                 language: "en".to_string(),
             }),
             (Some(_), UserEvent::Created { .. }) | (None, UserEvent::SettingsUpdated { .. }) => {
-                Err(Error::AlreadyExists)
+                Err(user::Error::AlreadyExists)
             }
             (
                 Some(mut user),

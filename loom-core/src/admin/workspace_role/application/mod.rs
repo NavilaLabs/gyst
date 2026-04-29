@@ -2,5 +2,4 @@ pub mod commands;
 pub mod queries;
 pub mod views;
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {}
+pub use commands::WorkspaceRoleCommand as WorkspaceRoleRoot;

@@ -1,7 +1,7 @@
 use eventually::aggregate::Aggregate;
 use serde::{Deserialize, Serialize};
 
-use crate::{admin::permission::PermissionEvent, shared::AggregateId};
+use crate::{admin::permission::{self, PermissionEvent}, shared::AggregateId};
 
 pub type PermissionId = AggregateId;
 
@@ -23,16 +23,10 @@ impl Permission {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("permission already exists")]
-    AlreadyExists,
-}
-
 impl Aggregate for Permission {
     type Id = PermissionId;
     type Event = PermissionEvent;
-    type Error = Error;
+    type Error = permission::Error;
 
     fn type_name() -> &'static str {
         "permission"
@@ -45,13 +39,14 @@ impl Aggregate for Permission {
     fn apply(state: Option<Self>, event: Self::Event) -> Result<Self, Self::Error> {
         match (state, event) {
             (None, PermissionEvent::Created { id, name }) => Ok(Self { id, name }),
-            (Some(_), PermissionEvent::Created { .. }) => Err(Error::AlreadyExists),
+            (Some(_), PermissionEvent::Created { .. }) => Err(permission::Error::AlreadyExists),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::admin::permission::Error;
     use super::*;
 
     fn test_id() -> PermissionId {

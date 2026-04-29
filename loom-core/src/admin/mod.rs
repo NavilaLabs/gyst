@@ -22,57 +22,42 @@ pub enum Error {
     WorkspaceRoleError(#[from] workspace_role::Error),
 }
 
-impl<Repo, Row, Agg> From<user::ApplicationError> for crate::Error<Repo, Row, Agg>
+impl<Repo, Agg> From<permission::Error> for crate::Error<Repo, Agg>
 where
-    Row: Debug,
     Agg: Debug + Aggregate,
-    Repo: ReadRepository<Row> + WriteRepository<Agg>,
+    Repo: ReadRepository<Agg> + WriteRepository<Agg>,
 {
-    fn from(value: user::ApplicationError) -> Self {
-        Self::AdminDatabaseError(Error::UserError(value.into()))
+    fn from(value: permission::Error) -> Self {
+        Self::AdminError(Error::PermissionError(value))
     }
 }
 
-impl<Repo, Row, Agg> From<user::DomainError> for crate::Error<Repo, Row, Agg>
+impl<Repo, Agg> From<user::Error> for crate::Error<Repo, Agg>
 where
-    Row: Debug,
     Agg: Debug + Aggregate,
-    Repo: ReadRepository<Row> + WriteRepository<Agg>,
+    Repo: ReadRepository<Agg> + WriteRepository<Agg>,
 {
-    fn from(value: user::DomainError) -> Self {
-        Self::AdminDatabaseError(Error::UserError(value.into()))
+    fn from(value: user::Error) -> Self {
+        Self::AdminError(Error::UserError(value))
     }
 }
 
-impl<Repo, Row, Agg> From<permission::DomainError> for crate::Error<Repo, Row, Agg>
+impl<Repo, Agg> From<workspace::Error> for crate::Error<Repo, Agg>
 where
-    Row: Debug,
     Agg: Debug + Aggregate,
-    Repo: ReadRepository<Row> + WriteRepository<Agg>,
+    Repo: ReadRepository<Agg> + WriteRepository<Agg>,
 {
-    fn from(value: permission::DomainError) -> Self {
-        Self::AdminDatabaseError(Error::PermissionError(value.into()))
+    fn from(value: workspace::Error) -> Self {
+        Self::AdminError(Error::WorkspaceError(value))
     }
 }
 
-impl<Repo, Row, Agg> From<workspace::DomainError> for crate::Error<Repo, Row, Agg>
+impl<Repo, Agg> From<workspace_role::Error> for crate::Error<Repo, Agg>
 where
-    Row: Debug,
     Agg: Debug + Aggregate,
-    Repo: ReadRepository<Row> + WriteRepository<Agg>,
+    Repo: ReadRepository<Agg> + WriteRepository<Agg>,
 {
-    fn from(value: workspace::DomainError) -> Self {
-        Self::AdminDatabaseError(Error::WorkspaceError(value.into()))
-    }
-}
-
-impl<Repo, Row, Agg> From<workspace_role::DomainError> for crate::Error<Repo, Row, Agg>
-where
-    Row: Debug,
-    Agg: Debug + Aggregate,
-    Repo: ReadRepository<Row> + WriteRepository<Agg>,
-{
-    fn from(value: workspace_role::DomainError) -> Self {
-        Self::AdminDatabaseError(Error::WorkspaceRoleError(value.into()))
+    fn from(value: workspace_role::Error) -> Self {
+        Self::AdminError(Error::WorkspaceRoleError(value))
     }
 }

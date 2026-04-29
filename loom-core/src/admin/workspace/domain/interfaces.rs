@@ -1,4 +1,7 @@
-use crate::admin::workspace::domain::aggregates::Workspace;
-use eventually::aggregate::repository::{Getter, Saver};
+use std::fmt::Debug;
 
-pub trait WorkspaceRepository: Getter<Workspace> + Saver<Workspace> + Send + Sync {}
+use crate::{admin::workspace::{domain::aggregates::Workspace}, shared::repositories::{ReadRepository, WriteRepository}};
+
+pub trait WorkspaceRepository: ReadRepository<Workspace> + WriteRepository<Workspace> + Send + Sync {
+    type Error: Debug + Sync + Send + From<<Self as ReadRepository<Workspace>>::Error> + From<<Self as WriteRepository<Workspace>>::Error>;
+}

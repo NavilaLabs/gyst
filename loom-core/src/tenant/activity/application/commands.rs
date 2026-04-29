@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use eventually::aggregate;
 
 use crate::tenant::activity::{
@@ -8,8 +10,25 @@ use crate::tenant::activity::{
     },
 };
 
+pub trait ActivityCommandTrait<T> {
+    type Error: Debug + Sync + Send;
+
+    fn create(&self, id: ActivityId, name: String, comment: Option<String>) -> Result<T, Self::Error>;
+}
+
 #[eventually_macros::aggregate_root(Activity)]
 pub struct ActivityCommand;
+
+impl ActivityCommandTrait<ActivityCommand> for ActivityCommand {
+    type Error = activity::Error;
+
+    fn create(&self, id: ActivityId, name: String, comment: Option<String>) -> Result<ActivityCommand, Self::Error> {
+        Ok(aggregate::Root::<Activity>::record_new(
+            ActivityEvent::Created { id, name, comment }.into(),
+        )?
+        .into())
+    }
+}
 
 impl ActivityCommand {
     /// # Errors
@@ -19,28 +38,25 @@ impl ActivityCommand {
         id: ActivityId,
         name: String,
         comment: Option<String>,
-    ) -> Result<Self, activity::DomainError> {
+    ) -> Result<Self, activity::Error> {
         Ok(aggregate::Root::<Activity>::record_new(
             ActivityEvent::Created { id, name, comment }.into(),
-        )
-        .map_err(activity::DomainError::AggregateError)?
+        )?
         .into())
     }
 
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn update(&mut self, name: String, comment: Option<String>) -> Result<(), activity::DomainError> {
+    pub fn update(&mut self, name: String, comment: Option<String>) -> Result<(), activity::Error> {
         self.record_that(ActivityEvent::Updated { name, comment }.into())
-            .map_err(activity::DomainError::AggregateError)
     }
 
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn delete(&mut self) -> Result<(), activity::DomainError> {
+    pub fn delete(&mut self) -> Result<(), activity::Error> {
         self.record_that(ActivityEvent::Deleted {}.into())
-            .map_err(activity::DomainError::AggregateError)
     }
 }
 

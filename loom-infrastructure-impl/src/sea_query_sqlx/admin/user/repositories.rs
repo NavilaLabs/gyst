@@ -8,7 +8,7 @@ use eventually_any::snapshot::Repository;
 use loom_core::admin::user::{
     User, UserEvent, UserId, UserRepository as UserRepositoryTrait, UserRow,
 };
-use loom_infrastructure::repository::{ReadRepository, EntryToRow};
+use loom_infrastructure::repository::{EntryToRow, ReadRepository};
 use sea_query::{Alias, Condition, Expr, ExprTrait};
 use sqlx::{Row, any::AnyRow, types::Uuid};
 

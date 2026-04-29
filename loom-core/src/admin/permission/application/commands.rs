@@ -1,66 +1,61 @@
-use eventually::aggregate;
+use std::fmt::Debug;
+
+use async_trait::async_trait;
+use eventually::aggregate::Root;
 
 use crate::admin::permission::{
-    self,
-    domain::{
+    self, PermissionRepository, application::PermissionRoot, domain::{
         aggregates::{Permission, PermissionId},
         events::PermissionEvent,
-    },
+    }
 };
 
-#[eventually_macros::aggregate_root(Permission)]
-pub struct PermissionCommand;
+#[async_trait]
+pub trait PermissionCommandTrait<T> {
+    type Error: Debug + Sync + Send;
 
-impl PermissionCommand {
-    /// # Errors
-    ///
-    /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn create(id: PermissionId, name: String) -> Result<Self, permission::DomainError> {
-        Ok(
-            aggregate::Root::<Permission>::record_new(PermissionEvent::Created { id, name }.into())
-                .map_err(permission::DomainError::AggregateError)?
-                .into(),
-        )
+    async fn create(&self, id: PermissionId, name: String) -> Result<T, Self::Error>;
+}
+
+#[derive(Debug)]
+pub struct PermissionCommand<R> {
+    repository: R
+}
+
+#[async_trait]
+impl<R> PermissionCommandTrait<PermissionRoot> for PermissionCommand<R>
+where
+    R: Debug + PermissionRepository<Error = crate::Error<R, Permission>>,
+{
+    type Error = crate::Error<R, Permission>;
+
+    async fn create(&self, id: PermissionId, name: String) -> Result<PermissionRoot, Self::Error> {
+        Ok(Root::<Permission>::record_new(PermissionEvent::Created { id, name }.into())
+            .map_err(|_| permission::Error::AlreadyExists)?
+            .into())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use eventually::aggregate::{Aggregate, Root};
-
     use super::*;
 
-    fn make_command_shell(id: PermissionId) -> PermissionCommand {
-        let permission = Permission::apply(
-            None,
-            PermissionEvent::Created {
-                id,
-                name: "seed".to_string(),
-            },
-        )
-        .expect("seed permission");
-        Root::<Permission>::rehydrate_from_state(1, permission).into()
-    }
-
     fn test_id() -> PermissionId {
-        "019d0ce8-facb-7c90-b9d7-287ae4f17c91"
+        "019d0ce8-facb-7c90-b9d7-287ae4f17c92"
             .parse()
             .expect("valid UUID")
     }
 
-    #[test]
-    fn create_returns_root_with_applied_state() {
-        let _shell = make_command_shell(test_id());
-        let id: PermissionId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92"
-            .parse()
-            .expect("valid UUID");
+    #[tokio::test]
+    async fn create_returns_root_with_applied_state() {
+        let id = test_id();
 
-        let result = PermissionCommand::create(id.clone(), "can_invite_users".to_string());
+        let result = PermissionCommand.create(id.clone(), "can_invite_users".to_string()).await;
 
         assert!(result.is_ok());
-        let cmd = result.unwrap();
-        assert_eq!(cmd.aggregate_id(), &id);
-        assert_eq!(cmd.name(), "can_invite_users");
-        assert_eq!(cmd.version(), 1);
+        let root = result.unwrap();
+        assert_eq!(root.aggregate_id(), &id);
+        assert_eq!(root.name(), "can_invite_users");
+        assert_eq!(root.version(), 1);
     }
 }

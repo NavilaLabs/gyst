@@ -1,7 +1,7 @@
-use async_trait::async_trait;
+use std::fmt::Debug;
 
-use crate::tenant::activity::domain::aggregates::Activity;
-use eventually::aggregate::repository::{Getter, Saver};
+use crate::{shared::repositories::{ReadRepository, WriteRepository}, tenant::activity::domain::aggregates::Activity};
 
-#[async_trait]
-pub trait ActivityRepository: Getter<Activity> + Saver<Activity> + Send + Sync {}
+pub trait ActivityRepository: ReadRepository<Activity> + WriteRepository<Activity> + Send + Sync {
+    type Error: Debug + Send + Sync + From<<Self as ReadRepository<Activity>>::Error> + From<<Self as WriteRepository<Activity>>::Error>;
+}

@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use eventually::aggregate;
 
 use crate::tenant::timesheet::TimesheetId;
@@ -9,51 +11,63 @@ use crate::tenant::timesheet_tag::{
     },
 };
 
+pub trait TimesheetTagCommandTrait<T> {
+    type Error: Debug + Sync + Send;
+
+    fn create(&self, id: TimesheetTagId, name: String) -> Result<T, Self::Error>;
+}
+
 #[eventually_macros::aggregate_root(TimesheetTag)]
 pub struct TimesheetTagCommand;
+
+impl TimesheetTagCommandTrait<TimesheetTagCommand> for TimesheetTagCommand {
+    type Error = timesheet_tag::Error;
+
+    fn create(&self, id: TimesheetTagId, name: String) -> Result<TimesheetTagCommand, Self::Error> {
+        Ok(aggregate::Root::<TimesheetTag>::record_new(
+            TimesheetTagEvent::Created { id, name }.into(),
+        )?
+        .into())
+    }
+}
 
 impl TimesheetTagCommand {
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn create(id: TimesheetTagId, name: String) -> Result<Self, timesheet_tag::DomainError> {
+    pub fn create(id: TimesheetTagId, name: String) -> Result<Self, timesheet_tag::Error> {
         Ok(aggregate::Root::<TimesheetTag>::record_new(
             TimesheetTagEvent::Created { id, name }.into(),
-        )
-        .map_err(timesheet_tag::DomainError::AggregateError)?
+        )?
         .into())
     }
 
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn rename(&mut self, name: String) -> Result<(), timesheet_tag::DomainError> {
+    pub fn rename(&mut self, name: String) -> Result<(), timesheet_tag::Error> {
         self.record_that(TimesheetTagEvent::Renamed { name }.into())
-            .map_err(timesheet_tag::DomainError::AggregateError)
     }
 
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn tag_timesheet(&mut self, timesheet_id: TimesheetId) -> Result<(), timesheet_tag::DomainError> {
+    pub fn tag_timesheet(&mut self, timesheet_id: TimesheetId) -> Result<(), timesheet_tag::Error> {
         self.record_that(TimesheetTagEvent::TimesheetTagged { timesheet_id }.into())
-            .map_err(timesheet_tag::DomainError::AggregateError)
     }
 
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn untag_timesheet(&mut self, timesheet_id: TimesheetId) -> Result<(), timesheet_tag::DomainError> {
+    pub fn untag_timesheet(&mut self, timesheet_id: TimesheetId) -> Result<(), timesheet_tag::Error> {
         self.record_that(TimesheetTagEvent::TimesheetUntagged { timesheet_id }.into())
-            .map_err(timesheet_tag::DomainError::AggregateError)
     }
 
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn delete(&mut self) -> Result<(), timesheet_tag::DomainError> {
+    pub fn delete(&mut self) -> Result<(), timesheet_tag::Error> {
         self.record_that(TimesheetTagEvent::Deleted {}.into())
-            .map_err(timesheet_tag::DomainError::AggregateError)
     }
 }
 

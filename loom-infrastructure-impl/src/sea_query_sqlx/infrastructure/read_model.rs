@@ -60,10 +60,7 @@ impl<'a> SeaQueryReadModel<'a> {
     /// # Errors
     ///
     /// Returns an error if the query fails or no row is found.
-    pub async fn fetch_one_row(
-        &self,
-        stmt: &SelectStatement,
-    ) -> Result<AnyRow, crate::Error> {
+    pub async fn fetch_one_row(&self, stmt: &SelectStatement) -> Result<AnyRow, crate::Error> {
         let (sql, args) = self.pool.build_query(stmt);
         Ok(sqlx::query_with(&sql, args)
             .fetch_one(self.pool.as_ref())

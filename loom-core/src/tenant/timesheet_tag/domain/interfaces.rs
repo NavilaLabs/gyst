@@ -1,7 +1,7 @@
-use async_trait::async_trait;
+use std::fmt::Debug;
 
-use crate::tenant::timesheet_tag::domain::aggregates::TimesheetTag;
-use eventually::aggregate::repository::{Getter, Saver};
+use crate::{shared::repositories::{ReadRepository, WriteRepository}, tenant::timesheet_tag::domain::aggregates::TimesheetTag};
 
-#[async_trait]
-pub trait TimesheetTagRepository: Getter<TimesheetTag> + Saver<TimesheetTag> + Send + Sync {}
+pub trait TimesheetTagRepository: ReadRepository<TimesheetTag> + WriteRepository<TimesheetTag> + Send + Sync {
+    type Error: Debug + Send + Sync + From<<Self as ReadRepository<TimesheetTag>>::Error> + From<<Self as WriteRepository<TimesheetTag>>::Error>;
+}

@@ -18,35 +18,32 @@ pub enum Error {
     TagError(#[from] timesheet_tag::Error),
 }
 
-impl<Repo, Row, Agg> From<activity::DomainError> for crate::Error<Repo, Row, Agg>
+impl<Repo, Agg> From<activity::Error> for crate::Error<Repo, Agg>
 where
-    Row: Debug,
     Agg: Debug + Aggregate,
-    Repo: ReadRepository<Row> + WriteRepository<Agg>,
+    Repo: ReadRepository<Agg> + WriteRepository<Agg>,
 {
-    fn from(value: activity::DomainError) -> Self {
-        Self::TenantDatabaseError(Error::ActivityError(value.into()))
+    fn from(value: activity::Error) -> Self {
+        Self::TenantError(Error::ActivityError(value))
     }
 }
 
-impl<Repo, Row, Agg> From<timesheet::DomainError> for crate::Error<Repo, Row, Agg>
+impl<Repo, Agg> From<timesheet::Error> for crate::Error<Repo, Agg>
 where
-    Row: Debug,
     Agg: Debug + Aggregate,
-    Repo: ReadRepository<Row> + WriteRepository<Agg>,
+    Repo: ReadRepository<Agg> + WriteRepository<Agg>,
 {
-    fn from(value: timesheet::DomainError) -> Self {
-        Self::TenantDatabaseError(Error::TimesheetError(value.into()))
+    fn from(value: timesheet::Error) -> Self {
+        Self::TenantError(Error::TimesheetError(value))
     }
 }
 
-impl<Repo, Row, Agg> From<timesheet_tag::DomainError> for crate::Error<Repo, Row, Agg>
+impl<Repo, Agg> From<timesheet_tag::Error> for crate::Error<Repo, Agg>
 where
-    Row: Debug,
     Agg: Debug + Aggregate,
-    Repo: ReadRepository<Row> + WriteRepository<Agg>,
+    Repo: ReadRepository<Agg> + WriteRepository<Agg>,
 {
-    fn from(value: timesheet_tag::DomainError) -> Self {
-        Self::TenantDatabaseError(Error::TagError(value.into()))
+    fn from(value: timesheet_tag::Error) -> Self {
+        Self::TenantError(Error::TagError(value))
     }
 }

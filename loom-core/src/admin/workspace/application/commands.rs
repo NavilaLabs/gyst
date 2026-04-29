@@ -1,51 +1,85 @@
+use std::fmt::Debug;
+
+use async_trait::async_trait;
 use eventually::aggregate;
 
 use crate::admin::{
     permission::PermissionId,
     user::UserId,
     workspace::{
-        self,
-        domain::{
+        self, WorkspaceRepository, domain::{
             aggregates::{Workspace, WorkspaceId},
             events::WorkspaceEvent,
-        },
+        }
     },
     workspace_role::WorkspaceRoleId,
 };
 
-#[eventually_macros::aggregate_root(Workspace)]
-pub struct WorkspaceCommand;
+#[async_trait]
+pub trait WorkspaceCommandTrait<T> {
+    type Error: Debug + Sync + Send;
 
-impl WorkspaceCommand {
-    /// # Errors
-    ///
-    /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn create(id: WorkspaceId, name: Option<String>) -> Result<Self, workspace::DomainError> {
-        Ok(
-            aggregate::Root::<Workspace>::record_new(WorkspaceEvent::Created { id, name }.into())
-                .map_err(workspace::DomainError::AggregateError)?
-                .into(),
-        )
+    async fn create(&self, id: WorkspaceId, name: Option<String>) -> Result<T, Self::Error>;
+
+    async fn assign_user_role(&self, user_id: UserId, workspace_role_id: WorkspaceRoleId) -> Result<(), Self::Error>;
+
+    async fn revoke_user_role(&self, workspace_id: WorkspaceId, user_id: UserId, workspace_role_id: WorkspaceRoleId) -> Result<(), Self::Error>;
+}
+
+#[derive(Debug)]
+pub struct WorkspaceCommand<R> {
+    repository: R,
+}
+
+#[async_trait]
+impl<R> WorkspaceCommandTrait<Workspace> for WorkspaceCommand<R>
+where
+    R: Debug + WorkspaceRepository<Error = crate::Error<R, Workspace>>,
+{
+    type Error = crate::Error<R, Workspace>;
+
+    async fn create(&self, id: WorkspaceId, name: Option<String>) -> Result<Workspace, Self::Error> {
+        Ok(aggregate::Root::<Workspace>::record_new(WorkspaceEvent::Created { id, name }.into())?.to_aggregate_type())
     }
 
-    /// # Errors
-    ///
-    /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn assign_user_role(
-        &mut self,
+    async fn assign_user_role(
+        &self,
         user_id: UserId,
         workspace_role_id: WorkspaceRoleId,
-    ) -> Result<(), workspace::DomainError> {
-        self.record_that(
+    ) -> Result<(), Self::Error> {
+        let mut root = self.repository.get(user_id.clone()).await.map_err(crate::Error::ReadRepositoryError)?;
+        root.record_that(
             WorkspaceEvent::UserRoleAssigned {
                 user_id,
                 workspace_role_id,
             }
             .into(),
-        )
-        .map_err(workspace::DomainError::AggregateError)
+        )?;
+
+        self.repository.save(&mut root).await.map_err(crate::Error::WriteRepositoryError)?;
+        Ok(())
     }
 
+    async fn revoke_user_role(
+        &self,
+        workspace_id: WorkspaceId,
+        user_id: UserId,
+        workspace_role_id: WorkspaceRoleId,
+    ) -> Result<(), Self::Error> {
+        let mut root = self.repository.get(workspace_id.clone()).await.map_err(crate::Error::ReadRepositoryError)?;
+        root.record_that(
+            WorkspaceEvent::UserRoleRevoked {
+                user_id,
+                workspace_role_id,
+            }
+            .into(),
+        )?;
+        self.repository.save(&mut root).await.map_err(crate::Error::WriteRepositoryError)?;
+        Ok(())
+    }
+}
+
+impl WorkspaceCommand {
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
@@ -53,7 +87,7 @@ impl WorkspaceCommand {
         &mut self,
         user_id: UserId,
         workspace_role_id: WorkspaceRoleId,
-    ) -> Result<(), workspace::DomainError> {
+    ) -> Result<(), workspace::Error> {
         self.record_that(
             WorkspaceEvent::UserRoleRevoked {
                 user_id,
@@ -61,7 +95,6 @@ impl WorkspaceCommand {
             }
             .into(),
         )
-        .map_err(workspace::DomainError::AggregateError)
     }
 
     /// # Errors
@@ -71,7 +104,7 @@ impl WorkspaceCommand {
         &mut self,
         user_id: UserId,
         permission_id: PermissionId,
-    ) -> Result<(), workspace::DomainError> {
+    ) -> Result<(), workspace::Error> {
         self.record_that(
             WorkspaceEvent::UserPermissionGranted {
                 user_id,
@@ -79,7 +112,6 @@ impl WorkspaceCommand {
             }
             .into(),
         )
-        .map_err(workspace::DomainError::AggregateError)
     }
 
     /// # Errors
@@ -89,7 +121,7 @@ impl WorkspaceCommand {
         &mut self,
         user_id: UserId,
         permission_id: PermissionId,
-    ) -> Result<(), workspace::DomainError> {
+    ) -> Result<(), workspace::Error> {
         self.record_that(
             WorkspaceEvent::UserPermissionRevoked {
                 user_id,
@@ -97,7 +129,6 @@ impl WorkspaceCommand {
             }
             .into(),
         )
-        .map_err(workspace::DomainError::AggregateError)
     }
 
     /// # Errors
@@ -111,7 +142,7 @@ impl WorkspaceCommand {
         date_format: String,
         currency: String,
         week_start: String,
-    ) -> Result<(), workspace::DomainError> {
+    ) -> Result<(), workspace::Error> {
         self.record_that(
             WorkspaceEvent::SettingsUpdated {
                 name,
@@ -122,7 +153,6 @@ impl WorkspaceCommand {
             }
             .into(),
         )
-        .map_err(workspace::DomainError::AggregateError)
     }
 }
 

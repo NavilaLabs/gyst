@@ -1,57 +1,67 @@
+use std::fmt::Debug;
+
+use async_trait::async_trait;
+
 use crate::admin::authenticator::{AuthenticationStrategy, Authenticator, Credentials};
+use crate::admin::user::{self, User};
 use crate::admin::user::domain::interfaces::UserRepository;
 
-#[derive(Debug, Clone)]
-pub struct UserQuery<P> {
-    #[allow(dead_code)]
-    pool: P,
+#[async_trait]
+pub trait UserQueryTrait {
+    type Error: Debug;
+
+    async fn login(&self, email: &str, password: &str) -> Result<String, Self::Error>;
 }
 
 #[derive(Debug, Clone)]
-pub struct LoginQuery<P, A>
+pub struct UserQuery<R> {
+    repository: R,
+}
+
+#[derive(Debug, Clone)]
+pub struct LoginQuery<R, A>
 where
     A: AuthenticationStrategy,
 {
-    pool: P,
+    repository: R,
     authenticator: Authenticator<A>,
 }
 
-impl<P, A> LoginQuery<P, A>
+impl<R, A> LoginQuery<R, A>
 where
     A: AuthenticationStrategy,
 {
-    pub const fn new(pool: P, authenticator: Authenticator<A>) -> Self {
+    pub const fn new(repository: R, authenticator: Authenticator<A>) -> Self {
         Self {
-            pool,
+            repository,
             authenticator,
         }
     }
 }
 
-impl<P, A> LoginQuery<P, A>
+impl<R, A> LoginQuery<R, A>
 where
-    P: UserRepository,
+    R: UserRepository<Error = crate::Error<R, User>>,
     A: AuthenticationStrategy,
 {
     /// # Errors
     ///
     /// Returns an error if the user is not found, credentials cannot be fetched,
     /// or authentication fails.
-    pub async fn login(&self, email: &str, password: &str) -> Result<String, super::Error> {
+    pub async fn login(&self, email: &str, password: &str) -> Result<String, crate::Error<R, User>> {
         let (user_id, stored_email, password_hash) = self
-            .pool
+            .repository
             .find_credentials_by_email(email)
-            .await
-            .map_err(|e| super::Error::RepositoryError(format!("{e:?}")))?
-            .ok_or(super::Error::UserNotFound)?;
+            .await?
+            .ok_or(user::Error::NotFound)?;
 
-        self.authenticator
+        Ok(self.authenticator
             .authenticate(Credentials {
                 user_id: &user_id,
                 email: &stored_email,
                 password,
                 password_hash: &password_hash,
             })
-            .map_err(|e| super::Error::AuthenticationFailed(format!("{e:?}")))
+            .map_err(|e| user::Error::AuthenticationFailed(format!("{e:?}")))?)
     }
 }
