@@ -1,14 +1,15 @@
 use std::fmt::Debug;
 
 use async_trait::async_trait;
-use eventually::aggregate::Root;
+use eventually::aggregate::{Root, repository::GetError};
 
 use crate::admin::user::{
-    application::UserRoot, domain::{
+    application::UserRoot,
+    domain::{
         aggregates::{User, UserId},
         events::UserEvent,
         interfaces::UserRepository,
-    }
+    },
 };
 
 #[async_trait]
@@ -46,7 +47,7 @@ impl<R> UserCommand<R> {
 #[async_trait]
 impl<R> UserCommandTrait<User> for UserCommand<R>
 where
-    R: Debug + UserRepository<Error = crate::Error<R, User>>,
+    R: Debug + UserRepository,
 {
     type Error = crate::Error<R, User>;
 
@@ -68,7 +69,8 @@ where
                 password,
             }
             .into(),
-        )?.to_aggregate_type())
+        )?
+        .to_aggregate_type())
     }
 
     /// # Errors
@@ -81,7 +83,12 @@ where
         date_format: String,
         language: String,
     ) -> Result<(), <Self as UserCommandTrait<User>>::Error> {
-        let mut root: UserRoot = self.repository.get(id).await.map_err(|e| crate::Error::ReadRepositoryError(e))?.into();
+        let mut root: UserRoot = self
+            .repository
+            .get(&id)
+            .await
+            .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
+            .into();
         root.record_that(
             UserEvent::SettingsUpdated {
                 timezone,
@@ -91,7 +98,10 @@ where
             .into(),
         )?;
 
-        self.repository.save(&mut root).await.map_err(crate::Error::WriteRepositoryError)
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))
     }
 }
 

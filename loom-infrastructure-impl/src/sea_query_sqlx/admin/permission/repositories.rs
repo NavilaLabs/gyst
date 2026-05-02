@@ -1,10 +1,12 @@
 use std::{ops::Deref, str::FromStr};
 
 use async_trait::async_trait;
+use eventually::aggregate::Root;
+use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
-use loom_core::admin::permission::{Permission, PermissionEvent, PermissionRow};
-use loom_infrastructure::repository::{EntryToRow, ReadRepository};
+use loom_core::admin::permission::{self, Permission, PermissionEvent, PermissionId, PermissionRepository as PermissionRepositoryTrait, PermissionRow};
+use loom_core::shared::repositories::{ReadRepository, WriteRepository};
 use sea_query::{Condition, Expr, ExprTrait};
 use sqlx::{Row, any::AnyRow, types::Uuid};
 
@@ -48,47 +50,39 @@ impl PermissionRepository {
     }
 }
 
-impl EntryToRow<AnyRow> for PermissionRepository {
-    type Row = PermissionRow;
-    type Error = crate::Error;
-
-    fn entry_to_row(&self, row: AnyRow) -> Result<PermissionRow, crate::Error> {
-        let id: String = row.try_get("id")?;
-        let id = Uuid::from_str(&id)?;
-        let name: String = row.try_get("name")?;
-        Ok(PermissionRow::new(id.into(), name))
+#[async_trait]
+impl Getter<Permission> for PermissionRepository {
+    async fn get(&self, id: &PermissionId) -> Result<Root<Permission>, GetError> {
+        self.store.get(id).await
     }
 }
 
 #[async_trait]
-impl ReadRepository<AnyRow> for PermissionRepository {
+impl Saver<Permission> for PermissionRepository {
+    async fn save(&self, root: &mut Root<Permission>) -> Result<(), SaveError> {
+        self.store.save(root).await?;
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl ReadRepository<Permission> for PermissionRepository {
+    type Error = crate::Error;
     type Filter = Condition;
 
-    async fn get_one(&self, id: Uuid) -> Result<PermissionRow, crate::Error> {
-        self.get_one_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
-            .await
-    }
-
-    async fn find_one(&self, id: Uuid) -> Result<Option<PermissionRow>, crate::Error> {
+    async fn find(&self, id: PermissionId) -> Result<Option<Root<Permission>>, Self::Error> {
         self.find_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
             .await
     }
 
-    async fn get_one_by(&self, filter: Condition) -> Result<PermissionRow, crate::Error> {
-        let rm = self.read_model();
-        let stmt = rm.select().cond_where(filter).to_owned();
-        let row = rm.fetch_one_row(&stmt).await?;
-        self.entry_to_row(row)
-    }
-
-    async fn find_by(&self, filter: Condition) -> Result<Option<PermissionRow>, crate::Error> {
+    async fn find_by(&self, filter: Condition) -> Result<Option<Root<Permission>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
         row.map(|r| self.entry_to_row(r)).transpose()
     }
 
-    async fn find_many(&self, ids: Vec<Uuid>) -> Result<Vec<PermissionRow>, crate::Error> {
+    async fn find_many(&self, ids: Vec<PermissionId>) -> Result<Vec<Root<Permission>>, crate::Error> {
         if ids.is_empty() {
             return Ok(vec![]);
         }
@@ -97,14 +91,14 @@ impl ReadRepository<AnyRow> for PermissionRepository {
             .await
     }
 
-    async fn find_many_by(&self, filter: Condition) -> Result<Vec<PermissionRow>, crate::Error> {
+    async fn find_many_by(&self, filter: Condition) -> Result<Vec<Root<Permission>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
         rows.into_iter().map(|row| self.entry_to_row(row)).collect()
     }
 
-    async fn all(&self) -> Result<Vec<PermissionRow>, crate::Error> {
+    async fn all(&self) -> Result<Vec<Root<Permission>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select();
         let rows = rm.fetch_all_rows(&stmt).await?;
@@ -122,4 +116,14 @@ impl ReadRepository<AnyRow> for PermissionRepository {
         let stmt = rm.select_count();
         rm.count_rows(&stmt).await
     }
+}
+
+#[async_trait]
+impl WriteRepository<Permission> for PermissionRepository {
+    type Error = crate::Error;
+}
+
+#[async_trait]
+impl PermissionRepositoryTrait for PermissionRepository {
+    type Error = crate::Error;
 }

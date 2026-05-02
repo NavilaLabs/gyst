@@ -9,6 +9,15 @@ use sqlx::types::uuid;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("{0}")]
+    PermissionError(#[from] loom_core::admin::permission::Error),
+    #[error("{0}")]
+    UserError(#[from] loom_core::admin::user::Error),
+
+    #[error("{0}")]
+    GetError(#[from] eventually::aggregate::repository::GetError),
+    #[error("{0}")]
+    SaveError(#[from] eventually::aggregate::repository::SaveError),
+    #[error("{0}")]
     DateTimeError(#[from] chrono::ParseError),
     #[error("{0}")]
     JsonError(#[from] serde_json::Error),

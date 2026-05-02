@@ -3,12 +3,12 @@ use std::fmt::Debug;
 use async_trait::async_trait;
 
 use crate::admin::authenticator::{AuthenticationStrategy, Authenticator, Credentials};
-use crate::admin::user::{self, User};
 use crate::admin::user::domain::interfaces::UserRepository;
+use crate::admin::user::{self, User};
 
 #[async_trait]
-pub trait UserQueryTrait {
-    type Error: Debug;
+pub trait LoginQueryTrait {
+    type Error: Debug + Send + Sync;
 
     async fn login(&self, email: &str, password: &str) -> Result<String, Self::Error>;
 }
@@ -39,23 +39,27 @@ where
     }
 }
 
-impl<R, A> LoginQuery<R, A>
+#[async_trait]
+impl<R, A> LoginQueryTrait for LoginQuery<R, A>
 where
-    R: UserRepository<Error = crate::Error<R, User>>,
+    R: Debug + UserRepository,
     A: AuthenticationStrategy,
 {
-    /// # Errors
-    ///
-    /// Returns an error if the user is not found, credentials cannot be fetched,
-    /// or authentication fails.
-    pub async fn login(&self, email: &str, password: &str) -> Result<String, crate::Error<R, User>> {
+    type Error = <R as UserRepository>::Error;
+
+    async fn login(
+        &self,
+        email: &str,
+        password: &str,
+    ) -> Result<String, Self::Error> {
         let (user_id, stored_email, password_hash) = self
             .repository
             .find_credentials_by_email(email)
             .await?
             .ok_or(user::Error::NotFound)?;
 
-        Ok(self.authenticator
+        Ok(self
+            .authenticator
             .authenticate(Credentials {
                 user_id: &user_id,
                 email: &stored_email,

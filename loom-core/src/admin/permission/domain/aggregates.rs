@@ -1,7 +1,10 @@
 use eventually::aggregate::Aggregate;
 use serde::{Deserialize, Serialize};
 
-use crate::{admin::permission::{self, PermissionEvent}, shared::AggregateId};
+use crate::{
+    admin::permission::{self, PermissionEvent},
+    shared::AggregateId,
+};
 
 pub type PermissionId = AggregateId;
 
@@ -46,8 +49,8 @@ impl Aggregate for Permission {
 
 #[cfg(test)]
 mod tests {
-    use crate::admin::permission::Error;
     use super::*;
+    use crate::admin::permission::Error;
 
     fn test_id() -> PermissionId {
         "019d0ce8-facb-7c90-b9d7-287ae4f17c91"

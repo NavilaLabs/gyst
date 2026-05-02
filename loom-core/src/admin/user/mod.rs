@@ -13,8 +13,7 @@ pub use domain::{
 };
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error
-{
+pub enum Error {
     #[error("authentication failed: {0}")]
     AuthenticationFailed(String),
     #[error("user not found")]

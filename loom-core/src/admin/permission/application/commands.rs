@@ -4,10 +4,12 @@ use async_trait::async_trait;
 use eventually::aggregate::Root;
 
 use crate::admin::permission::{
-    self, PermissionRepository, application::PermissionRoot, domain::{
+    self, PermissionRepository,
+    application::PermissionRoot,
+    domain::{
         aggregates::{Permission, PermissionId},
         events::PermissionEvent,
-    }
+    },
 };
 
 #[async_trait]
@@ -19,20 +21,22 @@ pub trait PermissionCommandTrait<T> {
 
 #[derive(Debug)]
 pub struct PermissionCommand<R> {
-    repository: R
+    repository: R,
 }
 
 #[async_trait]
 impl<R> PermissionCommandTrait<PermissionRoot> for PermissionCommand<R>
 where
-    R: Debug + PermissionRepository<Error = crate::Error<R, Permission>>,
+    R: Debug + PermissionRepository,
 {
     type Error = crate::Error<R, Permission>;
 
     async fn create(&self, id: PermissionId, name: String) -> Result<PermissionRoot, Self::Error> {
-        Ok(Root::<Permission>::record_new(PermissionEvent::Created { id, name }.into())
-            .map_err(|_| permission::Error::AlreadyExists)?
-            .into())
+        Ok(
+            Root::<Permission>::record_new(PermissionEvent::Created { id, name }.into())
+                .map_err(|_| permission::Error::AlreadyExists)?
+                .into(),
+        )
     }
 }
 
@@ -50,7 +54,9 @@ mod tests {
     async fn create_returns_root_with_applied_state() {
         let id = test_id();
 
-        let result = PermissionCommand.create(id.clone(), "can_invite_users".to_string()).await;
+        let result = PermissionCommand
+            .create(id.clone(), "can_invite_users".to_string())
+            .await;
 
         assert!(result.is_ok());
         let root = result.unwrap();

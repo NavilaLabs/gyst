@@ -13,7 +13,12 @@ use crate::tenant::activity::{
 pub trait ActivityCommandTrait<T> {
     type Error: Debug + Sync + Send;
 
-    fn create(&self, id: ActivityId, name: String, comment: Option<String>) -> Result<T, Self::Error>;
+    fn create(
+        &self,
+        id: ActivityId,
+        name: String,
+        comment: Option<String>,
+    ) -> Result<T, Self::Error>;
 }
 
 #[eventually_macros::aggregate_root(Activity)]
@@ -22,7 +27,12 @@ pub struct ActivityCommand;
 impl ActivityCommandTrait<ActivityCommand> for ActivityCommand {
     type Error = activity::Error;
 
-    fn create(&self, id: ActivityId, name: String, comment: Option<String>) -> Result<ActivityCommand, Self::Error> {
+    fn create(
+        &self,
+        id: ActivityId,
+        name: String,
+        comment: Option<String>,
+    ) -> Result<ActivityCommand, Self::Error> {
         Ok(aggregate::Root::<Activity>::record_new(
             ActivityEvent::Created { id, name, comment }.into(),
         )?

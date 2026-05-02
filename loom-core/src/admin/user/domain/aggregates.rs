@@ -1,7 +1,10 @@
 use eventually::aggregate::Aggregate;
 use serde::{Deserialize, Serialize};
 
-use crate::{admin::user::{self, UserEvent}, shared::AggregateId};
+use crate::{
+    admin::user::{self, UserEvent},
+    shared::AggregateId,
+};
 
 pub type UserId = AggregateId;
 
@@ -33,8 +36,7 @@ impl User {
     }
 }
 
-impl Aggregate for User
-{
+impl Aggregate for User {
     type Id = UserId;
     type Event = UserEvent;
     type Error = user::Error;

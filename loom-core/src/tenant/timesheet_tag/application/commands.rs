@@ -59,7 +59,10 @@ impl TimesheetTagCommand {
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn untag_timesheet(&mut self, timesheet_id: TimesheetId) -> Result<(), timesheet_tag::Error> {
+    pub fn untag_timesheet(
+        &mut self,
+        timesheet_id: TimesheetId,
+    ) -> Result<(), timesheet_tag::Error> {
         self.record_that(TimesheetTagEvent::TimesheetUntagged { timesheet_id }.into())
     }
 

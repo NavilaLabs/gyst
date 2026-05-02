@@ -1,33 +1,27 @@
 use std::fmt::Debug;
 
 use async_trait::async_trait;
-use eventually::aggregate::{Aggregate, Root};
+use eventually::aggregate::{Aggregate, Root, repository::{GetError, Getter, SaveError, Saver}};
 
 use crate::shared::AggregateId;
 
-pub trait RecordToRow<R>
+#[async_trait]
+pub trait Repository<T>: ReadRepository<T> + WriteRepository<T>
+where
+    T: Aggregate,
 {
-    type Row: Debug + Send + Sync;
-    type Error: Debug + Send + Sync;
-
-    /// # Errors
-    ///
-    /// Returns an error if the row cannot be converted to the view type.
-    fn record_to_row(&self, record: R) -> Result<Self::Row, Self::Error>;
 }
 
 #[async_trait]
-pub trait ReadRepository<T>
+pub trait ReadRepository<T>: Send + Sync + Getter<T>
 where
-    T: Aggregate
+    T: Aggregate,
 {
-    type Error: Debug + Send + Sync;
+    type Error: Debug + Send + Sync + From<GetError>;
     /// The filter expression type used by `_by` methods.
     /// Each implementation binds this to its own query-builder type
     /// (e.g. `sea_query::Expr`), keeping this trait backend-agnostic.
     type Filter: Send + Sync + 'static;
-
-    async fn get(&self, id: AggregateId) -> Result<Root<T>, Self::Error>;
 
     /// Returns the record wrapped in `Some`, or `None` if it does not exist.
     async fn find(&self, id: AggregateId) -> Result<Option<Root<T>>, Self::Error>;
@@ -82,11 +76,9 @@ where
 }
 
 #[async_trait]
-pub trait WriteRepository<T>
+pub trait WriteRepository<T>: Send + Sync + Saver<T>
 where
     T: Aggregate,
 {
-    type Error: Debug + Send + Sync;
-
-    async fn save(&self, root: &mut Root<T>) -> Result<(), Self::Error>;
+    type Error: Debug + Send + Sync + From<SaveError>;
 }
