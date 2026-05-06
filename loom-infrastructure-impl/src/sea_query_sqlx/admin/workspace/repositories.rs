@@ -1,7 +1,7 @@
 use std::{ops::Deref, str::FromStr};
 
 use async_trait::async_trait;
-use eventually::aggregate::Root;
+use eventually::aggregate::{Aggregate, Root};
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
@@ -9,9 +9,9 @@ use loom_core::admin::workspace::{
     Workspace, WorkspaceEvent, WorkspaceId, WorkspaceRepository as WorkspaceRepositoryTrait,
     WorkspaceView,
 };
-use loom_infrastructure::repository::{EntryToRow, ReadRepository};
+use loom_core::shared::repositories::{ReadRepository, WriteRepository};
 use sea_query::{Alias, Condition, Expr, ExprTrait};
-use sqlx::{Row, any::AnyRow, types::Uuid};
+use sqlx::{Row, any::AnyRow};
 
 use crate::{
     ConnectedAdminPool, infrastructure::read_model::SeaQueryReadModel, snapshot::SnapshotRepository,
@@ -50,6 +50,35 @@ impl WorkspaceRepository {
 
     const fn read_model(&self) -> SeaQueryReadModel<'_> {
         SeaQueryReadModel::new(&self.store.pool, TABLE)
+    }
+
+    fn entry_to_row(&self, row: AnyRow) -> Result<Root<Workspace>, crate::Error> {
+        let id: String = row.try_get("id")?;
+        let id = WorkspaceId::from_str(&id)?;
+        let name: Option<String> = row.try_get("name")?;
+        let timezone: String = row.try_get("timezone").unwrap_or_else(|_| "Europe/Berlin".to_string());
+        let date_format: String = row.try_get("date_format").unwrap_or_else(|_| "%Y-%m-%d".to_string());
+        let currency: String = row.try_get("currency").unwrap_or_else(|_| "EUR".to_string());
+        let week_start: String = row.try_get("week_start").unwrap_or_else(|_| "monday".to_string());
+        let workspace = Workspace::apply(None, WorkspaceEvent::Created { id, name: name.clone() })
+            .expect("Created event on None state is infallible");
+        let workspace = Workspace::apply(
+            Some(workspace),
+            WorkspaceEvent::SettingsUpdated { name, timezone, date_format, currency, week_start },
+        )
+        .expect("SettingsUpdated event on Some state is infallible");
+        Ok(Root::rehydrate_from_state(0, workspace))
+    }
+
+    fn row_to_view(&self, row: AnyRow) -> Result<WorkspaceView, crate::Error> {
+        let id: String = row.try_get("id")?;
+        let id = WorkspaceId::from_str(&id)?;
+        let name: Option<String> = row.try_get("name")?;
+        let timezone: String = row.try_get("timezone").unwrap_or_else(|_| "Europe/Berlin".to_string());
+        let date_format: String = row.try_get("date_format").unwrap_or_else(|_| "%Y-%m-%d".to_string());
+        let currency: String = row.try_get("currency").unwrap_or_else(|_| "EUR".to_string());
+        let week_start: String = row.try_get("week_start").unwrap_or_else(|_| "monday".to_string());
+        Ok(WorkspaceView::new_with_settings(id, name, timezone, date_format, currency, week_start))
     }
 
     /// Returns all (`workspace_id`, `workspace_name`) pairs the given user belongs to.
@@ -118,85 +147,44 @@ impl WorkspaceRepository {
             .and_where(Expr::col(Alias::new("id")).eq(id))
             .to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
-        row.map(|r| self.entry_to_row(r)).transpose()
-    }
-}
-
-impl EntryToRow<AnyRow> for WorkspaceRepository {
-    type Row = WorkspaceView;
-    type Error = crate::Error;
-
-    fn entry_to_row(&self, row: AnyRow) -> Result<WorkspaceView, crate::Error> {
-        let id: String = row.try_get("id")?;
-        let id = Uuid::from_str(&id)?;
-        let name: Option<String> = row.try_get("name")?;
-        let timezone: String = row
-            .try_get("timezone")
-            .unwrap_or_else(|_| "Europe/Berlin".to_string());
-        let date_format: String = row
-            .try_get("date_format")
-            .unwrap_or_else(|_| "%Y-%m-%d".to_string());
-        let currency: String = row
-            .try_get("currency")
-            .unwrap_or_else(|_| "EUR".to_string());
-        let week_start: String = row
-            .try_get("week_start")
-            .unwrap_or_else(|_| "monday".to_string());
-        Ok(WorkspaceView::new_with_settings(
-            id.into(),
-            name,
-            timezone,
-            date_format,
-            currency,
-            week_start,
-        ))
+        row.map(|r| self.row_to_view(r)).transpose()
     }
 }
 
 #[async_trait]
-impl ReadRepository<AnyRow> for WorkspaceRepository {
+impl ReadRepository<Workspace> for WorkspaceRepository {
+    type Error = crate::Error;
     type Filter = Condition;
 
-    async fn get_one(&self, id: Uuid) -> Result<WorkspaceView, crate::Error> {
-        self.get_one_by(Condition::all().add(Expr::col("id").eq(id)))
+    async fn find(&self, id: WorkspaceId) -> Result<Option<Root<Workspace>>, Self::Error> {
+        self.find_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
             .await
     }
 
-    async fn find_one(&self, id: Uuid) -> Result<Option<WorkspaceView>, crate::Error> {
-        self.find_by(Condition::all().add(Expr::col("id").eq(id)))
-            .await
-    }
-
-    async fn get_one_by(&self, filter: Condition) -> Result<WorkspaceView, crate::Error> {
-        let rm = self.read_model();
-        let stmt = rm.select().cond_where(filter).to_owned();
-        let row = rm.fetch_one_row(&stmt).await?;
-        self.entry_to_row(row)
-    }
-
-    async fn find_by(&self, filter: Condition) -> Result<Option<WorkspaceView>, crate::Error> {
+    async fn find_by(&self, filter: Condition) -> Result<Option<Root<Workspace>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
         row.map(|r| self.entry_to_row(r)).transpose()
     }
 
-    async fn find_many(&self, ids: Vec<Uuid>) -> Result<Vec<WorkspaceView>, crate::Error> {
+    async fn find_many(&self, ids: Vec<WorkspaceId>) -> Result<Vec<Root<Workspace>>, crate::Error> {
         if ids.is_empty() {
             return Ok(vec![]);
         }
-        self.find_many_by(Condition::all().add(Expr::col("id").is_in(ids)))
+        let id_strings: Vec<String> = ids.into_iter().map(|id| id.to_string()).collect();
+        self.find_many_by(Condition::all().add(Expr::col("id").is_in(id_strings)))
             .await
     }
 
-    async fn find_many_by(&self, filter: Condition) -> Result<Vec<WorkspaceView>, crate::Error> {
+    async fn find_many_by(&self, filter: Condition) -> Result<Vec<Root<Workspace>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
         rows.into_iter().map(|row| self.entry_to_row(row)).collect()
     }
 
-    async fn all(&self) -> Result<Vec<WorkspaceView>, crate::Error> {
+    async fn all(&self) -> Result<Vec<Root<Workspace>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select();
         let rows = rm.fetch_all_rows(&stmt).await?;
@@ -217,6 +205,11 @@ impl ReadRepository<AnyRow> for WorkspaceRepository {
 }
 
 #[async_trait]
+impl WriteRepository<Workspace> for WorkspaceRepository {
+    type Error = crate::Error;
+}
+
+#[async_trait]
 impl Getter<Workspace> for WorkspaceRepository {
     async fn get(&self, id: &WorkspaceId) -> Result<Root<Workspace>, GetError> {
         self.store.get(id).await
@@ -230,4 +223,6 @@ impl Saver<Workspace> for WorkspaceRepository {
     }
 }
 
-impl WorkspaceRepositoryTrait for WorkspaceRepository {}
+impl WorkspaceRepositoryTrait for WorkspaceRepository {
+    type Error = crate::Error;
+}

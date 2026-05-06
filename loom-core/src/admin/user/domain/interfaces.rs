@@ -36,33 +36,80 @@ pub trait UserRepository: ReadRepository<User> + WriteRepository<User> + Send + 
 
 #[cfg(test)]
 pub mod in_memory_repository {
-    use super::*;
-    use crate::shared::repositories::in_memory::InMemoryRepository;
+    use async_trait::async_trait;
+    use eventually::aggregate::{
+        Root,
+        repository::{GetError, Getter, SaveError, Saver},
+    };
 
-    pub struct InMemoryUserRepository {
-        inner: InMemoryRepository<User>,
+    use super::*;
+    use crate::{admin::user::UserId, shared::{AggregateId, repositories::{ReadRepository, WriteRepository}}};
+
+    #[derive(Debug, thiserror::Error)]
+    #[error("stub")]
+    pub struct StubError;
+
+    impl From<GetError> for StubError {
+        fn from(_: GetError) -> Self { Self }
     }
 
+    impl From<SaveError> for StubError {
+        fn from(_: SaveError) -> Self { Self }
+    }
+
+    impl From<user::Error> for StubError {
+        fn from(_: user::Error) -> Self { Self }
+    }
+
+    #[derive(Debug)]
+    pub struct InMemoryUserRepository;
+
     impl InMemoryUserRepository {
-        pub fn new() -> Self {
-            Self {
-                inner: InMemoryRepository::new(),
-            }
+        pub fn new() -> Self { Self }
+    }
+
+    #[async_trait]
+    impl Getter<User> for InMemoryUserRepository {
+        async fn get(&self, _id: &UserId) -> Result<Root<User>, GetError> {
+            unimplemented!("test stub")
         }
     }
 
     #[async_trait]
+    impl Saver<User> for InMemoryUserRepository {
+        async fn save(&self, _root: &mut Root<User>) -> Result<(), SaveError> {
+            Ok(())
+        }
+    }
+
+    #[async_trait]
+    impl ReadRepository<User> for InMemoryUserRepository {
+        type Error = StubError;
+        type Filter = ();
+
+        async fn find(&self, _id: AggregateId) -> Result<Option<Root<User>>, Self::Error> { Ok(None) }
+        async fn find_by(&self, _filter: ()) -> Result<Option<Root<User>>, Self::Error> { Ok(None) }
+        async fn find_many(&self, _ids: Vec<AggregateId>) -> Result<Vec<Root<User>>, Self::Error> { Ok(vec![]) }
+        async fn find_many_by(&self, _filter: ()) -> Result<Vec<Root<User>>, Self::Error> { Ok(vec![]) }
+        async fn all(&self) -> Result<Vec<Root<User>>, Self::Error> { Ok(vec![]) }
+        async fn count_by(&self, _filter: ()) -> Result<u64, Self::Error> { Ok(0) }
+        async fn count(&self) -> Result<u64, Self::Error> { Ok(0) }
+    }
+
+    #[async_trait]
+    impl WriteRepository<User> for InMemoryUserRepository {
+        type Error = StubError;
+    }
+
+    #[async_trait]
     impl UserRepository for InMemoryUserRepository {
-        type Error = crate::Error<Self, User>;
+        type Error = StubError;
 
         async fn find_credentials_by_email(
             &self,
-            email: &str,
+            _email: &str,
         ) -> Result<Option<(String, String, String)>, <Self as UserRepository>::Error> {
-            self.inner
-                .find(|user| user.email == email)
-                .map(|user| Some((user.id.clone(), user.name.clone(), user.email.clone())))
-                .map_err(|e| e.into())
+            Ok(None)
         }
     }
 }

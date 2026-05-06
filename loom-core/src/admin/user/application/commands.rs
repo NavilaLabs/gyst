@@ -117,8 +117,8 @@ mod tests {
             .expect("valid UUID")
     }
 
-    #[test]
-    fn create_returns_root_with_applied_state() {
+    #[tokio::test]
+    async fn create_returns_root_with_applied_state() {
         let id: UserId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92"
             .parse()
             .expect("valid UUID");
@@ -128,24 +128,24 @@ mod tests {
             "Alice".to_string(),
             "alice@example.com".to_string(),
             "$2b$12$hash".to_string(),
-        );
+        ).await;
 
         assert!(result.is_ok());
         let cmd = result.unwrap();
-        assert_eq!(cmd.aggregate_id(), &id);
+        assert_eq!(cmd.id(), &id);
         assert_eq!(cmd.name(), "Alice");
-        assert_eq!(cmd.version(), 1);
     }
 
-    #[test]
-    fn create_propagates_aggregate_error_on_bad_event() {
+    #[tokio::test]
+    async fn create_propagates_aggregate_error_on_bad_event() {
         assert!(
-            UserCommand::new(InMemoryUserRepository::new())::create(
+            UserCommand::new(InMemoryUserRepository::new()).create(
                 test_id(),
                 "Bob".to_string(),
                 "bob@example.com".to_string(),
                 "$2b$12$hash".to_string(),
             )
+            .await
             .is_ok()
         );
     }

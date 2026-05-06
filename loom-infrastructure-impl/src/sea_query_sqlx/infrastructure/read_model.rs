@@ -1,39 +1,21 @@
-//! Thin helper for admin projection read-model queries.
-//!
-//! Admin repositories implement [`loom_infrastructure::query::Query`] on top
-//! of `sea-query` + `sqlx::AnyPool`. All eight method bodies follow the same
-//! three-step pattern:
-//!
-//! 1. Build a `SelectStatement` (with or without a filter / count function).
-//! 2. Compile it to `(sql, SqlxValues)` via [`ConnectedAdminPool::build_query`].
-//! 3. Execute it and return the row(s).
-//!
-//! [`SeaQueryReadModel`] captures the pool reference and the table name so
-//! each query method becomes a one-liner in the concrete repository.
-
 use sea_query::{Expr, Func, SelectStatement};
 use sqlx::{Row, any::AnyRow};
 
-use crate::ConnectedAdminPool;
+use super::{ConnectedAdminPool, ConnectionProvider};
 
-/// Read-model query helper for a single admin projection table.
+/// Read-model query helper for a single projection table.
 ///
-/// Construct one per method via [`crate::sea_query_sqlx::admin`] repositories'
-/// private `read_model()` accessors:
-///
-/// ```ignore
-/// fn read_model(&self) -> SeaQueryReadModel<'_> {
-///     SeaQueryReadModel::new(&self.store.pool, TABLE)
-/// }
-/// ```
-pub struct SeaQueryReadModel<'a> {
-    pool: &'a ConnectedAdminPool,
+/// Generic over the pool type `P` so it can serve both admin and tenant
+/// repositories.  The default `P = ConnectedAdminPool` keeps existing admin
+/// repository code unchanged.
+pub struct SeaQueryReadModel<'a, P = ConnectedAdminPool> {
+    pool: &'a P,
     table: &'static str,
 }
 
-impl<'a> SeaQueryReadModel<'a> {
+impl<'a, P: ConnectionProvider> SeaQueryReadModel<'a, P> {
     #[must_use]
-    pub const fn new(pool: &'a ConnectedAdminPool, table: &'static str) -> Self {
+    pub const fn new(pool: &'a P, table: &'static str) -> Self {
         Self { pool, table }
     }
 
@@ -63,7 +45,7 @@ impl<'a> SeaQueryReadModel<'a> {
     pub async fn fetch_one_row(&self, stmt: &SelectStatement) -> Result<AnyRow, crate::Error> {
         let (sql, args) = self.pool.build_query(stmt);
         Ok(sqlx::query_with(&sql, args)
-            .fetch_one(self.pool.as_ref())
+            .fetch_one(self.pool.any_pool())
             .await?)
     }
 
@@ -78,7 +60,7 @@ impl<'a> SeaQueryReadModel<'a> {
     ) -> Result<Option<AnyRow>, crate::Error> {
         let (sql, args) = self.pool.build_query(stmt);
         Ok(sqlx::query_with(&sql, args)
-            .fetch_optional(self.pool.as_ref())
+            .fetch_optional(self.pool.any_pool())
             .await?)
     }
 
@@ -93,7 +75,7 @@ impl<'a> SeaQueryReadModel<'a> {
     ) -> Result<Vec<AnyRow>, crate::Error> {
         let (sql, args) = self.pool.build_query(stmt);
         Ok(sqlx::query_with(&sql, args)
-            .fetch_all(self.pool.as_ref())
+            .fetch_all(self.pool.any_pool())
             .await?)
     }
 
@@ -105,9 +87,9 @@ impl<'a> SeaQueryReadModel<'a> {
     pub async fn count_rows(&self, stmt: &SelectStatement) -> Result<u64, crate::Error> {
         let (sql, args) = self.pool.build_query(stmt);
         let row = sqlx::query_with(&sql, args)
-            .fetch_one(self.pool.as_ref())
+            .fetch_one(self.pool.any_pool())
             .await?;
-        let n: i64 = row.try_get(0)?;
+        let n: i64 = row.try_get(0usize)?;
         #[allow(clippy::cast_sign_loss)]
         Ok(n as u64)
     }

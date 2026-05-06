@@ -34,13 +34,16 @@ where
     /// Returns the first record matching `filter`, or `None` if none match.
     async fn find_by(&self, filter: Self::Filter) -> Result<Option<Root<T>>, Self::Error>;
 
+    /// Returns all records whose id is in `ids`, silently omitting missing ones.
+    async fn find_many(&self, ids: Vec<AggregateId>) -> Result<Vec<Root<T>>, Self::Error>;
+
+    /// Returns all records matching `filter`.
+    async fn find_many_by(&self, filter: Self::Filter) -> Result<Vec<Root<T>>, Self::Error>;
+
     /// Returns `true` if any record matches `filter`.
     async fn exists_by(&self, filter: Self::Filter) -> Result<bool, Self::Error> {
         self.find_by(filter).await.map(|opt| opt.is_some())
     }
-
-    /// Returns all records whose id is in `ids`, silently omitting missing ones.
-    async fn find_many(&self, ids: Vec<AggregateId>) -> Result<Vec<Root<T>>, Self::Error>;
 
     /// Returns `true` if every id in `ids` has a corresponding record.
     async fn exists_many(&self, ids: Vec<AggregateId>) -> Result<bool, Self::Error> {
@@ -49,9 +52,6 @@ where
             .await
             .map(|found| found.len() == expected)
     }
-
-    /// Returns all records matching `filter`.
-    async fn find_many_by(&self, filter: Self::Filter) -> Result<Vec<Root<T>>, Self::Error>;
 
     /// Returns `true` if any record matches `filter`.
     async fn exists_many_by(&self, filter: Self::Filter) -> Result<bool, Self::Error> {

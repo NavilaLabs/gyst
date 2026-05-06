@@ -12,6 +12,10 @@ pub enum Error {
     PermissionError(#[from] loom_core::admin::permission::Error),
     #[error("{0}")]
     UserError(#[from] loom_core::admin::user::Error),
+    #[error("{0}")]
+    WorkspaceError(#[from] loom_core::admin::workspace::Error),
+    #[error("{0}")]
+    WorkspaceRoleError(#[from] loom_core::admin::workspace_role::Error),
 
     #[error("{0}")]
     GetError(#[from] eventually::aggregate::repository::GetError),

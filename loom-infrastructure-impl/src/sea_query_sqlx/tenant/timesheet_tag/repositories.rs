@@ -1,17 +1,23 @@
 use std::{collections::HashMap, ops::Deref, str::FromStr};
 
 use async_trait::async_trait;
-use eventually::aggregate::Root;
+use eventually::aggregate::{Aggregate, Root};
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
+use loom_core::shared::repositories::{ReadRepository, WriteRepository};
 use loom_core::tenant::timesheet_tag::{
     TimesheetTag, TimesheetTagEvent, TimesheetTagId,
     TimesheetTagRepository as TimesheetTagRepositoryTrait, TimesheetTagRow,
 };
+use sea_query::{Condition, Expr, ExprTrait};
 use sqlx::{Row, any::AnyRow};
 
-use crate::{ConnectedTenantPool, snapshot::SnapshotRepository};
+use crate::{
+    ConnectedTenantPool, infrastructure::read_model::SeaQueryReadModel, snapshot::SnapshotRepository,
+};
+
+const TABLE: &str = "projections__timesheet_tags";
 
 pub struct TimesheetTagRepository {
     store: SnapshotRepository<TimesheetTag, ConnectedTenantPool>,
@@ -33,6 +39,19 @@ impl TimesheetTagRepository {
         Ok(Self {
             store: SnapshotRepository::from_pool(pool).await?,
         })
+    }
+
+    const fn read_model(&self) -> SeaQueryReadModel<'_, ConnectedTenantPool> {
+        SeaQueryReadModel::new(&self.store.pool, TABLE)
+    }
+
+    fn entry_to_row(&self, row: AnyRow) -> Result<Root<TimesheetTag>, crate::Error> {
+        let id: String = row.try_get("id")?;
+        let id = TimesheetTagId::from_str(&id)?;
+        let name: String = row.try_get("name")?;
+        let tag = TimesheetTag::apply(None, TimesheetTagEvent::Created { id, name })
+            .expect("Created event on None state is infallible");
+        Ok(Root::rehydrate_from_state(0, tag))
     }
 
     /// # Errors
@@ -108,6 +127,76 @@ impl TimesheetTagRepository {
 }
 
 #[async_trait]
+impl ReadRepository<TimesheetTag> for TimesheetTagRepository {
+    type Error = crate::Error;
+    type Filter = Condition;
+
+    async fn find(
+        &self,
+        id: TimesheetTagId,
+    ) -> Result<Option<Root<TimesheetTag>>, Self::Error> {
+        self.find_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
+            .await
+    }
+
+    async fn find_by(
+        &self,
+        filter: Condition,
+    ) -> Result<Option<Root<TimesheetTag>>, crate::Error> {
+        let rm = self.read_model();
+        let stmt = rm.select().cond_where(filter).to_owned();
+        let row = rm.fetch_optional_row(&stmt).await?;
+        row.map(|r| self.entry_to_row(r)).transpose()
+    }
+
+    async fn find_many(
+        &self,
+        ids: Vec<TimesheetTagId>,
+    ) -> Result<Vec<Root<TimesheetTag>>, crate::Error> {
+        if ids.is_empty() {
+            return Ok(vec![]);
+        }
+        let id_strings: Vec<String> = ids.into_iter().map(|id| id.to_string()).collect();
+        self.find_many_by(Condition::all().add(Expr::col("id").is_in(id_strings)))
+            .await
+    }
+
+    async fn find_many_by(
+        &self,
+        filter: Condition,
+    ) -> Result<Vec<Root<TimesheetTag>>, crate::Error> {
+        let rm = self.read_model();
+        let stmt = rm.select().cond_where(filter).to_owned();
+        let rows = rm.fetch_all_rows(&stmt).await?;
+        rows.into_iter().map(|row| self.entry_to_row(row)).collect()
+    }
+
+    async fn all(&self) -> Result<Vec<Root<TimesheetTag>>, crate::Error> {
+        let rm = self.read_model();
+        let stmt = rm.select();
+        let rows = rm.fetch_all_rows(&stmt).await?;
+        rows.into_iter().map(|row| self.entry_to_row(row)).collect()
+    }
+
+    async fn count_by(&self, filter: Condition) -> Result<u64, crate::Error> {
+        let rm = self.read_model();
+        let stmt = rm.select_count().cond_where(filter).to_owned();
+        rm.count_rows(&stmt).await
+    }
+
+    async fn count(&self) -> Result<u64, crate::Error> {
+        let rm = self.read_model();
+        let stmt = rm.select_count();
+        rm.count_rows(&stmt).await
+    }
+}
+
+#[async_trait]
+impl WriteRepository<TimesheetTag> for TimesheetTagRepository {
+    type Error = crate::Error;
+}
+
+#[async_trait]
 impl Getter<TimesheetTag> for TimesheetTagRepository {
     async fn get(&self, id: &TimesheetTagId) -> Result<Root<TimesheetTag>, GetError> {
         self.store.get(id).await
@@ -121,4 +210,6 @@ impl Saver<TimesheetTag> for TimesheetTagRepository {
     }
 }
 
-impl TimesheetTagRepositoryTrait for TimesheetTagRepository {}
+impl TimesheetTagRepositoryTrait for TimesheetTagRepository {
+    type Error = crate::Error;
+}

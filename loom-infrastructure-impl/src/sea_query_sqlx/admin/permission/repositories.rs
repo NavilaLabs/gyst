@@ -1,14 +1,14 @@
 use std::{ops::Deref, str::FromStr};
 
 use async_trait::async_trait;
-use eventually::aggregate::Root;
+use eventually::aggregate::{Aggregate, Root};
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
-use loom_core::admin::permission::{self, Permission, PermissionEvent, PermissionId, PermissionRepository as PermissionRepositoryTrait, PermissionRow};
+use loom_core::admin::permission::{Permission, PermissionEvent, PermissionId, PermissionRepository as PermissionRepositoryTrait};
 use loom_core::shared::repositories::{ReadRepository, WriteRepository};
 use sea_query::{Condition, Expr, ExprTrait};
-use sqlx::{Row, any::AnyRow, types::Uuid};
+use sqlx::{Row, any::AnyRow};
 
 use crate::{
     ConnectedAdminPool, infrastructure::read_model::SeaQueryReadModel, snapshot::SnapshotRepository,
@@ -47,6 +47,15 @@ impl PermissionRepository {
 
     const fn read_model(&self) -> SeaQueryReadModel<'_> {
         SeaQueryReadModel::new(&self.store.pool, TABLE)
+    }
+
+    fn entry_to_row(&self, row: AnyRow) -> Result<Root<Permission>, crate::Error> {
+        let id: String = row.try_get("id")?;
+        let id = PermissionId::from_str(&id)?;
+        let name: String = row.try_get("name")?;
+        let permission = Permission::apply(None, PermissionEvent::Created { id, name })
+            .expect("Created event on None state is infallible");
+        Ok(Root::rehydrate_from_state(0, permission))
     }
 }
 

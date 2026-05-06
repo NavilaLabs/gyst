@@ -229,23 +229,23 @@ mod tests {
 
     use super::*;
 
-    fn make_command_shell(id: WorkspaceId) -> WorkspaceCommand {
-        let workspace = Workspace::apply(
-            None,
-            WorkspaceEvent::Created {
-                id,
-                name: Some("seed".to_string()),
-            },
-        )
-        .expect("seed workspace");
-        Root::<Workspace>::rehydrate_from_state(1, workspace).into()
-    }
+    // fn make_command_shell(id: WorkspaceId) -> WorkspaceCommand {
+    //     let workspace = Workspace::apply(
+    //         None,
+    //         WorkspaceEvent::Created {
+    //             id,
+    //             name: Some("seed".to_string()),
+    //         },
+    //     )
+    //     .expect("seed workspace");
+    //     Root::<Workspace>::rehydrate_from_state(1, workspace).into()
+    // }
 
-    fn test_id() -> WorkspaceId {
-        "019d0ce8-facb-7c90-b9d7-287ae4f17c91"
-            .parse()
-            .expect("valid UUID")
-    }
+    // fn test_id() -> WorkspaceId {
+    //     "019d0ce8-facb-7c90-b9d7-287ae4f17c91"
+    //         .parse()
+    //         .expect("valid UUID")
+    // }
 
     // #[test]
     // fn create_returns_root_with_applied_state() {

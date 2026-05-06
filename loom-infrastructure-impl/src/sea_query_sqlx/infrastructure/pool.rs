@@ -121,10 +121,15 @@ impl<Scope> Pool<Scope, StateConnected> {
 /// caring about the scope marker.  Also trivially implementable by test stubs.
 pub trait ConnectionProvider: Send + Sync + Clone {
     fn any_pool(&self) -> &sqlx::AnyPool;
+    fn build_query<S: SqlxBinder>(&self, statement: &S) -> (String, SqlxValues);
 }
 
 impl<Scope: Send + Sync + Clone> ConnectionProvider for Pool<Scope, StateConnected> {
     fn any_pool(&self) -> &sqlx::AnyPool {
         &self.state.pool
+    }
+
+    fn build_query<S: SqlxBinder>(&self, statement: &S) -> (String, SqlxValues) {
+        self.database_type.build_query(statement)
     }
 }

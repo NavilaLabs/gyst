@@ -91,6 +91,7 @@ impl Aggregate for User {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::admin::user;
 
     fn test_id() -> UserId {
         "019d0ce8-facb-7c90-b9d7-287ae4f17c91"
@@ -124,6 +125,6 @@ mod tests {
         let id = test_id();
         let existing = User::apply(None, created_event(id.clone(), "Alice")).unwrap();
         let result = User::apply(Some(existing), created_event(id, "Bob"));
-        assert!(matches!(result, Err(Error::AlreadyExists)));
+        assert!(matches!(result, Err(user::Error::AlreadyExists)));
     }
 }
