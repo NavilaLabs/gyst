@@ -692,18 +692,15 @@ mod tests {
 
 ### 3.8 — `application/queries.rs` (admin only — skip for tenant)
 
+The query trait starts empty — add methods as real query needs emerge.
+
 ```rust
 use std::fmt::Debug;
 
-use async_trait::async_trait;
+use crate::admin::{MODULE}::domain::interfaces::{PASCAL}Repository;
 
-use crate::admin::{MODULE}::{domain::interfaces::{PASCAL}Repository, {PASCAL}};
-
-#[async_trait]
 pub trait {PASCAL}QueryTrait {
     type Error: Debug + Send + Sync;
-
-    async fn all(&self) -> Result<Vec<{PASCAL}>, Self::Error>;
 }
 
 #[derive(Debug, Clone)]
@@ -717,16 +714,11 @@ impl<R> {PASCAL}Query<R> {
     }
 }
 
-#[async_trait]
 impl<R> {PASCAL}QueryTrait for {PASCAL}Query<R>
 where
     R: Debug + {PASCAL}Repository,
 {
     type Error = <R as {PASCAL}Repository>::Error;
-
-    async fn all(&self) -> Result<Vec<{PASCAL}>, Self::Error> {
-        todo!()
-    }
 }
 ```
 
