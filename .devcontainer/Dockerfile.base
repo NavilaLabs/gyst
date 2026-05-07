@@ -22,6 +22,7 @@ RUN chown -R vscode:vscode /usr/local/cargo /usr/local/rustup
 USER vscode
 WORKDIR /home/vscode
 
+RUN rustup component add clippy rustfmt
 RUN rustup target add wasm32-unknown-unknown
 
 RUN curl -L --proto '=https' --tlsv1.2 -sSf \

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use loom_core::admin::{authenticator::Authenticator, user::LoginQuery};
+use loom_core::admin::{authenticator::Authenticator, user::{LoginQuery, LoginQueryTrait}};
 use loom_infrastructure::config::CONFIG;
 use loom_infrastructure_impl::{
     Pool,

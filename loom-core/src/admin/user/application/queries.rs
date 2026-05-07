@@ -7,6 +7,13 @@ use crate::admin::user::domain::interfaces::UserRepository;
 use crate::admin::user::{self, User};
 
 #[async_trait]
+pub trait UserQueryTrait {
+    type Error: Debug + Send + Sync;
+
+    async fn all(&self) -> Result<Vec<User>, Self::Error>;
+}
+
+#[async_trait]
 pub trait LoginQueryTrait {
     type Error: Debug + Send + Sync;
 
@@ -16,6 +23,26 @@ pub trait LoginQueryTrait {
 #[derive(Debug, Clone)]
 pub struct UserQuery<R> {
     repository: R,
+}
+
+impl<R> UserQuery<R> {
+    pub const fn new(repository: R) -> Self {
+        Self {
+            repository
+        }
+    }
+}
+
+#[async_trait]
+impl<R> UserQueryTrait for UserQuery<R>
+where
+    R: Debug + UserRepository,
+{
+    type Error = <R as UserRepository>::Error;
+
+    async fn all(&self) -> Result<Vec<User>, Self::Error> {
+        todo!()
+    }
 }
 
 #[derive(Debug, Clone)]
