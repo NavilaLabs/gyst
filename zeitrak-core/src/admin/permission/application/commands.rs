@@ -42,6 +42,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::admin::permission::domain::interfaces::in_memory_repository::InMemoryPermissionRepository;
+
     use super::*;
 
     fn test_id() -> PermissionId {
@@ -54,7 +56,7 @@ mod tests {
     async fn create_returns_root_with_applied_state() {
         let id = test_id();
 
-        let result = PermissionCommand
+        let result = PermissionCommand { repository: InMemoryPermissionRepository::new() }
             .create(id.clone(), "can_invite_users".to_string())
             .await;
 

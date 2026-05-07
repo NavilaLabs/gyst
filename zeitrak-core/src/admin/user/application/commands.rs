@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use async_trait::async_trait;
-use eventually::aggregate::{Root, repository::GetError};
+use eventually::aggregate::{Aggregate, Root};
 
 use crate::admin::user::{
     application::UserRoot,
@@ -13,7 +13,10 @@ use crate::admin::user::{
 };
 
 #[async_trait]
-pub trait UserCommandTrait<T> {
+pub trait UserCommandTrait<T>
+where
+    T: Aggregate,
+{
     type Error: Debug + Sync + Send;
 
     async fn create(
@@ -22,7 +25,7 @@ pub trait UserCommandTrait<T> {
         name: String,
         email: String,
         password: String,
-    ) -> Result<T, Self::Error>;
+    ) -> Result<Root<T>, Self::Error>;
 
     async fn update_settings(
         &self,
@@ -60,7 +63,7 @@ where
         name: String,
         email: String,
         password: String,
-    ) -> Result<User, Self::Error> {
+    ) -> Result<Root<User>, <Self as UserCommandTrait<User>>::Error> {
         Ok(Root::<User>::record_new(
             UserEvent::Created {
                 id,
@@ -69,8 +72,7 @@ where
                 password,
             }
             .into(),
-        )?
-        .to_aggregate_type())
+        )?)
     }
 
     /// # Errors

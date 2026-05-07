@@ -1,7 +1,7 @@
 use anyhow::Result;
 use eventually::aggregate::{Root, repository::Saver};
 use zeitrak_core::admin::{
-    user::{UserEvent, UserId},
+    user::{UserEvent, UserId, UserRepository as UserRepositoryTrait},
     workspace::{Workspace, WorkspaceEvent, WorkspaceId},
     workspace_role::{WorkspaceRole, WorkspaceRoleEvent, WorkspaceRoleId},
 };

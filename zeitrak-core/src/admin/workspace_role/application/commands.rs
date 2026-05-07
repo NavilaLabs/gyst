@@ -7,7 +7,7 @@ use crate::admin::{
     permission::PermissionId,
     workspace::WorkspaceId,
     workspace_role::{
-        self, WorkspaceRoleRepository, domain::{
+        WorkspaceRoleRepository, domain::{
             aggregates::{WorkspaceRole, WorkspaceRoleId},
             events::WorkspaceRoleEvent,
         }
@@ -93,7 +93,7 @@ mod tests {
 
     use super::*;
 
-    fn make_command_shell(id: WorkspaceRoleId, workspace_id: WorkspaceId) -> WorkspaceRoleCommand {
+    fn make_command_shell(id: WorkspaceRoleId, workspace_id: WorkspaceId) -> Root<WorkspaceRole> {
         let role = WorkspaceRole::apply(
             None,
             WorkspaceRoleEvent::Created {
@@ -103,7 +103,7 @@ mod tests {
             },
         )
         .expect("seed workspace role");
-        Root::<WorkspaceRole>::rehydrate_from_state(1, role).into()
+        Root::<WorkspaceRole>::rehydrate_from_state(1, role)
     }
 
     fn test_ids() -> (WorkspaceRoleId, WorkspaceId) {
@@ -117,32 +117,15 @@ mod tests {
         )
     }
 
-    // #[test]
-    // fn create_returns_root_with_applied_state() {
-    //     let (_, workspace_id) = test_ids();
-    //     let id: WorkspaceRoleId = "019d0ce8-facb-7c90-b9d7-287ae4f17c93"
-    //         .parse()
-    //         .expect("valid UUID");
-
-    //     let result =
-    //         WorkspaceRoleCommand::create(id.clone(), workspace_id, Some("admin".to_string()));
-
-    //     assert!(result.is_ok());
-    //     let cmd = result.unwrap();
-    //     assert_eq!(cmd.aggregate_id(), &id);
-    //     assert_eq!(cmd.name(), Some("admin"));
-    //     assert_eq!(cmd.version(), 1);
-    // }
-
     #[test]
     fn grant_permission_records_event() {
         let (role_id, workspace_id) = test_ids();
         let mut cmd = make_command_shell(role_id, workspace_id);
-        let permission_id = "019d0ce8-facb-7c90-b9d7-287ae4f17c94"
+        let permission_id: PermissionId = "019d0ce8-facb-7c90-b9d7-287ae4f17c94"
             .parse()
             .expect("valid UUID");
 
-        let result = cmd.grant_permission(permission_id);
+        let result = cmd.record_that(WorkspaceRoleEvent::PermissionGranted { permission_id }.into());
         assert!(result.is_ok());
         assert_eq!(cmd.version(), 2);
     }
@@ -153,8 +136,8 @@ mod tests {
         let mut cmd = make_command_shell(role_id, workspace_id);
         let permission_id: PermissionId = "019d0ce8-facb-7c90-b9d7-287ae4f17c94".parse().unwrap();
 
-        cmd.grant_permission(permission_id.clone()).unwrap();
-        let result = cmd.revoke_permission(permission_id);
+        cmd.record_that(WorkspaceRoleEvent::PermissionGranted { permission_id: permission_id.clone() }.into()).unwrap();
+        let result = cmd.record_that(WorkspaceRoleEvent::PermissionRevoked { permission_id }.into());
 
         assert!(result.is_ok());
         assert_eq!(cmd.version(), 3);

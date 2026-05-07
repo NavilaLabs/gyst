@@ -27,7 +27,7 @@ pub async fn update_user_settings(
         .get(&agg_id)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
-    let mut cmd: UserCommand = root.into();
+    let mut cmd = root.into();
     cmd.update_settings(timezone, date_format, language)?;
     repo.save(&mut cmd)
         .await

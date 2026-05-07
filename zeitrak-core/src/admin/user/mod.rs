@@ -2,7 +2,7 @@ pub(crate) mod application;
 pub(crate) mod domain;
 
 pub use application::{
-    commands::UserCommand,
+    commands::{UserCommand, UserCommandTrait},
     queries::{LoginQuery, LoginQueryTrait, UserQuery},
     rows::UserRow,
 };

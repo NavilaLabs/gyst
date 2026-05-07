@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::{ops::Deref, str::FromStr};
 
 use async_trait::async_trait;
@@ -18,6 +19,15 @@ const TABLE: &str = "projections__users";
 
 pub struct UserRepository {
     store: SnapshotRepository<User, ConnectedAdminPool>,
+}
+
+impl Debug for UserRepository {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("UserRepository")
+            .field("pool", &self.store.pool)
+            .field("store", &self.store.event_store())
+            .finish()
+    }
 }
 
 impl Deref for UserRepository {

@@ -298,7 +298,7 @@ All test names, assertion messages, and comments must be in **English**.
 
 ## Dioxus GUI (`zeitrak-presentation/gui`)
 
-This is a separate Cargo workspace. Read `zeitrak-presentation/gui/AGENTS.md` (will be renamed to `zeitrak-presentation/gui/AGENTS.md`) for Dioxus-specific guidance.
+This is a separate Cargo workspace. Read `zeitrak-presentation/gui/AGENTS.md` for Dioxus-specific guidance.
 
 ### Component conventions
 
