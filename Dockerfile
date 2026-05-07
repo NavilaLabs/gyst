@@ -11,15 +11,15 @@ ENV PATH="/.cargo/bin:$PATH"
 ENV ENVIRONMENT=production
 ENV APP_PROJECT_ROOT="/app"
 ENV DATABASE_BASE_URI=sqlite:///app/databases
-ENV ADMIN_DATABASE_NAME=loom_admin
+ENV ADMIN_DATABASE_NAME=zeitrak_admin
 
 COPY . .
 
 # Build the whole workspace and then the Dioxus web package
-RUN cd loom && cargo build --release --bin admin-projection-daemon
-RUN cd loom && cargo build --release --bin tenant-projection-daemon
-RUN cd loom-presentation/gui && cargo build --release
-RUN cd loom-presentation/gui && dx build --package web --release
+RUN cd zeitrak && cargo build --release --bin admin-projection-daemon
+RUN cd zeitrak && cargo build --release --bin tenant-projection-daemon
+RUN cd zeitrak-presentation/gui && cargo build --release
+RUN cd zeitrak-presentation/gui && dx build --package web --release
 
 # ----------------------------------------------------------
 # Stage 2: Runtime
@@ -34,7 +34,7 @@ WORKDIR /app
 # Copy built server binary and assets
 COPY --from=builder /app/target/release/admin-projection-daemon .
 COPY --from=builder /app/target/release/tenant-projection-daemon .
-COPY --from=builder /app/loom-presentation/gui/target/dx/web/release/web .
+COPY --from=builder /app/zeitrak-presentation/gui/target/dx/web/release/web .
 
 COPY --from=builder /app/config/ /app/config/
 
@@ -50,7 +50,7 @@ ENV IP=0.0.0.0
 ENV ENVIRONMENT=production
 ENV APP_PROJECT_ROOT="/app"
 ENV DATABASE_BASE_URI=sqlite:///app/databases
-ENV ADMIN_DATABASE_NAME=loom_admin
+ENV ADMIN_DATABASE_NAME=zeitrak_admin
 
 RUN chmod +x /app/entrypoint.sh
 ENTRYPOINT ["/app/entrypoint.sh"]

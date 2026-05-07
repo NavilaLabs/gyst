@@ -1673,143 +1673,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
 
 [[package]]
-name = "loom"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "dotenvy",
- "eventually",
- "eventually-macros",
- "jsonwebtoken",
- "loom-core",
- "loom-infrastructure",
- "loom-infrastructure-impl",
- "loom-tests",
- "serde",
- "serial_test",
- "sqlx",
- "thiserror",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "with-lifecycle",
-]
-
-[[package]]
-name = "loom-admin-migrations"
-version = "0.1.0"
-dependencies = [
- "loom-shared-migrations",
- "sea-orm-migration",
- "tokio",
-]
-
-[[package]]
-name = "loom-core"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "chrono",
- "eventually",
- "eventually-macros",
- "loom-tests",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "uuid",
- "validator",
- "with-lifecycle",
-]
-
-[[package]]
-name = "loom-infrastructure"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "chrono",
- "dotenvy",
- "loom-tests",
- "serde",
- "serde-vars",
- "serde_json",
- "serde_yaml",
- "thiserror",
- "tokio",
- "tracing",
- "url",
- "uuid",
- "with-lifecycle",
-]
-
-[[package]]
-name = "loom-infrastructure-impl"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "bcrypt",
- "chrono",
- "embassy-futures",
- "eventually",
- "eventually-any",
- "eventually-projection",
- "jsonwebtoken",
- "loom-admin-migrations",
- "loom-core",
- "loom-infrastructure",
- "loom-tenant-migrations",
- "loom-tests",
- "sea-orm",
- "sea-query",
- "sea-query-sqlx",
- "serde",
- "serde_json",
- "serial_test",
- "sqlx",
- "tempfile",
- "thiserror",
- "tokio",
- "tracing",
- "url",
- "with-lifecycle",
-]
-
-[[package]]
-name = "loom-shared-migrations"
-version = "0.1.0"
-dependencies = [
- "sea-orm-migration",
- "sqlx",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "loom-tenant-migrations"
-version = "0.1.0"
-dependencies = [
- "loom-shared-migrations",
- "sea-orm-migration",
- "tokio",
-]
-
-[[package]]
-name = "loom-tests"
-version = "0.1.0"
-dependencies = [
- "dotenvy",
- "embassy-futures",
- "loom-infrastructure",
- "loom-infrastructure-impl",
- "sqlx",
- "tempfile",
- "tracing",
- "url",
-]
-
-[[package]]
 name = "mac_address"
 version = "1.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4172,6 +4035,143 @@ dependencies = [
  "quote",
  "syn 2.0.117",
  "synstructure",
+]
+
+[[package]]
+name = "zeitrak"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "dotenvy",
+ "eventually",
+ "eventually-macros",
+ "jsonwebtoken",
+ "serde",
+ "serial_test",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "with-lifecycle",
+ "zeitrak-core",
+ "zeitrak-infrastructure",
+ "zeitrak-infrastructure-impl",
+ "zeitrak-tests",
+]
+
+[[package]]
+name = "zeitrak-admin-migrations"
+version = "0.1.0"
+dependencies = [
+ "sea-orm-migration",
+ "tokio",
+ "zeitrak-shared-migrations",
+]
+
+[[package]]
+name = "zeitrak-core"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "eventually",
+ "eventually-macros",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "uuid",
+ "validator",
+ "with-lifecycle",
+ "zeitrak-tests",
+]
+
+[[package]]
+name = "zeitrak-infrastructure"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "dotenvy",
+ "serde",
+ "serde-vars",
+ "serde_json",
+ "serde_yaml",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "url",
+ "uuid",
+ "with-lifecycle",
+ "zeitrak-tests",
+]
+
+[[package]]
+name = "zeitrak-infrastructure-impl"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "bcrypt",
+ "chrono",
+ "embassy-futures",
+ "eventually",
+ "eventually-any",
+ "eventually-projection",
+ "jsonwebtoken",
+ "sea-orm",
+ "sea-query",
+ "sea-query-sqlx",
+ "serde",
+ "serde_json",
+ "serial_test",
+ "sqlx",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "url",
+ "with-lifecycle",
+ "zeitrak-admin-migrations",
+ "zeitrak-core",
+ "zeitrak-infrastructure",
+ "zeitrak-tenant-migrations",
+ "zeitrak-tests",
+]
+
+[[package]]
+name = "zeitrak-shared-migrations"
+version = "0.1.0"
+dependencies = [
+ "sea-orm-migration",
+ "sqlx",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "zeitrak-tenant-migrations"
+version = "0.1.0"
+dependencies = [
+ "sea-orm-migration",
+ "tokio",
+ "zeitrak-shared-migrations",
+]
+
+[[package]]
+name = "zeitrak-tests"
+version = "0.1.0"
+dependencies = [
+ "dotenvy",
+ "embassy-futures",
+ "sqlx",
+ "tempfile",
+ "tracing",
+ "url",
+ "zeitrak-infrastructure",
+ "zeitrak-infrastructure-impl",
 ]
 
 [[package]]

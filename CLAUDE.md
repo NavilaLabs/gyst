@@ -16,7 +16,7 @@ The core business logic lives in a standalone library (`zeitrak-core`) that is c
 
 ## Common Commands
 
-### Backend (Cargo workspace root: `/workspaces/loom`)
+### Backend (Cargo workspace root: `/workspaces/zeitrak`)
 
 ```bash
 cargo build                          # Build all workspace members
@@ -298,7 +298,7 @@ All test names, assertion messages, and comments must be in **English**.
 
 ## Dioxus GUI (`zeitrak-presentation/gui`)
 
-This is a separate Cargo workspace. Read `loom-presentation/gui/AGENTS.md` (will be renamed to `zeitrak-presentation/gui/AGENTS.md`) for Dioxus-specific guidance.
+This is a separate Cargo workspace. Read `zeitrak-presentation/gui/AGENTS.md` (will be renamed to `zeitrak-presentation/gui/AGENTS.md`) for Dioxus-specific guidance.
 
 ### Component conventions
 

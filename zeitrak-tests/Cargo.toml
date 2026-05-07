@@ -1,0 +1,17 @@
+[package]
+name = "zeitrak-tests"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+dotenvy = { workspace = true }
+embassy-futures.workspace = true
+zeitrak-infrastructure = { path = "../zeitrak-infrastructure" }
+zeitrak-infrastructure-impl = { path = "../zeitrak-infrastructure-impl" }
+tempfile = "3"
+url = { workspace = true }
+sqlx = { workspace = true, features = ["any"] }
+tracing = { workspace = true }
+
+[lints]
+workspace = true

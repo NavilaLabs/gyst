@@ -1,13 +1,13 @@
 [workspace]
 members = [
-  "loom",
-  "loom-core",
-  "loom-infrastructure",
-  "loom-infrastructure-impl",
-  "loom-migrations/loom-admin-migrations",
-  "loom-migrations/loom-shared-migrations",
-  "loom-migrations/loom-tenant-migrations",
-  "loom-tests",
+  "zeitrak",
+  "zeitrak-core",
+  "zeitrak-infrastructure",
+  "zeitrak-infrastructure-impl",
+  "zeitrak-migrations/zeitrak-admin-migrations",
+  "zeitrak-migrations/zeitrak-shared-migrations",
+  "zeitrak-migrations/zeitrak-tenant-migrations",
+  "zeitrak-tests",
 ]
 resolver = "3"
 

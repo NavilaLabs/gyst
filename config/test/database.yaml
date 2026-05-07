@@ -3,9 +3,9 @@ database:
 
   databases:
     admin:
-      name: test_loom_admin
+      name: test_zeitrak_admin
     tenant:
-      name_prefix: test_loom_tenant_
+      name_prefix: test_zeitrak_tenant_
 
   pool:
     max_size: 20
