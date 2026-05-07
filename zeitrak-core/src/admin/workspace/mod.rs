@@ -4,10 +4,20 @@ pub(crate) mod domain;
 pub use application::{
     WorkspaceRoot,
     commands::{WorkspaceCommand, WorkspaceCommandTrait},
-    views::WorkspaceView,
+    inputs::CreateWorkspaceInput,
+    queries::{WorkspaceQuery, WorkspaceQueryTrait},
+    rows::WorkspaceRow,
 };
 pub use domain::{
-    aggregates::{Error, Workspace, WorkspaceId},
+    aggregates::{Workspace, WorkspaceId},
     events::WorkspaceEvent,
     interfaces::WorkspaceRepository,
 };
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("workspace already exists")]
+    AlreadyExists,
+    #[error("workspace not found")]
+    NotFound,
+}

@@ -7,7 +7,7 @@ use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
 use zeitrak_core::admin::workspace::{
     Workspace, WorkspaceEvent, WorkspaceId, WorkspaceRepository as WorkspaceRepositoryTrait,
-    WorkspaceView,
+    WorkspaceRow,
 };
 use zeitrak_core::shared::repositories::{ReadRepository, WriteRepository};
 use sea_query::{Alias, Condition, Expr, ExprTrait};
@@ -21,6 +21,12 @@ const TABLE: &str = "projections__workspaces";
 
 pub struct WorkspaceRepository {
     store: SnapshotRepository<Workspace, ConnectedAdminPool>,
+}
+
+impl std::fmt::Debug for WorkspaceRepository {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WorkspaceRepository").finish_non_exhaustive()
+    }
 }
 
 impl Deref for WorkspaceRepository {
@@ -70,7 +76,7 @@ impl WorkspaceRepository {
         Ok(Root::rehydrate_from_state(0, workspace))
     }
 
-    fn row_to_view(&self, row: AnyRow) -> Result<WorkspaceView, crate::Error> {
+    fn row_to_view(&self, row: AnyRow) -> Result<WorkspaceRow, crate::Error> {
         let id: String = row.try_get("id")?;
         let id = WorkspaceId::from_str(&id)?;
         let name: Option<String> = row.try_get("name")?;
@@ -78,7 +84,7 @@ impl WorkspaceRepository {
         let date_format: String = row.try_get("date_format").unwrap_or_else(|_| "%Y-%m-%d".to_string());
         let currency: String = row.try_get("currency").unwrap_or_else(|_| "EUR".to_string());
         let week_start: String = row.try_get("week_start").unwrap_or_else(|_| "monday".to_string());
-        Ok(WorkspaceView::new_with_settings(id, name, timezone, date_format, currency, week_start))
+        Ok(WorkspaceRow::new_with_settings(id, name, timezone, date_format, currency, week_start))
     }
 
     /// Returns all (`workspace_id`, `workspace_name`) pairs the given user belongs to.
@@ -135,12 +141,12 @@ impl WorkspaceRepository {
             .transpose()
     }
 
-    /// Fetch a `WorkspaceView` by string ID, avoiding the `AnyPool` UUID-type panic.
+    /// Fetch a `WorkspaceRow` by string ID, avoiding the `AnyPool` UUID-type panic.
     ///
     /// # Errors
     ///
     /// Returns an error if the database query fails.
-    pub async fn find_view_by_id(&self, id: &str) -> Result<Option<WorkspaceView>, crate::Error> {
+    pub async fn find_view_by_id(&self, id: &str) -> Result<Option<WorkspaceRow>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm
             .select()

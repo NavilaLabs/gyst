@@ -4,6 +4,8 @@ pub(crate) mod domain;
 pub use application::{
     PermissionRoot,
     commands::{PermissionCommand, PermissionCommandTrait},
+    inputs::CreatePermissionInput,
+    queries::{PermissionQuery, PermissionQueryTrait},
     rows::PermissionRow,
 };
 pub use domain::{
@@ -16,4 +18,6 @@ pub use domain::{
 pub enum Error {
     #[error("permission already exists")]
     AlreadyExists,
+    #[error("permission not found")]
+    NotFound,
 }

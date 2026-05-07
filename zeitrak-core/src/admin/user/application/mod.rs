@@ -1,6 +1,7 @@
 use crate::admin::user::User;
 
 pub mod commands;
+pub mod inputs;
 pub mod queries;
 pub mod rows;
 

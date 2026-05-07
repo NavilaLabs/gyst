@@ -4,6 +4,7 @@ pub(crate) mod domain;
 pub use application::{
     TimesheetRoot,
     commands::{TimesheetCommand, TimesheetCommandTrait},
+    inputs::StartTimesheetInput,
     views::TimesheetRow,
 };
 pub use domain::{

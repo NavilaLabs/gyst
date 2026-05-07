@@ -1,6 +1,5 @@
 use anyhow::Result;
-use eventually::aggregate::repository::{Getter, Saver};
-use zeitrak_core::admin::user::{UserCommand, UserId, UserRow};
+use zeitrak_core::admin::user::{UserCommand, UserCommandTrait, UserId, UserRow};
 use zeitrak_infrastructure_impl::{Pool, admin::user::repositories::UserRepository};
 
 /// Returns the current settings for the given user.
@@ -21,15 +20,9 @@ pub async fn update_user_settings(
 ) -> Result<()> {
     let pool = Pool::connect_admin().await?;
     let repo = UserRepository::from_pool(pool).await?;
-
     let agg_id: UserId = user_id.parse()?;
-    let root = repo
-        .get(&agg_id)
-        .await
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
-    let mut cmd = root.into();
-    cmd.update_settings(timezone, date_format, language)?;
-    repo.save(&mut cmd)
+    UserCommand::new(repo)
+        .update_settings(agg_id, timezone, date_format, language)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))
 }

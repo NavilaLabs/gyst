@@ -1,7 +1,7 @@
 use eventually::aggregate::Aggregate;
 use serde::{Deserialize, Serialize};
 
-use crate::{admin::workspace::WorkspaceEvent, shared::AggregateId};
+use crate::{admin::workspace::{self, WorkspaceEvent}, shared::AggregateId};
 
 pub type WorkspaceId = AggregateId;
 
@@ -27,18 +27,10 @@ impl Workspace {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("workspace already exists")]
-    AlreadyExists,
-    #[error("workspace not found")]
-    NotFound,
-}
-
 impl Aggregate for Workspace {
     type Id = WorkspaceId;
     type Event = WorkspaceEvent;
-    type Error = Error;
+    type Error = workspace::Error;
 
     fn type_name() -> &'static str {
         "workspace"
@@ -58,17 +50,17 @@ impl Aggregate for Workspace {
                 currency: "EUR".to_string(),
                 week_start: "monday".to_string(),
             }),
-            (Some(_), WorkspaceEvent::Created { .. }) => Err(Error::AlreadyExists),
-            (None, _) => Err(Error::NotFound),
+            (Some(_), WorkspaceEvent::Created { .. }) => Err(workspace::Error::AlreadyExists),
+            (None, _) => Err(workspace::Error::NotFound),
             (
-                Some(workspace),
+                Some(w),
                 WorkspaceEvent::UserRoleAssigned { .. }
                 | WorkspaceEvent::UserRoleRevoked { .. }
                 | WorkspaceEvent::UserPermissionGranted { .. }
                 | WorkspaceEvent::UserPermissionRevoked { .. },
-            ) => Ok(workspace),
+            ) => Ok(w),
             (
-                Some(mut workspace),
+                Some(mut w),
                 WorkspaceEvent::SettingsUpdated {
                     name,
                     timezone,
@@ -77,12 +69,12 @@ impl Aggregate for Workspace {
                     week_start,
                 },
             ) => {
-                workspace.name = name;
-                workspace.timezone = timezone;
-                workspace.date_format = date_format;
-                workspace.currency = currency;
-                workspace.week_start = week_start;
-                Ok(workspace)
+                w.name = name;
+                w.timezone = timezone;
+                w.date_format = date_format;
+                w.currency = currency;
+                w.week_start = week_start;
+                Ok(w)
             }
         }
     }
@@ -91,6 +83,7 @@ impl Aggregate for Workspace {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::admin::workspace::Error;
 
     fn test_id() -> WorkspaceId {
         "019d0ce8-facb-7c90-b9d7-287ae4f17c91"

@@ -6,7 +6,7 @@ use eventually::aggregate::{Aggregate, Root};
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
-use zeitrak_core::admin::user::{User, UserEvent, UserId, UserRepository as UserRepositoryTrait};
+use zeitrak_core::admin::user::{User, UserEvent, UserId, UserRepository as UserRepositoryTrait, UserRow};
 use zeitrak_core::shared::repositories::{ReadRepository, WriteRepository};
 use sea_query::{Alias, Condition, Expr, ExprTrait};
 use sqlx::{Row, any::AnyRow};
@@ -55,6 +55,17 @@ impl UserRepository {
 
     const fn read_model(&self) -> SeaQueryReadModel<'_> {
         SeaQueryReadModel::new(&self.store.pool, TABLE)
+    }
+
+    fn row_to_view(&self, row: AnyRow) -> Result<UserRow, crate::Error> {
+        let id: String = row.try_get("id")?;
+        let id = UserId::from_str(&id)?;
+        let name: String = row.try_get("name")?;
+        let email: String = row.try_get("email")?;
+        let timezone: String = row.try_get("timezone").unwrap_or_else(|_| "Europe/Berlin".to_string());
+        let date_format: String = row.try_get("date_format").unwrap_or_else(|_| "%Y-%m-%d".to_string());
+        let language: String = row.try_get("language").unwrap_or_else(|_| "en".to_string());
+        Ok(UserRow::new_with_settings(id, name, email, timezone, date_format, language))
     }
 
     fn entry_to_row(&self, row: AnyRow) -> Result<Root<User>, crate::Error> {
@@ -176,5 +187,22 @@ impl UserRepositoryTrait for UserRepository {
             Ok((id, email, hash))
         })
         .transpose()
+    }
+}
+
+impl UserRepository {
+    /// Fetch a `UserRow` by string ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    pub async fn find_view_by_id(&self, id: &str) -> Result<Option<UserRow>, crate::Error> {
+        let rm = self.read_model();
+        let stmt = rm
+            .select()
+            .and_where(Expr::col(Alias::new("id")).eq(id))
+            .to_owned();
+        let row = rm.fetch_optional_row(&stmt).await?;
+        row.map(|r| self.row_to_view(r)).transpose()
     }
 }

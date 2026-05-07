@@ -56,7 +56,7 @@ where
 
     /// # Errors
     ///
-    /// Returns an error if the domain event cannot be applied to the aggregate.
+    /// Returns an error if the domain event cannot be applied or the root cannot be saved.
     async fn create(
         &self,
         id: UserId,
@@ -64,7 +64,7 @@ where
         email: String,
         password: String,
     ) -> Result<Root<User>, <Self as UserCommandTrait<User>>::Error> {
-        Ok(Root::<User>::record_new(
+        let mut root = Root::<User>::record_new(
             UserEvent::Created {
                 id,
                 name,
@@ -72,7 +72,12 @@ where
                 password,
             }
             .into(),
-        )?)
+        )?;
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))?;
+        Ok(root)
     }
 
     /// # Errors

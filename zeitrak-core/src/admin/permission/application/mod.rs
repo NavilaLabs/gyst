@@ -1,6 +1,7 @@
 use crate::admin::permission::Permission;
 
 pub mod commands;
+pub mod inputs;
 pub mod queries;
 pub mod rows;
 

@@ -1,22 +1,24 @@
 use std::fmt::Debug;
 
 use async_trait::async_trait;
-use eventually::aggregate::Root;
+use eventually::aggregate::{Aggregate, Root};
 
 use crate::admin::permission::{
-    self, PermissionRepository,
-    application::PermissionRoot,
     domain::{
         aggregates::{Permission, PermissionId},
         events::PermissionEvent,
+        interfaces::PermissionRepository,
     },
 };
 
 #[async_trait]
-pub trait PermissionCommandTrait<T> {
+pub trait PermissionCommandTrait<T>
+where
+    T: Aggregate,
+{
     type Error: Debug + Sync + Send;
 
-    async fn create(&self, id: PermissionId, name: String) -> Result<T, Self::Error>;
+    async fn create(&self, id: PermissionId, name: String) -> Result<Root<T>, Self::Error>;
 }
 
 #[derive(Debug)]
@@ -24,19 +26,30 @@ pub struct PermissionCommand<R> {
     repository: R,
 }
 
+impl<R> PermissionCommand<R> {
+    pub fn new(repository: R) -> Self {
+        Self { repository }
+    }
+}
+
 #[async_trait]
-impl<R> PermissionCommandTrait<PermissionRoot> for PermissionCommand<R>
+impl<R> PermissionCommandTrait<Permission> for PermissionCommand<R>
 where
     R: Debug + PermissionRepository,
 {
     type Error = crate::Error<R, Permission>;
 
-    async fn create(&self, id: PermissionId, name: String) -> Result<PermissionRoot, Self::Error> {
-        Ok(
-            Root::<Permission>::record_new(PermissionEvent::Created { id, name }.into())
-                .map_err(|_| permission::Error::AlreadyExists)?
-                .into(),
-        )
+    /// # Errors
+    ///
+    /// Returns an error if the domain event cannot be applied to the aggregate.
+    async fn create(
+        &self,
+        id: PermissionId,
+        name: String,
+    ) -> Result<Root<Permission>, <Self as PermissionCommandTrait<Permission>>::Error> {
+        Ok(Root::<Permission>::record_new(
+            PermissionEvent::Created { id, name }.into(),
+        )?)
     }
 }
 
@@ -46,17 +59,13 @@ mod tests {
 
     use super::*;
 
-    fn test_id() -> PermissionId {
-        "019d0ce8-facb-7c90-b9d7-287ae4f17c92"
-            .parse()
-            .expect("valid UUID")
-    }
-
     #[tokio::test]
     async fn create_returns_root_with_applied_state() {
-        let id = test_id();
+        let id: PermissionId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92"
+            .parse()
+            .expect("valid UUID");
 
-        let result = PermissionCommand { repository: InMemoryPermissionRepository::new() }
+        let result = PermissionCommand::new(InMemoryPermissionRepository::new())
             .create(id.clone(), "can_invite_users".to_string())
             .await;
 

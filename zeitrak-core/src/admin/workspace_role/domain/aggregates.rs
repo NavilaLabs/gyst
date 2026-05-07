@@ -2,7 +2,7 @@ use eventually::aggregate::Aggregate;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    admin::{workspace::WorkspaceId, workspace_role::WorkspaceRoleEvent},
+    admin::{workspace::WorkspaceId, workspace_role::{self, WorkspaceRoleEvent}},
     shared::AggregateId,
 };
 
@@ -32,18 +32,10 @@ impl WorkspaceRole {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("workspace role already exists")]
-    AlreadyExists,
-    #[error("workspace role not found")]
-    NotFound,
-}
-
 impl Aggregate for WorkspaceRole {
     type Id = WorkspaceRoleId;
     type Event = WorkspaceRoleEvent;
-    type Error = Error;
+    type Error = workspace_role::Error;
 
     fn type_name() -> &'static str {
         "workspace_role"
@@ -67,8 +59,8 @@ impl Aggregate for WorkspaceRole {
                 workspace_id,
                 name,
             }),
-            (Some(_), WorkspaceRoleEvent::Created { .. }) => Err(Error::AlreadyExists),
-            (None, _) => Err(Error::NotFound),
+            (Some(_), WorkspaceRoleEvent::Created { .. }) => Err(workspace_role::Error::AlreadyExists),
+            (None, _) => Err(workspace_role::Error::NotFound),
             (
                 Some(role),
                 WorkspaceRoleEvent::PermissionGranted { .. }
@@ -81,6 +73,7 @@ impl Aggregate for WorkspaceRole {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::admin::workspace_role::Error;
 
     fn test_ids() -> (WorkspaceRoleId, WorkspaceId) {
         (

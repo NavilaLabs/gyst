@@ -5,7 +5,7 @@ use zeitrak::infrastructure::{
     BackoffConfig, Pool, ProjectionDaemon, ProjectionRunner, ProjectionSource, SqlCheckpoint,
     tenant::projectors::TenantProjector,
 };
-use zeitrak_infrastructure::repository::ReadRepository;
+use zeitrak_core::shared::repositories::ReadRepository;
 use zeitrak_infrastructure_impl::ConnectedAdminPool;
 use tracing::warn;
 
