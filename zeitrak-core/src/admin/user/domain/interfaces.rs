@@ -2,17 +2,17 @@ use std::fmt::Debug;
 
 use crate::{
     admin::user::{self, domain::aggregates::User},
-    shared::repositories::{ReadRepository, WriteRepository},
+    shared::repositories::{ReadRepository, Repository, WriteRepository},
 };
 use async_trait::async_trait;
 
 #[async_trait]
-pub trait UserRepository: ReadRepository<User> + WriteRepository<User> + Send + Sync {
+pub trait UserRepository<R>: Repository<User, R> + Send + Sync {
     type Error: Debug
         + Send
         + Sync
         + From<user::Error>
-        + From<<Self as ReadRepository<User>>::Error>
+        + From<<Self as ReadRepository<User, R>>::Error>
         + From<<Self as WriteRepository<User>>::Error>;
 
     /// Returns `(user_id, email, password)` for the given email — intended
@@ -24,12 +24,12 @@ pub trait UserRepository: ReadRepository<User> + WriteRepository<User> + Send + 
     async fn find_credentials_by_email(
         &self,
         email: &str,
-    ) -> Result<Option<(String, String, String)>, <Self as UserRepository>::Error>;
+    ) -> Result<Option<(String, String, String)>, <Self as UserRepository<R>>::Error>;
 
     /// # Errors
     ///
     /// Returns an error if the database count query fails.
-    async fn has_at_least_one_user(&self) -> Result<bool, <Self as UserRepository>::Error> {
+    async fn has_at_least_one_user(&self) -> Result<bool, <Self as UserRepository<R>>::Error> {
         Ok(self.count().await? > 0)
     }
 }

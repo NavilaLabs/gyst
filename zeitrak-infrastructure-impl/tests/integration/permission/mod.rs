@@ -4,7 +4,7 @@ use eventually::aggregate::{
 };
 use eventually_projection::{Projector, RawEvent};
 use zeitrak_core::admin::permission::{Permission, PermissionEvent, PermissionId};
-use zeitrak_infrastructure::repository::ReadRepository;
+use zeitrak_core::shared::repositories::ReadRepository;
 use zeitrak_infrastructure_impl::admin::permission::{
     projectors::PermissionProjector, repositories::PermissionRepository,
 };
@@ -105,7 +105,7 @@ pub mod tests {
             .expect("projector must handle PermissionCreated");
 
         let repo = make_repository(&db).await;
-        let view = repo.find_one(id.0).await.expect("query must succeed");
+        let view = repo.find(id).await.expect("query must succeed");
         assert!(view.is_some(), "projected permission must be findable");
         assert_eq!(view.unwrap().name(), "can_invite");
     }
@@ -175,7 +175,7 @@ pub mod tests {
         let repo = make_repository(&db).await;
         let unknown_id: sqlx::types::Uuid = "ffffffff-ffff-7fff-bfff-ffffffffffff".parse().unwrap();
 
-        let result = repo.find_one(unknown_id).await.expect("query must succeed");
+        let result = repo.find(zeitrak_core::shared::AggregateId(unknown_id)).await.expect("query must succeed");
         assert!(result.is_none());
     }
 }

@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use async_trait::async_trait;
-use eventually::aggregate::{Aggregate, Root};
+use eventually::aggregate::{Root};
 
 use crate::admin::user::{
     application::UserRoot,
@@ -13,10 +13,7 @@ use crate::admin::user::{
 };
 
 #[async_trait]
-pub trait UserCommandTrait<T>
-where
-    T: Aggregate,
-{
+pub trait UserCommandTrait<R> {
     type Error: Debug + Sync + Send;
 
     async fn create(
@@ -25,7 +22,7 @@ where
         name: String,
         email: String,
         password: String,
-    ) -> Result<Root<T>, Self::Error>;
+    ) -> Result<Root<User>, Self::Error>;
 
     async fn update_settings(
         &self,
@@ -37,22 +34,22 @@ where
 }
 
 #[derive(Debug)]
-pub struct UserCommand<R> {
-    repository: R,
+pub struct UserCommand<Repo> {
+    repository: Repo,
 }
 
-impl<R> UserCommand<R> {
-    pub fn new(repository: R) -> Self {
+impl<Repo> UserCommand<Repo> {
+    pub fn new(repository: Repo) -> Self {
         Self { repository }
     }
 }
 
 #[async_trait]
-impl<R> UserCommandTrait<User> for UserCommand<R>
+impl<Repo, R> UserCommandTrait<R> for UserCommand<Repo>
 where
-    R: Debug + UserRepository,
+    Repo: Debug + UserRepository<R>,
 {
-    type Error = crate::Error<R, User>;
+    type Error = crate::Error<Repo, User>;
 
     /// # Errors
     ///
@@ -63,7 +60,7 @@ where
         name: String,
         email: String,
         password: String,
-    ) -> Result<Root<User>, <Self as UserCommandTrait<User>>::Error> {
+    ) -> Result<Root<User>, <Self as UserCommandTrait<R>>::Error> {
         let mut root = Root::<User>::record_new(
             UserEvent::Created {
                 id,
@@ -89,7 +86,7 @@ where
         timezone: String,
         date_format: String,
         language: String,
-    ) -> Result<(), <Self as UserCommandTrait<User>>::Error> {
+    ) -> Result<(), <Self as UserCommandTrait<R>>::Error> {
         let mut root: UserRoot = self
             .repository
             .get(&id)

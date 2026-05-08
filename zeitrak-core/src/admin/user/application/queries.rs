@@ -4,51 +4,51 @@ use async_trait::async_trait;
 
 use crate::admin::authenticator::{AuthenticationStrategy, Authenticator, Credentials};
 use crate::admin::user::domain::interfaces::UserRepository;
-use crate::admin::user::{self, User};
+use crate::admin::user::{self};
 
-pub trait UserQueryTrait {
+pub trait UserQueryTrait<R> {
     type Error: Debug + Send + Sync;
 }
 
 #[async_trait]
-pub trait LoginQueryTrait {
+pub trait LoginQueryTrait<R> {
     type Error: Debug + Send + Sync;
 
     async fn login(&self, email: &str, password: &str) -> Result<String, Self::Error>;
 }
 
 #[derive(Debug, Clone)]
-pub struct UserQuery<R> {
-    repository: R,
+pub struct UserQuery<Repo> {
+    repository: Repo,
 }
 
-impl<R> UserQuery<R> {
-    pub const fn new(repository: R) -> Self {
+impl<Repo> UserQuery<Repo> {
+    pub const fn new(repository: Repo) -> Self {
         Self { repository }
     }
 }
 
-impl<R> UserQueryTrait for UserQuery<R>
+impl<Repo, R> UserQueryTrait<R> for UserQuery<Repo>
 where
-    R: Debug + UserRepository,
+    Repo: Debug + UserRepository<R>,
 {
-    type Error = <R as UserRepository>::Error;
+    type Error = <Repo as UserRepository<R>>::Error;
 }
 
 #[derive(Debug, Clone)]
-pub struct LoginQuery<R, A>
+pub struct LoginQuery<Repo, A>
 where
     A: AuthenticationStrategy,
 {
-    repository: R,
+    repository: Repo,
     authenticator: Authenticator<A>,
 }
 
-impl<R, A> LoginQuery<R, A>
+impl<Repo, A> LoginQuery<Repo, A>
 where
     A: AuthenticationStrategy,
 {
-    pub const fn new(repository: R, authenticator: Authenticator<A>) -> Self {
+    pub const fn new(repository: Repo, authenticator: Authenticator<A>) -> Self {
         Self {
             repository,
             authenticator,
@@ -57,12 +57,12 @@ where
 }
 
 #[async_trait]
-impl<R, A> LoginQueryTrait for LoginQuery<R, A>
+impl<Repo, R, A> LoginQueryTrait<R> for LoginQuery<Repo, A>
 where
-    R: Debug + UserRepository,
+    Repo: Debug + UserRepository<R>,
     A: AuthenticationStrategy,
 {
-    type Error = <R as UserRepository>::Error;
+    type Error = <Repo as UserRepository<R>>::Error;
 
     async fn login(
         &self,

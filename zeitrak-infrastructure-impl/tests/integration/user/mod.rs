@@ -23,6 +23,8 @@ async fn make_repository(fixture: &TestFixture) -> UserRepository {
 }
 
 pub mod tests {
+    use zeitrak_core::admin::user::UserRepository;
+
     use super::*;
 
     /// Saving a new aggregate root persists it; loading it back returns the

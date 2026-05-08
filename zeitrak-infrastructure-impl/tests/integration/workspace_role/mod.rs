@@ -81,7 +81,7 @@ async fn project_workspace(fixture: &TestFixture, wid: &WorkspaceId) {
 // ── tests ─────────────────────────────────────────────────────────────────────
 
 pub mod tests {
-    use zeitrak_infrastructure::repository::ReadRepository;
+    use zeitrak_core::shared::repositories::ReadRepository;
 
     use super::*;
 
@@ -153,7 +153,7 @@ pub mod tests {
             .expect("projector must handle WorkspaceRoleCreated");
 
         let repo = make_repository(&db).await;
-        let view = repo.find_one(rid.0).await.expect("query must succeed");
+        let view = repo.find(rid).await.expect("query must succeed");
         assert!(view.is_some(), "projected role must be findable");
         let v = view.unwrap();
         assert_eq!(v.name(), Some("admin"));
