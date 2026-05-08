@@ -6,7 +6,7 @@ use eventually::aggregate::{Aggregate, Root};
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
-use zeitrak_core::admin::user::{User, UserEvent, UserId, UserRepository as UserRepositoryTrait, UserRow};
+use zeitrak_core::admin::user::{User, UserEvent, UserId, UserRepository as UserRepositoryTrait};
 use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 use sea_query::{Alias, Condition, Expr, ExprTrait};
 use sqlx::{Row, any::AnyRow};
@@ -57,21 +57,6 @@ impl UserRepository {
         SeaQueryReadModel::new(&self.store.pool, TABLE)
     }
 
-    fn entry_to_row(&self, row: AnyRow) -> Result<Root<User>, crate::Error> {
-        let id: String = row.try_get("id")?;
-        let id = UserId::from_str(&id)?;
-        let name: String = row.try_get("name")?;
-        let email: String = row.try_get("email")?;
-        let password: String = row.try_get("password")?;
-        let timezone: String = row.try_get("timezone").unwrap_or_else(|_| "Europe/Berlin".to_string());
-        let date_format: String = row.try_get("date_format").unwrap_or_else(|_| "%Y-%m-%d".to_string());
-        let language: String = row.try_get("language").unwrap_or_else(|_| "en".to_string());
-        let user = User::apply(None, UserEvent::Created { id, name, email, password })
-            .expect("Created event on None state is infallible");
-        let user = User::apply(Some(user), UserEvent::SettingsUpdated { timezone, date_format, language })
-            .expect("SettingsUpdated event on Some state is infallible");
-        Ok(Root::rehydrate_from_state(0, user))
-    }
 }
 
 #[async_trait]
@@ -91,7 +76,7 @@ impl Saver<User> for UserRepository {
 impl RowToRoot<AnyRow, User> for UserRepository {
     type Error = crate::Error;
 
-    fn row_to_root(&self, row: AnyRow) -> Result<Root<User>, Self::Error> {
+    fn row_to_root(&self, row: AnyRow) -> Result<Root<User>, crate::Error> {
         let id: String = row.try_get("id")?;
         let id = UserId::from_str(&id)?;
         let name: String = row.try_get("name")?;
@@ -108,17 +93,19 @@ impl RowToRoot<AnyRow, User> for UserRepository {
     }
 }
 
+impl zeitrak_core::shared::repositories::Repository<User, AnyRow> for UserRepository {}
+
 #[async_trait]
-impl ReadRepository<User> for UserRepository {
+impl ReadRepository<User, AnyRow> for UserRepository {
     type Error = crate::Error;
     type Filter = Condition;
 
-    async fn find(&self, id: UserId) -> Result<Option<Root<User>>, Self::Error> {
+    async fn find(&self, id: UserId) -> Result<Option<Root<User>>, crate::Error> {
         self.find_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
             .await
     }
 
-    async fn find_by(&self, filter: Condition) -> Result<Option<Root<User>>, Self::Error> {
+    async fn find_by(&self, filter: Condition) -> Result<Option<Root<User>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
@@ -134,27 +121,27 @@ impl ReadRepository<User> for UserRepository {
             .await
     }
 
-    async fn find_many_by(&self, filter: Condition) -> Result<Vec<Root<User>>, Self::Error> {
+    async fn find_many_by(&self, filter: Condition) -> Result<Vec<Root<User>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
         rows.into_iter().map(|row| self.row_to_root(row)).collect()
     }
 
-    async fn all(&self) -> Result<Vec<Root<User>>, Self::Error> {
+    async fn all(&self) -> Result<Vec<Root<User>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select();
         let rows = rm.fetch_all_rows(&stmt).await?;
         rows.into_iter().map(|row| self.row_to_root(row)).collect()
     }
 
-    async fn count_by(&self, filter: Condition) -> Result<u64, Self::Error> {
+    async fn count_by(&self, filter: Condition) -> Result<u64, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select_count().cond_where(filter).to_owned();
         rm.count_rows(&stmt).await
     }
 
-    async fn count(&self) -> Result<u64, Self::Error> {
+    async fn count(&self) -> Result<u64, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select_count();
         rm.count_rows(&stmt).await

@@ -5,6 +5,7 @@ pub use application::{
     TimesheetRoot,
     commands::{TimesheetCommand, TimesheetCommandTrait},
     inputs::StartTimesheetInput,
+    queries::{TimesheetQuery, TimesheetQueryTrait},
     views::TimesheetRow,
 };
 pub use domain::{

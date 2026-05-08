@@ -48,9 +48,9 @@ macro_rules! aggregate_errors {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error<Repo, Agg>
+pub enum Error<Repo, Agg, R = ()>
 where
-    Repo: ReadRepository<Agg> + WriteRepository<Agg>,
+    Repo: ReadRepository<Agg, R> + WriteRepository<Agg>,
     Agg: Debug + Aggregate,
 {
     #[error("{0:?}")]
@@ -58,7 +58,7 @@ where
     #[error("{0:?}")]
     TenantError(#[from] tenant::Error),
     #[error("{0:?}")]
-    ReadRepositoryError(<Repo as ReadRepository<Agg>>::Error),
+    ReadRepositoryError(<Repo as ReadRepository<Agg, R>>::Error),
     #[error("{0:?}")]
     WriteRepositoryError(<Repo as WriteRepository<Agg>>::Error),
     #[error("{0:?}")]

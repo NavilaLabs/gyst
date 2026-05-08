@@ -23,6 +23,21 @@ pub trait TimesheetCommandTrait<T> {
         start_time: String,
         timezone: String,
     ) -> Result<T, Self::Error>;
+
+    fn stop(&mut self, end_time: String, duration: i32) -> Result<(), Self::Error>;
+
+    fn update(&mut self, description: Option<String>) -> Result<(), Self::Error>;
+
+    fn reassign(&mut self, activity_id: ActivityId) -> Result<(), Self::Error>;
+
+    fn cancel(&mut self) -> Result<(), Self::Error>;
+
+    fn update_time(
+        &mut self,
+        start_time: String,
+        end_time: Option<String>,
+        duration: Option<i32>,
+    ) -> Result<(), Self::Error>;
 }
 
 #[eventually_macros::aggregate_root(Timesheet)]
@@ -52,6 +67,38 @@ impl TimesheetCommandTrait<TimesheetCommand> for TimesheetCommand {
         )?
         .into())
     }
+
+    fn stop(&mut self, end_time: String, duration: i32) -> Result<(), Self::Error> {
+        self.record_that(TimesheetEvent::Stopped { end_time, duration }.into())
+    }
+
+    fn update(&mut self, description: Option<String>) -> Result<(), Self::Error> {
+        self.record_that(TimesheetEvent::Updated { description }.into())
+    }
+
+    fn reassign(&mut self, activity_id: ActivityId) -> Result<(), Self::Error> {
+        self.record_that(TimesheetEvent::Reassigned { activity_id }.into())
+    }
+
+    fn cancel(&mut self) -> Result<(), Self::Error> {
+        self.record_that(TimesheetEvent::Cancelled {}.into())
+    }
+
+    fn update_time(
+        &mut self,
+        start_time: String,
+        end_time: Option<String>,
+        duration: Option<i32>,
+    ) -> Result<(), Self::Error> {
+        self.record_that(
+            TimesheetEvent::TimeUpdated {
+                start_time,
+                end_time,
+                duration,
+            }
+            .into(),
+        )
+    }
 }
 
 impl TimesheetCommand {
@@ -77,53 +124,6 @@ impl TimesheetCommand {
             .into(),
         )?
         .into())
-    }
-
-    /// # Errors
-    ///
-    /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn stop(&mut self, end_time: String, duration: i32) -> Result<(), timesheet::Error> {
-        self.record_that(TimesheetEvent::Stopped { end_time, duration }.into())
-    }
-
-    /// # Errors
-    ///
-    /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn update(&mut self, description: Option<String>) -> Result<(), timesheet::Error> {
-        self.record_that(TimesheetEvent::Updated { description }.into())
-    }
-
-    /// # Errors
-    ///
-    /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn reassign(&mut self, activity_id: ActivityId) -> Result<(), timesheet::Error> {
-        self.record_that(TimesheetEvent::Reassigned { activity_id }.into())
-    }
-
-    /// # Errors
-    ///
-    /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn cancel(&mut self) -> Result<(), timesheet::Error> {
-        self.record_that(TimesheetEvent::Cancelled {}.into())
-    }
-
-    /// # Errors
-    ///
-    /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn update_time(
-        &mut self,
-        start_time: String,
-        end_time: Option<String>,
-        duration: Option<i32>,
-    ) -> Result<(), timesheet::Error> {
-        self.record_that(
-            TimesheetEvent::TimeUpdated {
-                start_time,
-                end_time,
-                duration,
-            }
-            .into(),
-        )
     }
 }
 
@@ -199,5 +199,28 @@ mod tests {
         cmd.reassign(act_id.clone()).expect("reassign must succeed");
         assert_eq!(cmd.version(), 2);
         assert_eq!(cmd.activity_id(), Some(&act_id));
+    }
+
+    #[test]
+    fn apply_stopped_sets_end_time_and_duration() {
+        let mut cmd = make_shell();
+        cmd.stop("2024-01-01T17:00:00Z".to_string(), 7200)
+            .expect("stop must succeed");
+        assert_eq!(cmd.end_time(), Some("2024-01-01T17:00:00Z"));
+        assert_eq!(cmd.duration(), Some(7200));
+    }
+
+    #[test]
+    fn apply_time_updated_overwrites_all_time_fields() {
+        let mut cmd = make_shell();
+        cmd.update_time(
+            "2024-01-01T10:00:00Z".to_string(),
+            Some("2024-01-01T12:00:00Z".to_string()),
+            Some(7200),
+        )
+        .expect("update_time must succeed");
+        assert_eq!(cmd.start_time(), "2024-01-01T10:00:00Z");
+        assert_eq!(cmd.end_time(), Some("2024-01-01T12:00:00Z"));
+        assert_eq!(cmd.duration(), Some(7200));
     }
 }

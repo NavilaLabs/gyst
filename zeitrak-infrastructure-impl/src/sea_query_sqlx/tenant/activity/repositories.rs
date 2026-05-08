@@ -5,7 +5,7 @@ use eventually::aggregate::{Aggregate, Root};
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
-use zeitrak_core::shared::repositories::{ReadRepository, WriteRepository};
+use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 use zeitrak_core::tenant::activity::{
     Activity, ActivityEvent, ActivityId, ActivityRepository as ActivityRepositoryTrait, ActivityRow,
 };
@@ -44,16 +44,6 @@ impl ActivityRepository {
         SeaQueryReadModel::new(&self.store.pool, TABLE)
     }
 
-    fn entry_to_row(&self, row: AnyRow) -> Result<Root<Activity>, crate::Error> {
-        let id: String = row.try_get("id")?;
-        let id = ActivityId::from_str(&id)?;
-        let name: String = row.try_get("name")?;
-        let comment: Option<String> = row.try_get("comment")?;
-        let activity = Activity::apply(None, ActivityEvent::Created { id, name, comment })
-            .expect("Created event on None state is infallible");
-        Ok(Root::rehydrate_from_state(0, activity))
-    }
-
     /// # Errors
     ///
     /// Returns an error if the database query fails.
@@ -75,12 +65,28 @@ impl ActivityRepository {
     }
 }
 
+impl RowToRoot<AnyRow, Activity> for ActivityRepository {
+    type Error = crate::Error;
+
+    fn row_to_root(&self, row: AnyRow) -> Result<Root<Activity>, crate::Error> {
+        let id: String = row.try_get("id")?;
+        let id = ActivityId::from_str(&id)?;
+        let name: String = row.try_get("name")?;
+        let comment: Option<String> = row.try_get("comment")?;
+        let activity = Activity::apply(None, ActivityEvent::Created { id, name, comment })
+            .expect("Created event on None state is infallible");
+        Ok(Root::rehydrate_from_state(0, activity))
+    }
+}
+
+impl zeitrak_core::shared::repositories::Repository<Activity, AnyRow> for ActivityRepository {}
+
 #[async_trait]
-impl ReadRepository<Activity> for ActivityRepository {
+impl ReadRepository<Activity, AnyRow> for ActivityRepository {
     type Error = crate::Error;
     type Filter = Condition;
 
-    async fn find(&self, id: ActivityId) -> Result<Option<Root<Activity>>, Self::Error> {
+    async fn find(&self, id: ActivityId) -> Result<Option<Root<Activity>>, crate::Error> {
         self.find_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
             .await
     }
@@ -89,7 +95,7 @@ impl ReadRepository<Activity> for ActivityRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
-        row.map(|r| self.entry_to_row(r)).transpose()
+        row.map(|r| self.row_to_root(r)).transpose()
     }
 
     async fn find_many(&self, ids: Vec<ActivityId>) -> Result<Vec<Root<Activity>>, crate::Error> {
@@ -105,14 +111,14 @@ impl ReadRepository<Activity> for ActivityRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.entry_to_row(row)).collect()
+        rows.into_iter().map(|row| self.row_to_root(row)).collect()
     }
 
     async fn all(&self) -> Result<Vec<Root<Activity>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.entry_to_row(row)).collect()
+        rows.into_iter().map(|row| self.row_to_root(row)).collect()
     }
 
     async fn count_by(&self, filter: Condition) -> Result<u64, crate::Error> {
@@ -147,6 +153,6 @@ impl Saver<Activity> for ActivityRepository {
     }
 }
 
-impl ActivityRepositoryTrait for ActivityRepository {
+impl ActivityRepositoryTrait<AnyRow> for ActivityRepository {
     type Error = crate::Error;
 }

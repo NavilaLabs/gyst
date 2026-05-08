@@ -6,7 +6,7 @@ use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
 use zeitrak_core::admin::user::UserId;
-use zeitrak_core::shared::repositories::{ReadRepository, WriteRepository};
+use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 use zeitrak_core::tenant::activity::ActivityId;
 use zeitrak_core::tenant::timesheet::{
     Timesheet, TimesheetEvent, TimesheetId, TimesheetRepository as TimesheetRepositoryTrait,
@@ -45,56 +45,6 @@ impl TimesheetRepository {
 
     const fn read_model(&self) -> SeaQueryReadModel<'_, ConnectedTenantPool> {
         SeaQueryReadModel::new(&self.store.pool, TABLE)
-    }
-
-    fn entry_to_row(&self, row: AnyRow) -> Result<Root<Timesheet>, crate::Error> {
-        let id: String = row.try_get("id")?;
-        let id = TimesheetId::from_str(&id)?;
-        let user_id: String = row.try_get("user_id")?;
-        let user_id = UserId::from_str(&user_id)?;
-        let activity_id = row
-            .try_get::<String, _>("activity_id")
-            .ok()
-            .map(|s| ActivityId::from_str(&s))
-            .transpose()?;
-        let start_time: String = row.try_get("start_time")?;
-        let timezone: String = row.try_get("timezone")?;
-        let end_time: Option<String> = row.try_get("end_time")?;
-        let duration: Option<i32> = row.try_get("duration")?;
-        let description: Option<String> = row.try_get("description")?;
-        let cancelled_at: Option<String> = row.try_get("cancelled_at").ok().flatten();
-
-        let ts = Timesheet::apply(
-            None,
-            TimesheetEvent::Started { id, user_id, activity_id, start_time, timezone },
-        )
-        .expect("Started event on None state is infallible");
-
-        let ts = match (end_time, duration) {
-            (Some(end_time), Some(duration)) => {
-                Timesheet::apply(Some(ts), TimesheetEvent::Stopped { end_time, duration })
-                    .expect("Stopped event on Some state is infallible")
-            }
-            _ => ts,
-        };
-
-        let ts = match description {
-            Some(desc) => Timesheet::apply(
-                Some(ts),
-                TimesheetEvent::Updated { description: Some(desc) },
-            )
-            .expect("Updated event on Some state is infallible"),
-            None => ts,
-        };
-
-        let ts = if cancelled_at.is_some() {
-            Timesheet::apply(Some(ts), TimesheetEvent::Cancelled {})
-                .expect("Cancelled event on Some state is infallible")
-        } else {
-            ts
-        };
-
-        Ok(Root::rehydrate_from_state(0, ts))
     }
 
     const SELECT: &'static str = "SELECT id, user_id, activity_id, start_time, end_time, duration, description, timezone \
@@ -154,12 +104,68 @@ impl TimesheetRepository {
     }
 }
 
+impl RowToRoot<AnyRow, Timesheet> for TimesheetRepository {
+    type Error = crate::Error;
+
+    fn row_to_root(&self, row: AnyRow) -> Result<Root<Timesheet>, crate::Error> {
+        let id: String = row.try_get("id")?;
+        let id = TimesheetId::from_str(&id)?;
+        let user_id: String = row.try_get("user_id")?;
+        let user_id = UserId::from_str(&user_id)?;
+        let activity_id = row
+            .try_get::<String, _>("activity_id")
+            .ok()
+            .map(|s| ActivityId::from_str(&s))
+            .transpose()?;
+        let start_time: String = row.try_get("start_time")?;
+        let timezone: String = row.try_get("timezone")?;
+        let end_time: Option<String> = row.try_get("end_time")?;
+        let duration: Option<i32> = row.try_get("duration")?;
+        let description: Option<String> = row.try_get("description")?;
+        let cancelled_at: Option<String> = row.try_get("cancelled_at").ok().flatten();
+
+        let ts = Timesheet::apply(
+            None,
+            TimesheetEvent::Started { id, user_id, activity_id, start_time, timezone },
+        )
+        .expect("Started event on None state is infallible");
+
+        let ts = match (end_time, duration) {
+            (Some(end_time), Some(duration)) => {
+                Timesheet::apply(Some(ts), TimesheetEvent::Stopped { end_time, duration })
+                    .expect("Stopped event on Some state is infallible")
+            }
+            _ => ts,
+        };
+
+        let ts = match description {
+            Some(desc) => Timesheet::apply(
+                Some(ts),
+                TimesheetEvent::Updated { description: Some(desc) },
+            )
+            .expect("Updated event on Some state is infallible"),
+            None => ts,
+        };
+
+        let ts = if cancelled_at.is_some() {
+            Timesheet::apply(Some(ts), TimesheetEvent::Cancelled {})
+                .expect("Cancelled event on Some state is infallible")
+        } else {
+            ts
+        };
+
+        Ok(Root::rehydrate_from_state(0, ts))
+    }
+}
+
+impl zeitrak_core::shared::repositories::Repository<Timesheet, AnyRow> for TimesheetRepository {}
+
 #[async_trait]
-impl ReadRepository<Timesheet> for TimesheetRepository {
+impl ReadRepository<Timesheet, AnyRow> for TimesheetRepository {
     type Error = crate::Error;
     type Filter = Condition;
 
-    async fn find(&self, id: TimesheetId) -> Result<Option<Root<Timesheet>>, Self::Error> {
+    async fn find(&self, id: TimesheetId) -> Result<Option<Root<Timesheet>>, crate::Error> {
         self.find_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
             .await
     }
@@ -168,7 +174,7 @@ impl ReadRepository<Timesheet> for TimesheetRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
-        row.map(|r| self.entry_to_row(r)).transpose()
+        row.map(|r| self.row_to_root(r)).transpose()
     }
 
     async fn find_many(
@@ -187,14 +193,14 @@ impl ReadRepository<Timesheet> for TimesheetRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.entry_to_row(row)).collect()
+        rows.into_iter().map(|row| self.row_to_root(row)).collect()
     }
 
     async fn all(&self) -> Result<Vec<Root<Timesheet>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.entry_to_row(row)).collect()
+        rows.into_iter().map(|row| self.row_to_root(row)).collect()
     }
 
     async fn count_by(&self, filter: Condition) -> Result<u64, crate::Error> {
@@ -229,6 +235,6 @@ impl Saver<Timesheet> for TimesheetRepository {
     }
 }
 
-impl TimesheetRepositoryTrait for TimesheetRepository {
+impl TimesheetRepositoryTrait<AnyRow> for TimesheetRepository {
     type Error = crate::Error;
 }

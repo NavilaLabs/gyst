@@ -45,14 +45,15 @@ Then derive all naming variants:
 | Aspect | Admin pattern | Tenant pattern |
 |--------|--------------|----------------|
 | `Error` enum location | `{MODULE}/mod.rs` (thiserror) | `domain/aggregates.rs` (via `crate::aggregate_errors!`) |
-| Command struct | `{PASCAL}Command<R>` — generic over `R: {PASCAL}Repository` | `{PASCAL}Command` — no repository, decorated with macro |
-| `aggregate_root` macro target | Separate `{PASCAL}Root` zero-field struct | Applied directly to `{PASCAL}Command` |
-| Command methods | `async fn` with `async_trait` | Synchronous `fn` |
-| Command error type | `crate::Error<R, {PASCAL}>` | `{MODULE}::Error` (local) |
-| `application/mod.rs` | Declares `{PASCAL}Root` struct | Re-exports `{PASCAL}Command as {PASCAL}Root` |
-| Has `queries.rs` | Yes | No |
+| Repository trait | `{PASCAL}Repository<R>` generic over row type `R`, extends `Repository<{PASCAL}, R>` | `{PASCAL}Repository<R>` generic over row type `R`, extends `Repository<{PASCAL}, R>` |
+| Command trait | `{PASCAL}CommandTrait<R>` — generic over row type `R` | `{PASCAL}CommandTrait<T>` — no repository, decorated with macro |
+| Command impl | `impl<Repo, R> {PASCAL}CommandTrait<R> for {PASCAL}Command<Repo>` | Applied directly to `{PASCAL}Command` struct via macro |
+| Command methods | `async fn`, saves to repository via `self.repository.save(...)` | Synchronous `fn`, returns the decorated root directly |
+| Command error type | `crate::Error<Repo, {PASCAL}, R>` | `{MODULE}::Error` (local) |
+| `application/mod.rs` | Declares `{PASCAL}Root` struct with `aggregate_root` macro | Re-exports `{PASCAL}Command as {PASCAL}Root` |
+| Has `queries.rs` | Yes — also generic over `R` | No |
 | Read model filename | `rows.rs` | `views.rs` |
-| `interfaces.rs` style | `async_trait`, `From<{MODULE}::Error>` bound, `in_memory_repository` test mod | Simple trait, no async, no From<Error> bound, no test mod |
+| `interfaces.rs` style | `async_trait`, `Repository<{PASCAL}, R>` supertrait, `From<{MODULE}::Error>` bound, `in_memory_repository` test mod | `Repository<{PASCAL}, R>` supertrait, no async methods, no `From<{MODULE}::Error>` bound, no test mod |
 | Unit tests | `#[tokio::test]` async tests | `#[test]` sync tests |
 
 ---
@@ -69,14 +70,15 @@ pub(crate) mod application;
 pub(crate) mod domain;
 
 pub use application::{
-    commands::{PASCAL_CMDCommand, PASCAL_CMDCommandTrait},
-    queries::{PASCAL_QUERYQuery, PASCAL_QUERY_TRAITQueryTrait},
-    rows::PASCAL_ROWRow,
+    {PASCAL}Root,
+    commands::{PASCAL}Command, {PASCAL}CommandTrait},
+    queries::{PASCAL}Query, {PASCAL}QueryTrait},
+    rows::{PASCAL}Row,
 };
 pub use domain::{
-    aggregates::{PASCALStruct, PASCAL_IDId},
-    events::PASCAL_EVENTEvent,
-    interfaces::PASCAL_REPORepository,
+    aggregates::{PASCAL}, {PASCAL}Id},
+    events::{PASCAL}Event,
+    interfaces::{PASCAL}Repository,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -94,6 +96,7 @@ pub(crate) mod application;
 pub(crate) mod domain;
 
 pub use application::{
+    ApiKeyRoot,
     commands::{ApiKeyCommand, ApiKeyCommandTrait},
     queries::{ApiKeyQuery, ApiKeyQueryTrait},
     rows::ApiKeyRow,
@@ -125,7 +128,7 @@ pub use application::{
     views::{PASCAL}Row,
 };
 pub use domain::{
-    aggregates:{{PASCAL}, {PASCAL}Id, Error},
+    aggregates::{PASCAL}, {PASCAL}Id, Error},
     events::{PASCAL}Event,
     interfaces::{PASCAL}Repository,
 };
@@ -210,11 +213,14 @@ mod tests {
             .expect("valid UUID")
     }
 
+    fn created_event(id: {PASCAL}Id, name: &str) -> {PASCAL}Event {
+        {PASCAL}Event::Created { id, name: name.to_string() }
+    }
+
     #[test]
     fn apply_created_to_no_state_builds_{MODULE}() {
         let id = test_id();
-        let event = {PASCAL}Event::Created { id: id.clone(), name: "Test".to_string() };
-        let result = {PASCAL}::apply(None, event);
+        let result = {PASCAL}::apply(None, created_event(id.clone(), "Test"));
         assert!(result.is_ok());
         assert_eq!(result.unwrap().id(), &id);
     }
@@ -222,14 +228,8 @@ mod tests {
     #[test]
     fn apply_created_to_existing_returns_already_exists() {
         let id = test_id();
-        let existing = {PASCAL}::apply(
-            None,
-            {PASCAL}Event::Created { id: id.clone(), name: "First".to_string() },
-        ).unwrap();
-        let result = {PASCAL}::apply(
-            Some(existing),
-            {PASCAL}Event::Created { id, name: "Second".to_string() },
-        );
+        let existing = {PASCAL}::apply(None, created_event(id.clone(), "First")).unwrap();
+        let result = {PASCAL}::apply(Some(existing), created_event(id, "Second"));
         assert!(matches!(result, Err({MODULE}::Error::AlreadyExists)));
     }
 }
@@ -298,11 +298,14 @@ mod tests {
             .expect("valid UUID")
     }
 
+    fn created_event(id: {PASCAL}Id, name: &str) -> {PASCAL}Event {
+        {PASCAL}Event::Created { id, name: name.to_string() }
+    }
+
     #[test]
     fn apply_created_to_no_state_builds_{MODULE}() {
         let id = test_id();
-        let event = {PASCAL}Event::Created { id: id.clone(), name: "Test".to_string() };
-        let result = {PASCAL}::apply(None, event);
+        let result = {PASCAL}::apply(None, created_event(id.clone(), "Test"));
         assert!(result.is_ok());
         assert_eq!(result.unwrap().id(), &id);
     }
@@ -310,14 +313,8 @@ mod tests {
     #[test]
     fn apply_created_to_existing_returns_already_exists() {
         let id = test_id();
-        let existing = {PASCAL}::apply(
-            None,
-            {PASCAL}Event::Created { id: id.clone(), name: "First".to_string() },
-        ).unwrap();
-        let result = {PASCAL}::apply(
-            Some(existing),
-            {PASCAL}Event::Created { id, name: "Second".to_string() },
-        );
+        let existing = {PASCAL}::apply(None, created_event(id.clone(), "First")).unwrap();
+        let result = {PASCAL}::apply(Some(existing), created_event(id, "Second"));
         assert!(matches!(result, Err(Error::AlreadyExists)));
     }
 }
@@ -379,24 +376,23 @@ impl Message for {PASCAL}Event {
 
 ### 3.5 — `domain/interfaces.rs`
 
-**Admin** (async, with `From<{MODULE}::Error>` bound, with test double):
+**Admin** — repository trait is generic over row type `R`; extends `Repository<{PASCAL}, R>`:
 ```rust
 use std::fmt::Debug;
 
 use async_trait::async_trait;
-
 use crate::{
     admin::{MODULE}::{self, domain::aggregates::{PASCAL}},
-    shared::repositories::{ReadRepository, WriteRepository},
+    shared::repositories::{ReadRepository, Repository, WriteRepository},
 };
 
 #[async_trait]
-pub trait {PASCAL}Repository: ReadRepository<{PASCAL}> + WriteRepository<{PASCAL}> + Send + Sync {
+pub trait {PASCAL}Repository<R>: Repository<{PASCAL}, R> + Send + Sync {
     type Error: Debug
         + Send
         + Sync
         + From<{MODULE}::Error>
-        + From<<Self as ReadRepository<{PASCAL}>>::Error>
+        + From<<Self as ReadRepository<{PASCAL}, R>>::Error>
         + From<<Self as WriteRepository<{PASCAL}>>::Error>;
 }
 
@@ -411,7 +407,7 @@ pub mod in_memory_repository {
     use super::*;
     use crate::{
         admin::{MODULE}::{PASCAL}Id,
-        shared::{AggregateId, repositories::{ReadRepository, WriteRepository}},
+        shared::{AggregateId, repositories::{ReadRepository, Repository, RowToRoot, WriteRepository}},
     };
 
     #[derive(Debug, thiserror::Error)]
@@ -426,8 +422,6 @@ pub mod in_memory_repository {
         fn from(_: SaveError) -> Self { Self }
     }
 
-    // {MODULE} is in scope via `use super::*` which pulls in the parent's
-    // `use crate::admin::{MODULE}::{self, ...}` import.
     impl From<{MODULE}::Error> for StubError {
         fn from(_: {MODULE}::Error) -> Self { Self }
     }
@@ -438,6 +432,15 @@ pub mod in_memory_repository {
     impl InMemory{PASCAL}Repository {
         pub fn new() -> Self { Self }
     }
+
+    impl RowToRoot<(), {PASCAL}> for InMemory{PASCAL}Repository {
+        type Error = StubError;
+        fn row_to_root(&self, _row: ()) -> Result<Root<{PASCAL}>, Self::Error> {
+            unimplemented!("test stub")
+        }
+    }
+
+    impl Repository<{PASCAL}, ()> for InMemory{PASCAL}Repository {}
 
     #[async_trait]
     impl Getter<{PASCAL}> for InMemory{PASCAL}Repository {
@@ -454,17 +457,17 @@ pub mod in_memory_repository {
     }
 
     #[async_trait]
-    impl ReadRepository<{PASCAL}> for InMemory{PASCAL}Repository {
+    impl ReadRepository<{PASCAL}, ()> for InMemory{PASCAL}Repository {
         type Error = StubError;
         type Filter = ();
 
-        async fn find(&self, _id: AggregateId) -> Result<Option<Root<{PASCAL}>>, Self::Error> { Ok(None) }
-        async fn find_by(&self, _filter: ()) -> Result<Option<Root<{PASCAL}>>, Self::Error> { Ok(None) }
-        async fn find_many(&self, _ids: Vec<AggregateId>) -> Result<Vec<Root<{PASCAL}>>, Self::Error> { Ok(vec![]) }
-        async fn find_many_by(&self, _filter: ()) -> Result<Vec<Root<{PASCAL}>>, Self::Error> { Ok(vec![]) }
-        async fn all(&self) -> Result<Vec<Root<{PASCAL}>>, Self::Error> { Ok(vec![]) }
-        async fn count_by(&self, _filter: ()) -> Result<u64, Self::Error> { Ok(0) }
-        async fn count(&self) -> Result<u64, Self::Error> { Ok(0) }
+        async fn find(&self, _id: AggregateId) -> Result<Option<Root<{PASCAL}>>, StubError> { Ok(None) }
+        async fn find_by(&self, _filter: ()) -> Result<Option<Root<{PASCAL}>>, StubError> { Ok(None) }
+        async fn find_many(&self, _ids: Vec<AggregateId>) -> Result<Vec<Root<{PASCAL}>>, StubError> { Ok(vec![]) }
+        async fn find_many_by(&self, _filter: ()) -> Result<Vec<Root<{PASCAL}>>, StubError> { Ok(vec![]) }
+        async fn all(&self) -> Result<Vec<Root<{PASCAL}>>, StubError> { Ok(vec![]) }
+        async fn count_by(&self, _filter: ()) -> Result<u64, StubError> { Ok(0) }
+        async fn count(&self) -> Result<u64, StubError> { Ok(0) }
     }
 
     #[async_trait]
@@ -473,28 +476,26 @@ pub mod in_memory_repository {
     }
 
     #[async_trait]
-    impl {PASCAL}Repository for InMemory{PASCAL}Repository {
+    impl {PASCAL}Repository<()> for InMemory{PASCAL}Repository {
         type Error = StubError;
     }
 }
 ```
 
-**Tenant** (simple, no async, no test double):
+**Tenant** (generic over row type `R`, no extra async methods, no test double):
 ```rust
 use std::fmt::Debug;
 
 use crate::{
-    shared::repositories::{ReadRepository, WriteRepository},
+    shared::repositories::{ReadRepository, Repository, WriteRepository},
     tenant::{MODULE}::domain::aggregates::{PASCAL},
 };
 
-pub trait {PASCAL}Repository:
-    ReadRepository<{PASCAL}> + WriteRepository<{PASCAL}> + Send + Sync
-{
+pub trait {PASCAL}Repository<R>: Repository<{PASCAL}, R> + Send + Sync {
     type Error: Debug
         + Send
         + Sync
-        + From<<Self as ReadRepository<{PASCAL}>>::Error>
+        + From<<Self as ReadRepository<{PASCAL}, R>>::Error>
         + From<<Self as WriteRepository<{PASCAL}>>::Error>;
 }
 ```
@@ -530,12 +531,12 @@ pub use commands::{PASCAL}Command as {PASCAL}Root;
 
 ### 3.7 — `application/commands.rs`
 
-**Admin** (async, repository-injected):
+**Admin** — trait is generic over `R` (row type); impl uses `<Repo, R>`; `create` saves to repository:
 ```rust
 use std::fmt::Debug;
 
 use async_trait::async_trait;
-use eventually::aggregate::{Aggregate, Root};
+use eventually::aggregate::Root;
 
 use crate::admin::{MODULE}::{
     application::{PASCAL}Root,
@@ -547,48 +548,51 @@ use crate::admin::{MODULE}::{
 };
 
 #[async_trait]
-pub trait {PASCAL}CommandTrait<T>
-where
-    T: Aggregate,
-{
+pub trait {PASCAL}CommandTrait<R> {
     type Error: Debug + Sync + Send;
 
     async fn create(
         &self,
         id: {PASCAL}Id,
         name: String,
-    ) -> Result<Root<T>, Self::Error>;
+    ) -> Result<Root<{PASCAL}>, Self::Error>;
 }
 
 #[derive(Debug)]
-pub struct {PASCAL}Command<R> {
-    repository: R,
+pub struct {PASCAL}Command<Repo> {
+    repository: Repo,
 }
 
-impl<R> {PASCAL}Command<R> {
-    pub fn new(repository: R) -> Self {
+impl<Repo> {PASCAL}Command<Repo> {
+    pub fn new(repository: Repo) -> Self {
         Self { repository }
     }
 }
 
 #[async_trait]
-impl<R> {PASCAL}CommandTrait<{PASCAL}> for {PASCAL}Command<R>
+impl<Repo, R> {PASCAL}CommandTrait<R> for {PASCAL}Command<Repo>
 where
-    R: Debug + {PASCAL}Repository,
+    R: Debug,
+    Repo: Debug + {PASCAL}Repository<R>,
 {
-    type Error = crate::Error<R, {PASCAL}>;
+    type Error = crate::Error<Repo, {PASCAL}, R>;
 
     /// # Errors
     ///
-    /// Returns an error if the domain event cannot be applied to the aggregate.
+    /// Returns an error if the domain event cannot be applied or the root cannot be saved.
     async fn create(
         &self,
         id: {PASCAL}Id,
         name: String,
-    ) -> Result<Root<{PASCAL}>, <Self as {PASCAL}CommandTrait<{PASCAL}>>::Error> {
-        Ok(Root::<{PASCAL}>::record_new(
+    ) -> Result<Root<{PASCAL}>, <Self as {PASCAL}CommandTrait<R>>::Error> {
+        let mut root = Root::<{PASCAL}>::record_new(
             {PASCAL}Event::Created { id, name }.into(),
-        )?)
+        )?;
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))?;
+        Ok(root)
     }
 }
 
@@ -609,7 +613,32 @@ mod tests {
             .await;
 
         assert!(result.is_ok());
+        assert_eq!(result.unwrap().id(), &id);
     }
+}
+```
+
+**Mutation command pattern** (when you need get → record → save):
+```rust
+/// # Errors
+///
+/// Returns an error if the domain event cannot be applied to the aggregate.
+async fn rename(
+    &self,
+    id: {PASCAL}Id,
+    name: String,
+) -> Result<(), <Self as {PASCAL}CommandTrait<R>>::Error> {
+    let mut root: {PASCAL}Root = self
+        .repository
+        .get(&id)
+        .await
+        .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
+        .into();
+    root.record_that({PASCAL}Event::Renamed { name }.into())?;
+    self.repository
+        .save(&mut root)
+        .await
+        .map_err(|e| crate::Error::WriteRepositoryError(e.into()))
 }
 ```
 
@@ -692,33 +721,33 @@ mod tests {
 
 ### 3.8 — `application/queries.rs` (admin only — skip for tenant)
 
-The query trait starts empty — add methods as real query needs emerge.
+The query trait is generic over `R` and starts empty — add methods as real query needs emerge.
 
 ```rust
 use std::fmt::Debug;
 
 use crate::admin::{MODULE}::domain::interfaces::{PASCAL}Repository;
 
-pub trait {PASCAL}QueryTrait {
+pub trait {PASCAL}QueryTrait<R> {
     type Error: Debug + Send + Sync;
 }
 
 #[derive(Debug, Clone)]
-pub struct {PASCAL}Query<R> {
-    repository: R,
+pub struct {PASCAL}Query<Repo> {
+    repository: Repo,
 }
 
-impl<R> {PASCAL}Query<R> {
-    pub const fn new(repository: R) -> Self {
+impl<Repo> {PASCAL}Query<Repo> {
+    pub const fn new(repository: Repo) -> Self {
         Self { repository }
     }
 }
 
-impl<R> {PASCAL}QueryTrait for {PASCAL}Query<R>
+impl<Repo, R> {PASCAL}QueryTrait<R> for {PASCAL}Query<Repo>
 where
-    R: Debug + {PASCAL}Repository,
+    Repo: Debug + {PASCAL}Repository<R>,
 {
-    type Error = <R as {PASCAL}Repository>::Error;
+    type Error = <Repo as {PASCAL}Repository<R>>::Error;
 }
 ```
 
@@ -792,10 +821,10 @@ pub mod {MODULE};
 
 **Admin** (routes through `AdminError`):
 ```rust
-impl<Repo, Agg> From<{MODULE}::Error> for crate::Error<Repo, Agg>
+impl<Repo, Agg, R> From<{MODULE}::Error> for crate::Error<Repo, Agg, R>
 where
     Agg: Debug + Aggregate,
-    Repo: ReadRepository<Agg> + WriteRepository<Agg>,
+    Repo: ReadRepository<Agg, R> + WriteRepository<Agg>,
 {
     fn from(value: {MODULE}::Error) -> Self {
         Self::AdminError(Error::{PASCAL}Error(value))
@@ -805,10 +834,10 @@ where
 
 **Tenant** (routes through `TenantError`):
 ```rust
-impl<Repo, Agg> From<{MODULE}::Error> for crate::Error<Repo, Agg>
+impl<Repo, Agg, R> From<{MODULE}::Error> for crate::Error<Repo, Agg, R>
 where
     Agg: Debug + Aggregate,
-    Repo: ReadRepository<Agg> + WriteRepository<Agg>,
+    Repo: ReadRepository<Agg, R> + WriteRepository<Agg>,
 {
     fn from(value: {MODULE}::Error) -> Self {
         Self::TenantError(Error::{PASCAL}Error(value))
@@ -831,13 +860,13 @@ Fix any compilation errors before reporting success.
 
 ## Common mistakes
 
-1. **Wrong error type in admin `interfaces.rs`**: The `Error` associated type in admin `{PASCAL}Repository` must include `From<{MODULE}::Error>` — tenant repositories do NOT have this bound.
+1. **Wrong error type in admin `interfaces.rs`**: The `Error` associated type in admin `{PASCAL}Repository<R>` must include `From<{MODULE}::Error>` — tenant repositories do NOT have this bound.
 
 2. **Wrong file name for read model**: Admin uses `rows.rs`, tenant uses `views.rs`. Both define a struct named `{PASCAL}Row`.
 
 3. **Async in tenant commands**: Tenant command methods are synchronous — do NOT add `async_trait` or `async fn` to tenant `{PASCAL}CommandTrait` or `impl {PASCAL}Command`.
 
-4. **Forgetting `From` impl in scope `mod.rs`**: Adding only the Error variant without the explicit `From<{MODULE}::Error> for crate::Error<Repo, Agg>` impl will break command handlers that use `?` on domain errors.
+4. **Forgetting `From` impl in scope `mod.rs`**: Adding only the Error variant without the explicit `From<{MODULE}::Error> for crate::Error<Repo, Agg, R>` impl will break command handlers that use `?` on domain errors.
 
 5. **Wrong `Error` type in tenant `Aggregate::apply`**: Tenant uses `type Error = Error` (the local `Error` from `aggregate_errors!`), not `{MODULE}::Error` — those are the same thing, but the import path differs.
 
@@ -845,4 +874,10 @@ Fix any compilation errors before reporting success.
 
 7. **Tenant `mod.rs` re-exports `Error` from aggregates**: `pub use domain::aggregates::{..., Error}` — the `Error` must be in this re-export list, not defined separately in `mod.rs`.
 
-8. **`in_memory_repository` import path**: In the test module inside `interfaces.rs`, import `crate::admin::{MODULE}::{MODULE}::Error as {PASCAL}Error` is wrong — use `crate::admin::{MODULE}::Error` directly (it's already in scope via the parent use).
+8. **Admin command trait generic is `R`, not `T: Aggregate`**: `{PASCAL}CommandTrait<R>` is generic over the database row type `R`, not over an aggregate `T`. The aggregate type is fixed as `{PASCAL}` throughout. Do not add `where T: Aggregate` bounds.
+
+9. **Admin `create` must save to repository**: After `Root::record_new(...)`, call `self.repository.save(&mut root).await.map_err(|e| crate::Error::WriteRepositoryError(e.into()))?`. Do not skip the save — it's not optional.
+
+10. **Mutation commands must get before recording**: For commands that mutate existing state, use `self.repository.get(&id).await.map_err(|e| crate::Error::ReadRepositoryError(e.into()))?.into()` to fetch the current `{PASCAL}Root`, then `root.record_that(event.into())?`, then save.
+
+11. **Admin query error type**: `type Error = <Repo as {PASCAL}Repository<R>>::Error` — the error comes from the repository's associated type via the `R` generic, not directly from `Repo::Error`.

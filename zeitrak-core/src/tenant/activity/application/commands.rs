@@ -19,6 +19,10 @@ pub trait ActivityCommandTrait<T> {
         name: String,
         comment: Option<String>,
     ) -> Result<T, Self::Error>;
+
+    fn update(&mut self, name: String, comment: Option<String>) -> Result<(), Self::Error>;
+
+    fn delete(&mut self) -> Result<(), Self::Error>;
 }
 
 #[eventually_macros::aggregate_root(Activity)]
@@ -38,6 +42,14 @@ impl ActivityCommandTrait<ActivityCommand> for ActivityCommand {
         )?
         .into())
     }
+
+    fn update(&mut self, name: String, comment: Option<String>) -> Result<(), Self::Error> {
+        self.record_that(ActivityEvent::Updated { name, comment }.into())
+    }
+
+    fn delete(&mut self) -> Result<(), Self::Error> {
+        self.record_that(ActivityEvent::Deleted {}.into())
+    }
 }
 
 impl ActivityCommand {
@@ -53,20 +65,6 @@ impl ActivityCommand {
             ActivityEvent::Created { id, name, comment }.into(),
         )?
         .into())
-    }
-
-    /// # Errors
-    ///
-    /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn update(&mut self, name: String, comment: Option<String>) -> Result<(), activity::Error> {
-        self.record_that(ActivityEvent::Updated { name, comment }.into())
-    }
-
-    /// # Errors
-    ///
-    /// Returns an error if the domain event cannot be applied to the aggregate.
-    pub fn delete(&mut self) -> Result<(), activity::Error> {
-        self.record_that(ActivityEvent::Deleted {}.into())
     }
 }
 

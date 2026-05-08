@@ -1,18 +1,18 @@
 use std::fmt::Debug;
 
+use async_trait::async_trait;
 use crate::{
     admin::permission::{self, domain::aggregates::Permission},
-    shared::repositories::{ReadRepository, WriteRepository},
+    shared::repositories::{ReadRepository, Repository, WriteRepository},
 };
 
-pub trait PermissionRepository:
-    ReadRepository<Permission> + WriteRepository<Permission> + Send + Sync
-{
+#[async_trait]
+pub trait PermissionRepository<R>: Repository<Permission, R> + Send + Sync {
     type Error: Debug
         + Send
         + Sync
         + From<permission::Error>
-        + From<<Self as ReadRepository<Permission>>::Error>
+        + From<<Self as ReadRepository<Permission, R>>::Error>
         + From<<Self as WriteRepository<Permission>>::Error>;
 }
 
@@ -27,8 +27,17 @@ pub mod in_memory_repository {
     use super::*;
     use crate::{
         admin::permission::{self, domain::aggregates::PermissionId},
-        shared::{AggregateId, repositories::{ReadRepository, WriteRepository}},
+        shared::{AggregateId, repositories::{ReadRepository, Repository, RowToRoot, WriteRepository}},
     };
+
+    impl RowToRoot<(), Permission> for InMemoryPermissionRepository {
+        type Error = StubError;
+        fn row_to_root(&self, _row: ()) -> Result<Root<Permission>, Self::Error> {
+            unimplemented!("test stub")
+        }
+    }
+
+    impl Repository<Permission, ()> for InMemoryPermissionRepository {}
 
     #[derive(Debug, thiserror::Error)]
     #[error("stub")]
@@ -68,17 +77,17 @@ pub mod in_memory_repository {
     }
 
     #[async_trait]
-    impl ReadRepository<Permission> for InMemoryPermissionRepository {
+    impl ReadRepository<Permission, ()> for InMemoryPermissionRepository {
         type Error = StubError;
         type Filter = ();
 
-        async fn find(&self, _id: AggregateId) -> Result<Option<Root<Permission>>, Self::Error> { Ok(None) }
-        async fn find_by(&self, _filter: ()) -> Result<Option<Root<Permission>>, Self::Error> { Ok(None) }
-        async fn find_many(&self, _ids: Vec<AggregateId>) -> Result<Vec<Root<Permission>>, Self::Error> { Ok(vec![]) }
-        async fn find_many_by(&self, _filter: ()) -> Result<Vec<Root<Permission>>, Self::Error> { Ok(vec![]) }
-        async fn all(&self) -> Result<Vec<Root<Permission>>, Self::Error> { Ok(vec![]) }
-        async fn count_by(&self, _filter: ()) -> Result<u64, Self::Error> { Ok(0) }
-        async fn count(&self) -> Result<u64, Self::Error> { Ok(0) }
+        async fn find(&self, _id: AggregateId) -> Result<Option<Root<Permission>>, StubError> { Ok(None) }
+        async fn find_by(&self, _filter: ()) -> Result<Option<Root<Permission>>, StubError> { Ok(None) }
+        async fn find_many(&self, _ids: Vec<AggregateId>) -> Result<Vec<Root<Permission>>, StubError> { Ok(vec![]) }
+        async fn find_many_by(&self, _filter: ()) -> Result<Vec<Root<Permission>>, StubError> { Ok(vec![]) }
+        async fn all(&self) -> Result<Vec<Root<Permission>>, StubError> { Ok(vec![]) }
+        async fn count_by(&self, _filter: ()) -> Result<u64, StubError> { Ok(0) }
+        async fn count(&self) -> Result<u64, StubError> { Ok(0) }
     }
 
     #[async_trait]
@@ -86,7 +95,7 @@ pub mod in_memory_repository {
         type Error = StubError;
     }
 
-    impl PermissionRepository for InMemoryPermissionRepository {
+    impl PermissionRepository<()> for InMemoryPermissionRepository {
         type Error = StubError;
     }
 }

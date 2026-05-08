@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use async_trait::async_trait;
-use eventually::aggregate::{Aggregate, Root};
+use eventually::aggregate::Root;
 
 use crate::admin::permission::{
     domain::{
@@ -12,44 +12,47 @@ use crate::admin::permission::{
 };
 
 #[async_trait]
-pub trait PermissionCommandTrait<T>
-where
-    T: Aggregate,
-{
+pub trait PermissionCommandTrait<R> {
     type Error: Debug + Sync + Send;
 
-    async fn create(&self, id: PermissionId, name: String) -> Result<Root<T>, Self::Error>;
+    async fn create(&self, id: PermissionId, name: String) -> Result<Root<Permission>, Self::Error>;
 }
 
 #[derive(Debug)]
-pub struct PermissionCommand<R> {
-    repository: R,
+pub struct PermissionCommand<Repo> {
+    repository: Repo,
 }
 
-impl<R> PermissionCommand<R> {
-    pub fn new(repository: R) -> Self {
+impl<Repo> PermissionCommand<Repo> {
+    pub fn new(repository: Repo) -> Self {
         Self { repository }
     }
 }
 
 #[async_trait]
-impl<R> PermissionCommandTrait<Permission> for PermissionCommand<R>
+impl<Repo, R> PermissionCommandTrait<R> for PermissionCommand<Repo>
 where
-    R: Debug + PermissionRepository,
+    R: Debug,
+    Repo: Debug + PermissionRepository<R>,
 {
-    type Error = crate::Error<R, Permission>;
+    type Error = crate::Error<Repo, Permission, R>;
 
     /// # Errors
     ///
-    /// Returns an error if the domain event cannot be applied to the aggregate.
+    /// Returns an error if the domain event cannot be applied or the root cannot be saved.
     async fn create(
         &self,
         id: PermissionId,
         name: String,
-    ) -> Result<Root<Permission>, <Self as PermissionCommandTrait<Permission>>::Error> {
-        Ok(Root::<Permission>::record_new(
+    ) -> Result<Root<Permission>, <Self as PermissionCommandTrait<R>>::Error> {
+        let mut root = Root::<Permission>::record_new(
             PermissionEvent::Created { id, name }.into(),
-        )?)
+        )?;
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))?;
+        Ok(root)
     }
 }
 

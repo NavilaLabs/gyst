@@ -5,6 +5,7 @@ pub use application::{
     ActivityRoot,
     commands::{ActivityCommand, ActivityCommandTrait},
     inputs::{CreateActivityInput, UpdateActivityInput},
+    queries::{ActivityQuery, ActivityQueryTrait},
     views::ActivityRow,
 };
 pub use domain::{

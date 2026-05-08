@@ -43,7 +43,16 @@ pub mod in_memory_repository {
     };
 
     use super::*;
-    use crate::{admin::user::UserId, shared::{AggregateId, repositories::{ReadRepository, WriteRepository}}};
+    use crate::{admin::user::UserId, shared::{AggregateId, repositories::{ReadRepository, Repository, RowToRoot, WriteRepository}}};
+
+    impl RowToRoot<(), User> for InMemoryUserRepository {
+        type Error = StubError;
+        fn row_to_root(&self, _row: ()) -> Result<Root<User>, Self::Error> {
+            unimplemented!("test stub")
+        }
+    }
+
+    impl Repository<User, ()> for InMemoryUserRepository {}
 
     #[derive(Debug, thiserror::Error)]
     #[error("stub")]
@@ -83,17 +92,17 @@ pub mod in_memory_repository {
     }
 
     #[async_trait]
-    impl ReadRepository<User> for InMemoryUserRepository {
+    impl ReadRepository<User, ()> for InMemoryUserRepository {
         type Error = StubError;
         type Filter = ();
 
-        async fn find(&self, _id: AggregateId) -> Result<Option<Root<User>>, Self::Error> { Ok(None) }
-        async fn find_by(&self, _filter: ()) -> Result<Option<Root<User>>, Self::Error> { Ok(None) }
-        async fn find_many(&self, _ids: Vec<AggregateId>) -> Result<Vec<Root<User>>, Self::Error> { Ok(vec![]) }
-        async fn find_many_by(&self, _filter: ()) -> Result<Vec<Root<User>>, Self::Error> { Ok(vec![]) }
-        async fn all(&self) -> Result<Vec<Root<User>>, Self::Error> { Ok(vec![]) }
-        async fn count_by(&self, _filter: ()) -> Result<u64, Self::Error> { Ok(0) }
-        async fn count(&self) -> Result<u64, Self::Error> { Ok(0) }
+        async fn find(&self, _id: AggregateId) -> Result<Option<Root<User>>, StubError> { Ok(None) }
+        async fn find_by(&self, _filter: ()) -> Result<Option<Root<User>>, StubError> { Ok(None) }
+        async fn find_many(&self, _ids: Vec<AggregateId>) -> Result<Vec<Root<User>>, StubError> { Ok(vec![]) }
+        async fn find_many_by(&self, _filter: ()) -> Result<Vec<Root<User>>, StubError> { Ok(vec![]) }
+        async fn all(&self) -> Result<Vec<Root<User>>, StubError> { Ok(vec![]) }
+        async fn count_by(&self, _filter: ()) -> Result<u64, StubError> { Ok(0) }
+        async fn count(&self) -> Result<u64, StubError> { Ok(0) }
     }
 
     #[async_trait]
@@ -102,13 +111,13 @@ pub mod in_memory_repository {
     }
 
     #[async_trait]
-    impl UserRepository for InMemoryUserRepository {
+    impl UserRepository<()> for InMemoryUserRepository {
         type Error = StubError;
 
         async fn find_credentials_by_email(
             &self,
             _email: &str,
-        ) -> Result<Option<(String, String, String)>, <Self as UserRepository>::Error> {
+        ) -> Result<Option<(String, String, String)>, <Self as UserRepository<()>>::Error> {
             Ok(None)
         }
     }

@@ -22,40 +22,40 @@ pub enum Error {
     WorkspaceRoleError(#[from] workspace_role::Error),
 }
 
-impl<Repo, Agg> From<permission::Error> for crate::Error<Repo, Agg>
+impl<Repo, Agg, R> From<permission::Error> for crate::Error<Repo, Agg, R>
 where
     Agg: Debug + Aggregate,
-    Repo: ReadRepository<Agg> + WriteRepository<Agg>,
+    Repo: ReadRepository<Agg, R> + WriteRepository<Agg>,
 {
     fn from(value: permission::Error) -> Self {
         Self::AdminError(Error::PermissionError(value))
     }
 }
 
-impl<Repo, Agg> From<user::Error> for crate::Error<Repo, Agg>
+impl<Repo, Agg, R> From<user::Error> for crate::Error<Repo, Agg, R>
 where
     Agg: Debug + Aggregate,
-    Repo: ReadRepository<Agg> + WriteRepository<Agg>,
+    Repo: ReadRepository<Agg, R> + WriteRepository<Agg>,
 {
     fn from(value: user::Error) -> Self {
         Self::AdminError(Error::UserError(value))
     }
 }
 
-impl<Repo, Agg> From<workspace::Error> for crate::Error<Repo, Agg>
+impl<Repo, Agg, R> From<workspace::Error> for crate::Error<Repo, Agg, R>
 where
     Agg: Debug + Aggregate,
-    Repo: ReadRepository<Agg> + WriteRepository<Agg>,
+    Repo: ReadRepository<Agg, R> + WriteRepository<Agg>,
 {
     fn from(value: workspace::Error) -> Self {
         Self::AdminError(Error::WorkspaceError(value))
     }
 }
 
-impl<Repo, Agg> From<workspace_role::Error> for crate::Error<Repo, Agg>
+impl<Repo, Agg, R> From<workspace_role::Error> for crate::Error<Repo, Agg, R>
 where
     Agg: Debug + Aggregate,
-    Repo: ReadRepository<Agg> + WriteRepository<Agg>,
+    Repo: ReadRepository<Agg, R> + WriteRepository<Agg>,
 {
     fn from(value: workspace_role::Error) -> Self {
         Self::AdminError(Error::WorkspaceRoleError(value))

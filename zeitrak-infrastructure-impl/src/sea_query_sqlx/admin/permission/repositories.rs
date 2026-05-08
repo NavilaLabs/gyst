@@ -6,7 +6,7 @@ use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
 use zeitrak_core::admin::permission::{Permission, PermissionEvent, PermissionId, PermissionRepository as PermissionRepositoryTrait};
-use zeitrak_core::shared::repositories::{ReadRepository, WriteRepository};
+use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 use sea_query::{Condition, Expr, ExprTrait};
 use sqlx::{Row, any::AnyRow};
 
@@ -49,14 +49,6 @@ impl PermissionRepository {
         SeaQueryReadModel::new(&self.store.pool, TABLE)
     }
 
-    fn entry_to_row(&self, row: AnyRow) -> Result<Root<Permission>, crate::Error> {
-        let id: String = row.try_get("id")?;
-        let id = PermissionId::from_str(&id)?;
-        let name: String = row.try_get("name")?;
-        let permission = Permission::apply(None, PermissionEvent::Created { id, name })
-            .expect("Created event on None state is infallible");
-        Ok(Root::rehydrate_from_state(0, permission))
-    }
 }
 
 #[async_trait]
@@ -74,12 +66,27 @@ impl Saver<Permission> for PermissionRepository {
     }
 }
 
+impl RowToRoot<AnyRow, Permission> for PermissionRepository {
+    type Error = crate::Error;
+
+    fn row_to_root(&self, row: AnyRow) -> Result<Root<Permission>, crate::Error> {
+        let id: String = row.try_get("id")?;
+        let id = PermissionId::from_str(&id)?;
+        let name: String = row.try_get("name")?;
+        let permission = Permission::apply(None, PermissionEvent::Created { id, name })
+            .expect("Created event on None state is infallible");
+        Ok(Root::rehydrate_from_state(0, permission))
+    }
+}
+
+impl zeitrak_core::shared::repositories::Repository<Permission, AnyRow> for PermissionRepository {}
+
 #[async_trait]
-impl ReadRepository<Permission> for PermissionRepository {
+impl ReadRepository<Permission, AnyRow> for PermissionRepository {
     type Error = crate::Error;
     type Filter = Condition;
 
-    async fn find(&self, id: PermissionId) -> Result<Option<Root<Permission>>, Self::Error> {
+    async fn find(&self, id: PermissionId) -> Result<Option<Root<Permission>>, crate::Error> {
         self.find_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
             .await
     }
@@ -88,7 +95,7 @@ impl ReadRepository<Permission> for PermissionRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
-        row.map(|r| self.entry_to_row(r)).transpose()
+        row.map(|r| self.row_to_root(r)).transpose()
     }
 
     async fn find_many(&self, ids: Vec<PermissionId>) -> Result<Vec<Root<Permission>>, crate::Error> {
@@ -104,14 +111,14 @@ impl ReadRepository<Permission> for PermissionRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.entry_to_row(row)).collect()
+        rows.into_iter().map(|row| self.row_to_root(row)).collect()
     }
 
     async fn all(&self) -> Result<Vec<Root<Permission>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.entry_to_row(row)).collect()
+        rows.into_iter().map(|row| self.row_to_root(row)).collect()
     }
 
     async fn count_by(&self, filter: Condition) -> Result<u64, crate::Error> {
@@ -133,6 +140,6 @@ impl WriteRepository<Permission> for PermissionRepository {
 }
 
 #[async_trait]
-impl PermissionRepositoryTrait for PermissionRepository {
+impl PermissionRepositoryTrait<AnyRow> for PermissionRepository {
     type Error = crate::Error;
 }

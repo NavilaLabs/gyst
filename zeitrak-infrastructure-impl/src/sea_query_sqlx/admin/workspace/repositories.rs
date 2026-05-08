@@ -9,7 +9,7 @@ use zeitrak_core::admin::workspace::{
     Workspace, WorkspaceEvent, WorkspaceId, WorkspaceRepository as WorkspaceRepositoryTrait,
     WorkspaceRow,
 };
-use zeitrak_core::shared::repositories::{ReadRepository, WriteRepository};
+use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 use sea_query::{Alias, Condition, Expr, ExprTrait};
 use sqlx::{Row, any::AnyRow};
 
@@ -56,24 +56,6 @@ impl WorkspaceRepository {
 
     const fn read_model(&self) -> SeaQueryReadModel<'_> {
         SeaQueryReadModel::new(&self.store.pool, TABLE)
-    }
-
-    fn entry_to_row(&self, row: AnyRow) -> Result<Root<Workspace>, crate::Error> {
-        let id: String = row.try_get("id")?;
-        let id = WorkspaceId::from_str(&id)?;
-        let name: Option<String> = row.try_get("name")?;
-        let timezone: String = row.try_get("timezone").unwrap_or_else(|_| "Europe/Berlin".to_string());
-        let date_format: String = row.try_get("date_format").unwrap_or_else(|_| "%Y-%m-%d".to_string());
-        let currency: String = row.try_get("currency").unwrap_or_else(|_| "EUR".to_string());
-        let week_start: String = row.try_get("week_start").unwrap_or_else(|_| "monday".to_string());
-        let workspace = Workspace::apply(None, WorkspaceEvent::Created { id, name: name.clone() })
-            .expect("Created event on None state is infallible");
-        let workspace = Workspace::apply(
-            Some(workspace),
-            WorkspaceEvent::SettingsUpdated { name, timezone, date_format, currency, week_start },
-        )
-        .expect("SettingsUpdated event on Some state is infallible");
-        Ok(Root::rehydrate_from_state(0, workspace))
     }
 
     fn row_to_view(&self, row: AnyRow) -> Result<WorkspaceRow, crate::Error> {
@@ -157,12 +139,36 @@ impl WorkspaceRepository {
     }
 }
 
+impl RowToRoot<AnyRow, Workspace> for WorkspaceRepository {
+    type Error = crate::Error;
+
+    fn row_to_root(&self, row: AnyRow) -> Result<Root<Workspace>, crate::Error> {
+        let id: String = row.try_get("id")?;
+        let id = WorkspaceId::from_str(&id)?;
+        let name: Option<String> = row.try_get("name")?;
+        let timezone: String = row.try_get("timezone").unwrap_or_else(|_| "Europe/Berlin".to_string());
+        let date_format: String = row.try_get("date_format").unwrap_or_else(|_| "%Y-%m-%d".to_string());
+        let currency: String = row.try_get("currency").unwrap_or_else(|_| "EUR".to_string());
+        let week_start: String = row.try_get("week_start").unwrap_or_else(|_| "monday".to_string());
+        let workspace = Workspace::apply(None, WorkspaceEvent::Created { id, name: name.clone() })
+            .expect("Created event on None state is infallible");
+        let workspace = Workspace::apply(
+            Some(workspace),
+            WorkspaceEvent::SettingsUpdated { name, timezone, date_format, currency, week_start },
+        )
+        .expect("SettingsUpdated event on Some state is infallible");
+        Ok(Root::rehydrate_from_state(0, workspace))
+    }
+}
+
+impl zeitrak_core::shared::repositories::Repository<Workspace, AnyRow> for WorkspaceRepository {}
+
 #[async_trait]
-impl ReadRepository<Workspace> for WorkspaceRepository {
+impl ReadRepository<Workspace, AnyRow> for WorkspaceRepository {
     type Error = crate::Error;
     type Filter = Condition;
 
-    async fn find(&self, id: WorkspaceId) -> Result<Option<Root<Workspace>>, Self::Error> {
+    async fn find(&self, id: WorkspaceId) -> Result<Option<Root<Workspace>>, crate::Error> {
         self.find_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
             .await
     }
@@ -171,7 +177,7 @@ impl ReadRepository<Workspace> for WorkspaceRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
-        row.map(|r| self.entry_to_row(r)).transpose()
+        row.map(|r| self.row_to_root(r)).transpose()
     }
 
     async fn find_many(&self, ids: Vec<WorkspaceId>) -> Result<Vec<Root<Workspace>>, crate::Error> {
@@ -187,14 +193,14 @@ impl ReadRepository<Workspace> for WorkspaceRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.entry_to_row(row)).collect()
+        rows.into_iter().map(|row| self.row_to_root(row)).collect()
     }
 
     async fn all(&self) -> Result<Vec<Root<Workspace>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.entry_to_row(row)).collect()
+        rows.into_iter().map(|row| self.row_to_root(row)).collect()
     }
 
     async fn count_by(&self, filter: Condition) -> Result<u64, crate::Error> {
@@ -229,6 +235,6 @@ impl Saver<Workspace> for WorkspaceRepository {
     }
 }
 
-impl WorkspaceRepositoryTrait for WorkspaceRepository {
+impl WorkspaceRepositoryTrait<AnyRow> for WorkspaceRepository {
     type Error = crate::Error;
 }

@@ -5,6 +5,7 @@ pub use application::{
     TimesheetTagRoot,
     commands::{TimesheetTagCommand, TimesheetTagCommandTrait},
     inputs::{CreateTimesheetTagInput, RenameTimesheetTagInput},
+    queries::{TimesheetTagQuery, TimesheetTagQueryTrait},
     views::TimesheetTagRow,
 };
 pub use domain::{

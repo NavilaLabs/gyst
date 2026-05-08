@@ -1,18 +1,18 @@
 use std::fmt::Debug;
 
+use async_trait::async_trait;
 use crate::{
     admin::workspace::{self, domain::aggregates::Workspace},
-    shared::repositories::{ReadRepository, WriteRepository},
+    shared::repositories::{ReadRepository, Repository, WriteRepository},
 };
 
-pub trait WorkspaceRepository:
-    ReadRepository<Workspace> + WriteRepository<Workspace> + Send + Sync
-{
+#[async_trait]
+pub trait WorkspaceRepository<R>: Repository<Workspace, R> + Send + Sync {
     type Error: Debug
         + Sync
         + Send
         + From<workspace::Error>
-        + From<<Self as ReadRepository<Workspace>>::Error>
+        + From<<Self as ReadRepository<Workspace, R>>::Error>
         + From<<Self as WriteRepository<Workspace>>::Error>;
 }
 
@@ -27,8 +27,17 @@ pub mod in_memory_repository {
     use super::*;
     use crate::{
         admin::workspace::WorkspaceId,
-        shared::{AggregateId, repositories::{ReadRepository, WriteRepository}},
+        shared::{AggregateId, repositories::{ReadRepository, Repository, RowToRoot, WriteRepository}},
     };
+
+    impl RowToRoot<(), Workspace> for InMemoryWorkspaceRepository {
+        type Error = StubError;
+        fn row_to_root(&self, _row: ()) -> Result<Root<Workspace>, Self::Error> {
+            unimplemented!("test stub")
+        }
+    }
+
+    impl Repository<Workspace, ()> for InMemoryWorkspaceRepository {}
 
     #[derive(Debug, thiserror::Error)]
     #[error("stub")]
@@ -68,17 +77,17 @@ pub mod in_memory_repository {
     }
 
     #[async_trait]
-    impl ReadRepository<Workspace> for InMemoryWorkspaceRepository {
+    impl ReadRepository<Workspace, ()> for InMemoryWorkspaceRepository {
         type Error = StubError;
         type Filter = ();
 
-        async fn find(&self, _id: AggregateId) -> Result<Option<Root<Workspace>>, Self::Error> { Ok(None) }
-        async fn find_by(&self, _filter: ()) -> Result<Option<Root<Workspace>>, Self::Error> { Ok(None) }
-        async fn find_many(&self, _ids: Vec<AggregateId>) -> Result<Vec<Root<Workspace>>, Self::Error> { Ok(vec![]) }
-        async fn find_many_by(&self, _filter: ()) -> Result<Vec<Root<Workspace>>, Self::Error> { Ok(vec![]) }
-        async fn all(&self) -> Result<Vec<Root<Workspace>>, Self::Error> { Ok(vec![]) }
-        async fn count_by(&self, _filter: ()) -> Result<u64, Self::Error> { Ok(0) }
-        async fn count(&self) -> Result<u64, Self::Error> { Ok(0) }
+        async fn find(&self, _id: AggregateId) -> Result<Option<Root<Workspace>>, StubError> { Ok(None) }
+        async fn find_by(&self, _filter: ()) -> Result<Option<Root<Workspace>>, StubError> { Ok(None) }
+        async fn find_many(&self, _ids: Vec<AggregateId>) -> Result<Vec<Root<Workspace>>, StubError> { Ok(vec![]) }
+        async fn find_many_by(&self, _filter: ()) -> Result<Vec<Root<Workspace>>, StubError> { Ok(vec![]) }
+        async fn all(&self) -> Result<Vec<Root<Workspace>>, StubError> { Ok(vec![]) }
+        async fn count_by(&self, _filter: ()) -> Result<u64, StubError> { Ok(0) }
+        async fn count(&self) -> Result<u64, StubError> { Ok(0) }
     }
 
     #[async_trait]
@@ -86,7 +95,7 @@ pub mod in_memory_repository {
         type Error = StubError;
     }
 
-    impl WorkspaceRepository for InMemoryWorkspaceRepository {
+    impl WorkspaceRepository<()> for InMemoryWorkspaceRepository {
         type Error = StubError;
     }
 }

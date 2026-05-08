@@ -5,7 +5,7 @@ use eventually::aggregate::{Aggregate, Root};
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
-use zeitrak_core::shared::repositories::{ReadRepository, WriteRepository};
+use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 use zeitrak_core::tenant::timesheet_tag::{
     TimesheetTag, TimesheetTagEvent, TimesheetTagId,
     TimesheetTagRepository as TimesheetTagRepositoryTrait, TimesheetTagRow,
@@ -43,15 +43,6 @@ impl TimesheetTagRepository {
 
     const fn read_model(&self) -> SeaQueryReadModel<'_, ConnectedTenantPool> {
         SeaQueryReadModel::new(&self.store.pool, TABLE)
-    }
-
-    fn entry_to_row(&self, row: AnyRow) -> Result<Root<TimesheetTag>, crate::Error> {
-        let id: String = row.try_get("id")?;
-        let id = TimesheetTagId::from_str(&id)?;
-        let name: String = row.try_get("name")?;
-        let tag = TimesheetTag::apply(None, TimesheetTagEvent::Created { id, name })
-            .expect("Created event on None state is infallible");
-        Ok(Root::rehydrate_from_state(0, tag))
     }
 
     /// # Errors
@@ -126,15 +117,30 @@ impl TimesheetTagRepository {
     }
 }
 
+impl RowToRoot<AnyRow, TimesheetTag> for TimesheetTagRepository {
+    type Error = crate::Error;
+
+    fn row_to_root(&self, row: AnyRow) -> Result<Root<TimesheetTag>, crate::Error> {
+        let id: String = row.try_get("id")?;
+        let id = TimesheetTagId::from_str(&id)?;
+        let name: String = row.try_get("name")?;
+        let tag = TimesheetTag::apply(None, TimesheetTagEvent::Created { id, name })
+            .expect("Created event on None state is infallible");
+        Ok(Root::rehydrate_from_state(0, tag))
+    }
+}
+
+impl zeitrak_core::shared::repositories::Repository<TimesheetTag, AnyRow> for TimesheetTagRepository {}
+
 #[async_trait]
-impl ReadRepository<TimesheetTag> for TimesheetTagRepository {
+impl ReadRepository<TimesheetTag, AnyRow> for TimesheetTagRepository {
     type Error = crate::Error;
     type Filter = Condition;
 
     async fn find(
         &self,
         id: TimesheetTagId,
-    ) -> Result<Option<Root<TimesheetTag>>, Self::Error> {
+    ) -> Result<Option<Root<TimesheetTag>>, crate::Error> {
         self.find_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
             .await
     }
@@ -146,7 +152,7 @@ impl ReadRepository<TimesheetTag> for TimesheetTagRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
-        row.map(|r| self.entry_to_row(r)).transpose()
+        row.map(|r| self.row_to_root(r)).transpose()
     }
 
     async fn find_many(
@@ -168,14 +174,14 @@ impl ReadRepository<TimesheetTag> for TimesheetTagRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.entry_to_row(row)).collect()
+        rows.into_iter().map(|row| self.row_to_root(row)).collect()
     }
 
     async fn all(&self) -> Result<Vec<Root<TimesheetTag>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.entry_to_row(row)).collect()
+        rows.into_iter().map(|row| self.row_to_root(row)).collect()
     }
 
     async fn count_by(&self, filter: Condition) -> Result<u64, crate::Error> {
@@ -210,6 +216,6 @@ impl Saver<TimesheetTag> for TimesheetTagRepository {
     }
 }
 
-impl TimesheetTagRepositoryTrait for TimesheetTagRepository {
+impl TimesheetTagRepositoryTrait<AnyRow> for TimesheetTagRepository {
     type Error = crate::Error;
 }

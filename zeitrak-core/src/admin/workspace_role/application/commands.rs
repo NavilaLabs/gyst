@@ -1,21 +1,23 @@
 use std::fmt::Debug;
 
 use async_trait::async_trait;
-use eventually::aggregate;
+use eventually::aggregate::Root;
 
 use crate::admin::{
     permission::PermissionId,
     workspace::WorkspaceId,
     workspace_role::{
-        WorkspaceRoleRepository, domain::{
+        application::WorkspaceRoleRoot,
+        domain::{
             aggregates::{WorkspaceRole, WorkspaceRoleId},
             events::WorkspaceRoleEvent,
-        }
+            interfaces::WorkspaceRoleRepository,
+        },
     },
 };
 
 #[async_trait]
-pub trait WorkspaceRoleCommandTrait<T> {
+pub trait WorkspaceRoleCommandTrait<R> {
     type Error: Debug + Sync + Send;
 
     async fn create(
@@ -23,7 +25,7 @@ pub trait WorkspaceRoleCommandTrait<T> {
         id: WorkspaceRoleId,
         workspace_id: WorkspaceId,
         name: Option<String>,
-    ) -> Result<T, Self::Error>;
+    ) -> Result<Root<WorkspaceRole>, Self::Error>;
 
     async fn grant_permission(
         &self,
@@ -39,52 +41,78 @@ pub trait WorkspaceRoleCommandTrait<T> {
 }
 
 #[derive(Debug)]
-pub struct WorkspaceRoleCommand<R> {
-    repository: R,
+pub struct WorkspaceRoleCommand<Repo> {
+    repository: Repo,
 }
 
-impl<R> WorkspaceRoleCommand<R> {
-    pub fn new(repository: R) -> Self {
+impl<Repo> WorkspaceRoleCommand<Repo> {
+    pub fn new(repository: Repo) -> Self {
         Self { repository }
     }
 }
 
 #[async_trait]
-impl<R> WorkspaceRoleCommandTrait<WorkspaceRole> for WorkspaceRoleCommand<R>
+impl<Repo, R> WorkspaceRoleCommandTrait<R> for WorkspaceRoleCommand<Repo>
 where
-    R: Debug + WorkspaceRoleRepository,
+    R: Debug,
+    Repo: Debug + WorkspaceRoleRepository<R>,
 {
-    type Error = crate::Error<R, WorkspaceRole>;
+    type Error = crate::Error<Repo, WorkspaceRole, R>;
 
+    /// # Errors
+    ///
+    /// Returns an error if the domain event cannot be applied or the root cannot be saved.
     async fn create(
         &self,
         id: WorkspaceRoleId,
         workspace_id: WorkspaceId,
         name: Option<String>,
-    ) -> Result<WorkspaceRole, Self::Error> {
-        Ok(
-            aggregate::Root::<WorkspaceRole>::record_new(WorkspaceRoleEvent::Created { id, workspace_id, name }.into())?
-                .to_aggregate_type(),
-        )
+    ) -> Result<Root<WorkspaceRole>, <Self as WorkspaceRoleCommandTrait<R>>::Error> {
+        let mut root = Root::<WorkspaceRole>::record_new(
+            WorkspaceRoleEvent::Created { id, workspace_id, name }.into(),
+        )?;
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))?;
+        Ok(root)
     }
 
     async fn grant_permission(
-           &self,
-           id: WorkspaceRoleId,
-           permission_id: PermissionId,
-       ) -> Result<(), Self::Error> {
-       let mut root = self.repository.get(&id).await.map_err(|e| crate::Error::ReadRepositoryError(e.into()))?;
-       Ok(root.record_that(WorkspaceRoleEvent::PermissionGranted { permission_id }.into())?)
-   }
+        &self,
+        id: WorkspaceRoleId,
+        permission_id: PermissionId,
+    ) -> Result<(), <Self as WorkspaceRoleCommandTrait<R>>::Error> {
+        let mut root: WorkspaceRoleRoot = self
+            .repository
+            .get(&id)
+            .await
+            .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
+            .into();
+        root.record_that(WorkspaceRoleEvent::PermissionGranted { permission_id }.into())?;
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))
+    }
 
-   async fn revoke_permission(
-           &self,
-           id: WorkspaceRoleId,
-           permission_id: PermissionId,
-       ) -> Result<(), Self::Error> {
-       let mut root = self.repository.get(&id).await.map_err(|e| crate::Error::ReadRepositoryError(e.into()))?;
-       Ok(root.record_that(WorkspaceRoleEvent::PermissionRevoked { permission_id }.into())?)
-   }
+    async fn revoke_permission(
+        &self,
+        id: WorkspaceRoleId,
+        permission_id: PermissionId,
+    ) -> Result<(), <Self as WorkspaceRoleCommandTrait<R>>::Error> {
+        let mut root: WorkspaceRoleRoot = self
+            .repository
+            .get(&id)
+            .await
+            .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
+            .into();
+        root.record_that(WorkspaceRoleEvent::PermissionRevoked { permission_id }.into())?;
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))
+    }
 }
 
 #[cfg(test)]

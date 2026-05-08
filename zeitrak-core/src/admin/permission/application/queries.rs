@@ -1,25 +1,45 @@
 use std::fmt::Debug;
 
-use crate::admin::permission::domain::interfaces::PermissionRepository;
+use async_trait::async_trait;
+use eventually::aggregate::Root;
 
-pub trait PermissionQueryTrait {
+use crate::admin::permission::{
+    domain::aggregates::{Permission, PermissionId},
+    domain::interfaces::PermissionRepository,
+};
+
+#[async_trait]
+pub trait PermissionQueryTrait<R> {
     type Error: Debug + Send + Sync;
+
+    async fn find_by_id(&self, id: PermissionId) -> Result<Option<Root<Permission>>, Self::Error>;
+    async fn find_all(&self) -> Result<Vec<Root<Permission>>, Self::Error>;
 }
 
 #[derive(Debug, Clone)]
-pub struct PermissionQuery<R> {
-    repository: R,
+pub struct PermissionQuery<Repo> {
+    repository: Repo,
 }
 
-impl<R> PermissionQuery<R> {
-    pub const fn new(repository: R) -> Self {
+impl<Repo> PermissionQuery<Repo> {
+    pub const fn new(repository: Repo) -> Self {
         Self { repository }
     }
 }
 
-impl<R> PermissionQueryTrait for PermissionQuery<R>
+#[async_trait]
+impl<Repo, R> PermissionQueryTrait<R> for PermissionQuery<Repo>
 where
-    R: Debug + PermissionRepository,
+    R: Debug + Send + Sync,
+    Repo: Debug + Send + Sync + PermissionRepository<R>,
 {
-    type Error = <R as PermissionRepository>::Error;
+    type Error = <Repo as PermissionRepository<R>>::Error;
+
+    async fn find_by_id(&self, id: PermissionId) -> Result<Option<Root<Permission>>, Self::Error> {
+        self.repository.find(id).await.map_err(Into::into)
+    }
+
+    async fn find_all(&self) -> Result<Vec<Root<Permission>>, Self::Error> {
+        self.repository.all().await.map_err(Into::into)
+    }
 }

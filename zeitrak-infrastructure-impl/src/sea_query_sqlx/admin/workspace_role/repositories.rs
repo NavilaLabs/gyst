@@ -10,7 +10,7 @@ use zeitrak_core::admin::workspace_role::{
     WorkspaceRole, WorkspaceRoleEvent, WorkspaceRoleId,
     WorkspaceRoleRepository as WorkspaceRoleRepositoryTrait,
 };
-use zeitrak_core::shared::repositories::{ReadRepository, WriteRepository};
+use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 use sea_query::{Condition, Expr, ExprTrait};
 use sqlx::{Row, any::AnyRow};
 
@@ -53,7 +53,12 @@ impl WorkspaceRoleRepository {
         SeaQueryReadModel::new(&self.store.pool, TABLE)
     }
 
-    fn entry_to_row(&self, row: AnyRow) -> Result<Root<WorkspaceRole>, crate::Error> {
+}
+
+impl RowToRoot<AnyRow, WorkspaceRole> for WorkspaceRoleRepository {
+    type Error = crate::Error;
+
+    fn row_to_root(&self, row: AnyRow) -> Result<Root<WorkspaceRole>, crate::Error> {
         let id: String = row.try_get("id")?;
         let id = WorkspaceRoleId::from_str(&id)?;
         let workspace_id: String = row.try_get("workspace_id")?;
@@ -66,15 +71,17 @@ impl WorkspaceRoleRepository {
     }
 }
 
+impl zeitrak_core::shared::repositories::Repository<WorkspaceRole, AnyRow> for WorkspaceRoleRepository {}
+
 #[async_trait]
-impl ReadRepository<WorkspaceRole> for WorkspaceRoleRepository {
+impl ReadRepository<WorkspaceRole, AnyRow> for WorkspaceRoleRepository {
     type Error = crate::Error;
     type Filter = Condition;
 
     async fn find(
         &self,
         id: WorkspaceRoleId,
-    ) -> Result<Option<Root<WorkspaceRole>>, Self::Error> {
+    ) -> Result<Option<Root<WorkspaceRole>>, crate::Error> {
         self.find_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
             .await
     }
@@ -86,7 +93,7 @@ impl ReadRepository<WorkspaceRole> for WorkspaceRoleRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
-        row.map(|r| self.entry_to_row(r)).transpose()
+        row.map(|r| self.row_to_root(r)).transpose()
     }
 
     async fn find_many(
@@ -108,14 +115,14 @@ impl ReadRepository<WorkspaceRole> for WorkspaceRoleRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.entry_to_row(row)).collect()
+        rows.into_iter().map(|row| self.row_to_root(row)).collect()
     }
 
     async fn all(&self) -> Result<Vec<Root<WorkspaceRole>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.entry_to_row(row)).collect()
+        rows.into_iter().map(|row| self.row_to_root(row)).collect()
     }
 
     async fn count_by(&self, filter: Condition) -> Result<u64, crate::Error> {
@@ -150,6 +157,6 @@ impl Saver<WorkspaceRole> for WorkspaceRoleRepository {
     }
 }
 
-impl WorkspaceRoleRepositoryTrait for WorkspaceRoleRepository {
+impl WorkspaceRoleRepositoryTrait<AnyRow> for WorkspaceRoleRepository {
     type Error = crate::Error;
 }

@@ -18,30 +18,30 @@ pub enum Error {
     TagError(#[from] timesheet_tag::Error),
 }
 
-impl<Repo, Agg> From<activity::Error> for crate::Error<Repo, Agg>
+impl<Repo, Agg, R> From<activity::Error> for crate::Error<Repo, Agg, R>
 where
     Agg: Debug + Aggregate,
-    Repo: ReadRepository<Agg> + WriteRepository<Agg>,
+    Repo: ReadRepository<Agg, R> + WriteRepository<Agg>,
 {
     fn from(value: activity::Error) -> Self {
         Self::TenantError(Error::ActivityError(value))
     }
 }
 
-impl<Repo, Agg> From<timesheet::Error> for crate::Error<Repo, Agg>
+impl<Repo, Agg, R> From<timesheet::Error> for crate::Error<Repo, Agg, R>
 where
     Agg: Debug + Aggregate,
-    Repo: ReadRepository<Agg> + WriteRepository<Agg>,
+    Repo: ReadRepository<Agg, R> + WriteRepository<Agg>,
 {
     fn from(value: timesheet::Error) -> Self {
         Self::TenantError(Error::TimesheetError(value))
     }
 }
 
-impl<Repo, Agg> From<timesheet_tag::Error> for crate::Error<Repo, Agg>
+impl<Repo, Agg, R> From<timesheet_tag::Error> for crate::Error<Repo, Agg, R>
 where
     Agg: Debug + Aggregate,
-    Repo: ReadRepository<Agg> + WriteRepository<Agg>,
+    Repo: ReadRepository<Agg, R> + WriteRepository<Agg>,
 {
     fn from(value: timesheet_tag::Error) -> Self {
         Self::TenantError(Error::TagError(value))

@@ -1,25 +1,45 @@
 use std::fmt::Debug;
 
-use crate::admin::workspace::domain::interfaces::WorkspaceRepository;
+use async_trait::async_trait;
+use eventually::aggregate::Root;
 
-pub trait WorkspaceQueryTrait {
+use crate::admin::workspace::{
+    domain::aggregates::{Workspace, WorkspaceId},
+    domain::interfaces::WorkspaceRepository,
+};
+
+#[async_trait]
+pub trait WorkspaceQueryTrait<R> {
     type Error: Debug + Send + Sync;
+
+    async fn find_by_id(&self, id: WorkspaceId) -> Result<Option<Root<Workspace>>, Self::Error>;
+    async fn find_all(&self) -> Result<Vec<Root<Workspace>>, Self::Error>;
 }
 
 #[derive(Debug, Clone)]
-pub struct WorkspaceQuery<R> {
-    repository: R,
+pub struct WorkspaceQuery<Repo> {
+    repository: Repo,
 }
 
-impl<R> WorkspaceQuery<R> {
-    pub const fn new(repository: R) -> Self {
+impl<Repo> WorkspaceQuery<Repo> {
+    pub const fn new(repository: Repo) -> Self {
         Self { repository }
     }
 }
 
-impl<R> WorkspaceQueryTrait for WorkspaceQuery<R>
+#[async_trait]
+impl<Repo, R> WorkspaceQueryTrait<R> for WorkspaceQuery<Repo>
 where
-    R: Debug + WorkspaceRepository,
+    R: Debug + Send + Sync,
+    Repo: Debug + Send + Sync + WorkspaceRepository<R>,
 {
-    type Error = <R as WorkspaceRepository>::Error;
+    type Error = <Repo as WorkspaceRepository<R>>::Error;
+
+    async fn find_by_id(&self, id: WorkspaceId) -> Result<Option<Root<Workspace>>, Self::Error> {
+        self.repository.find(id).await.map_err(Into::into)
+    }
+
+    async fn find_all(&self) -> Result<Vec<Root<Workspace>>, Self::Error> {
+        self.repository.all().await.map_err(Into::into)
+    }
 }

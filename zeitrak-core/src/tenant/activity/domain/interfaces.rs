@@ -1,16 +1,14 @@
 use std::fmt::Debug;
 
 use crate::{
-    shared::repositories::{ReadRepository, WriteRepository},
+    shared::repositories::{ReadRepository, Repository, WriteRepository},
     tenant::activity::domain::aggregates::Activity,
 };
 
-pub trait ActivityRepository:
-    ReadRepository<Activity> + WriteRepository<Activity> + Send + Sync
-{
+pub trait ActivityRepository<R>: Repository<Activity, R> + Send + Sync {
     type Error: Debug
         + Send
         + Sync
-        + From<<Self as ReadRepository<Activity>>::Error>
+        + From<<Self as ReadRepository<Activity, R>>::Error>
         + From<<Self as WriteRepository<Activity>>::Error>;
 }

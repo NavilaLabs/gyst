@@ -1,13 +1,17 @@
 use std::fmt::Debug;
 
 use async_trait::async_trait;
+use eventually::aggregate::Root;
 
 use crate::admin::authenticator::{AuthenticationStrategy, Authenticator, Credentials};
-use crate::admin::user::domain::interfaces::UserRepository;
-use crate::admin::user::{self};
+use crate::admin::user::{self, domain::aggregates::{User, UserId}, domain::interfaces::UserRepository};
 
+#[async_trait]
 pub trait UserQueryTrait<R> {
     type Error: Debug + Send + Sync;
+
+    async fn find_by_id(&self, id: UserId) -> Result<Option<Root<User>>, Self::Error>;
+    async fn find_all(&self) -> Result<Vec<Root<User>>, Self::Error>;
 }
 
 #[async_trait]
@@ -28,11 +32,21 @@ impl<Repo> UserQuery<Repo> {
     }
 }
 
+#[async_trait]
 impl<Repo, R> UserQueryTrait<R> for UserQuery<Repo>
 where
-    Repo: Debug + UserRepository<R>,
+    R: Debug + Send + Sync,
+    Repo: Debug + Send + Sync + UserRepository<R>,
 {
     type Error = <Repo as UserRepository<R>>::Error;
+
+    async fn find_by_id(&self, id: UserId) -> Result<Option<Root<User>>, Self::Error> {
+        self.repository.find(id).await.map_err(Into::into)
+    }
+
+    async fn find_all(&self) -> Result<Vec<Root<User>>, Self::Error> {
+        self.repository.all().await.map_err(Into::into)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -59,7 +73,8 @@ where
 #[async_trait]
 impl<Repo, R, A> LoginQueryTrait<R> for LoginQuery<Repo, A>
 where
-    Repo: Debug + UserRepository<R>,
+    R: Debug + Send + Sync,
+    Repo: Debug + Send + Sync + UserRepository<R>,
     A: AuthenticationStrategy,
 {
     type Error = <Repo as UserRepository<R>>::Error;
