@@ -6,7 +6,7 @@ use zeitrak_infrastructure_impl::{Pool, admin::user::repositories::UserRepositor
 pub async fn create(id: UserId, name: String, email: String, password: String) -> Result<()> {
     let pool = Pool::connect_admin().await?;
     let repository = UserRepository::from_pool(pool).await?;
-    UserCommand::new(repository)
+    let _ = UserCommand::new(repository)
         .create(id, name, email, password)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;

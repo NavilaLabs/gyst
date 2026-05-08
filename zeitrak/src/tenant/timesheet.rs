@@ -5,7 +5,7 @@ use zeitrak_core::{
     shared::AggregateId,
     tenant::{
         activity::ActivityId,
-        timesheet::{TimesheetCommand, TimesheetId, TimesheetRow},
+        timesheet::{TimesheetCommand, TimesheetCommandTrait, TimesheetId, TimesheetRow},
     },
 };
 use zeitrak_infrastructure_impl::tenant::timesheet::repositories::TimesheetRepository;

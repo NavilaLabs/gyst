@@ -76,7 +76,6 @@ impl<Repo> WorkspaceCommand<Repo> {
 #[async_trait]
 impl<Repo, R> WorkspaceCommandTrait<R> for WorkspaceCommand<Repo>
 where
-    R: Debug,
     Repo: Debug + WorkspaceRepository<R>,
 {
     type Error = crate::Error<Repo, Workspace, R>;

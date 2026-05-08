@@ -47,7 +47,6 @@ impl<Repo> UserCommand<Repo> {
 #[async_trait]
 impl<Repo, R> UserCommandTrait<R> for UserCommand<Repo>
 where
-    R: Debug,
     Repo: Debug + UserRepository<R>,
 {
     type Error = crate::Error<Repo, User, R>;

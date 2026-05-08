@@ -42,7 +42,7 @@ pub async fn update_workspace_settings(
     let repo = WorkspaceRepository::from_pool(pool).await?;
 
     let agg_id: WorkspaceId = workspace_id.parse()?;
-    let mut cmd = WorkspaceCommand::new(repo);
+    let cmd = WorkspaceCommand::new(repo);
     cmd.update_settings(agg_id, name, timezone, date_format, currency, week_start)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))

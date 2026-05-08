@@ -2,14 +2,16 @@ use std::fmt::Debug;
 use std::{ops::Deref, str::FromStr};
 
 use async_trait::async_trait;
-use eventually::aggregate::{Aggregate, Root};
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
+use eventually::aggregate::{Aggregate, Root};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
-use zeitrak_core::admin::user::{User, UserEvent, UserId, UserRepository as UserRepositoryTrait};
-use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 use sea_query::{Alias, Condition, Expr, ExprTrait};
 use sqlx::{Row, any::AnyRow};
+use zeitrak_core::admin::user::{
+    User, UserEvent, UserId, UserRepository as UserRepositoryTrait, UserRow,
+};
+use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 
 use crate::{
     ConnectedAdminPool, infrastructure::read_model::SeaQueryReadModel, snapshot::SnapshotRepository,
@@ -57,6 +59,42 @@ impl UserRepository {
         SeaQueryReadModel::new(&self.store.pool, TABLE)
     }
 
+    fn row_to_view(&self, row: AnyRow) -> Result<UserRow, crate::Error> {
+        let id: String = row.try_get("id")?;
+        let id = UserId::from_str(&id)?;
+        let name: String = row.try_get("name")?;
+        let email: String = row.try_get("email")?;
+        let timezone: String = row
+            .try_get("timezone")
+            .unwrap_or_else(|_| "Europe/Berlin".to_string());
+        let date_format: String = row
+            .try_get("date_format")
+            .unwrap_or_else(|_| "%Y-%m-%d".to_string());
+        let language: String = row.try_get("language").unwrap_or_else(|_| "en".to_string());
+        Ok(UserRow::new_with_settings(
+            id,
+            name,
+            email,
+            timezone,
+            date_format,
+            language,
+        ))
+    }
+
+    /// Fetch a `UserRow` view by string ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    pub async fn find_view_by_id(&self, id: &str) -> Result<Option<UserRow>, crate::Error> {
+        let rm = self.read_model();
+        let stmt = rm
+            .select()
+            .and_where(Expr::col(Alias::new("id")).eq(id))
+            .to_owned();
+        let row = rm.fetch_optional_row(&stmt).await?;
+        row.map(|r| self.row_to_view(r)).transpose()
+    }
 }
 
 #[async_trait]
@@ -82,13 +120,32 @@ impl RowToRoot<AnyRow, User> for UserRepository {
         let name: String = row.try_get("name")?;
         let email: String = row.try_get("email")?;
         let password: String = row.try_get("password")?;
-        let timezone: String = row.try_get("timezone").unwrap_or_else(|_| "Europe/Berlin".to_string());
-        let date_format: String = row.try_get("date_format").unwrap_or_else(|_| "%Y-%m-%d".to_string());
+        let timezone: String = row
+            .try_get("timezone")
+            .unwrap_or_else(|_| "Europe/Berlin".to_string());
+        let date_format: String = row
+            .try_get("date_format")
+            .unwrap_or_else(|_| "%Y-%m-%d".to_string());
         let language: String = row.try_get("language").unwrap_or_else(|_| "en".to_string());
-        let user = User::apply(None, UserEvent::Created { id, name, email, password })
-            .expect("Created event on None state is infallible");
-        let user = User::apply(Some(user), UserEvent::SettingsUpdated { timezone, date_format, language })
-            .expect("SettingsUpdated event on Some state is infallible");
+        let user = User::apply(
+            None,
+            UserEvent::Created {
+                id,
+                name,
+                email,
+                password,
+            },
+        )
+        .expect("Created event on None state is infallible");
+        let user = User::apply(
+            Some(user),
+            UserEvent::SettingsUpdated {
+                timezone,
+                date_format,
+                language,
+            },
+        )
+        .expect("SettingsUpdated event on Some state is infallible");
         Ok(Root::rehydrate_from_state(0, user)) // TODO: really get the version of the aggregte root.
     }
 }

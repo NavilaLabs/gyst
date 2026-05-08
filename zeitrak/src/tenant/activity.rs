@@ -1,7 +1,8 @@
 use anyhow::Result;
 use eventually::aggregate::repository::{Getter, Saver};
 use zeitrak_core::tenant::activity::{
-    ActivityCommand, ActivityId, ActivityRow, CreateActivityInput, UpdateActivityInput,
+    ActivityCommand, ActivityCommandTrait, ActivityId, ActivityRow, CreateActivityInput,
+    UpdateActivityInput,
 };
 use zeitrak_infrastructure_impl::tenant::activity::repositories::ActivityRepository;
 

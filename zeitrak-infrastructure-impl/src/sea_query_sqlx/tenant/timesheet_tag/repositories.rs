@@ -1,20 +1,21 @@
 use std::{collections::HashMap, ops::Deref, str::FromStr};
 
 use async_trait::async_trait;
-use eventually::aggregate::{Aggregate, Root};
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
+use eventually::aggregate::{Aggregate, Root};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
+use sea_query::{Condition, Expr, ExprTrait};
+use sqlx::{Row, any::AnyRow};
 use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 use zeitrak_core::tenant::timesheet_tag::{
     TimesheetTag, TimesheetTagEvent, TimesheetTagId,
     TimesheetTagRepository as TimesheetTagRepositoryTrait, TimesheetTagRow,
 };
-use sea_query::{Condition, Expr, ExprTrait};
-use sqlx::{Row, any::AnyRow};
 
 use crate::{
-    ConnectedTenantPool, infrastructure::read_model::SeaQueryReadModel, snapshot::SnapshotRepository,
+    ConnectedTenantPool, infrastructure::read_model::SeaQueryReadModel,
+    snapshot::SnapshotRepository,
 };
 
 const TABLE: &str = "projections__timesheet_tags";
@@ -130,25 +131,22 @@ impl RowToRoot<AnyRow, TimesheetTag> for TimesheetTagRepository {
     }
 }
 
-impl zeitrak_core::shared::repositories::Repository<TimesheetTag, AnyRow> for TimesheetTagRepository {}
+impl zeitrak_core::shared::repositories::Repository<TimesheetTag, AnyRow>
+    for TimesheetTagRepository
+{
+}
 
 #[async_trait]
 impl ReadRepository<TimesheetTag, AnyRow> for TimesheetTagRepository {
     type Error = crate::Error;
     type Filter = Condition;
 
-    async fn find(
-        &self,
-        id: TimesheetTagId,
-    ) -> Result<Option<Root<TimesheetTag>>, crate::Error> {
+    async fn find(&self, id: TimesheetTagId) -> Result<Option<Root<TimesheetTag>>, crate::Error> {
         self.find_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
             .await
     }
 
-    async fn find_by(
-        &self,
-        filter: Condition,
-    ) -> Result<Option<Root<TimesheetTag>>, crate::Error> {
+    async fn find_by(&self, filter: Condition) -> Result<Option<Root<TimesheetTag>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;

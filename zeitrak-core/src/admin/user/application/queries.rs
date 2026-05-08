@@ -35,7 +35,6 @@ impl<Repo> UserQuery<Repo> {
 #[async_trait]
 impl<Repo, R> UserQueryTrait<R> for UserQuery<Repo>
 where
-    R: Debug + Send + Sync,
     Repo: Debug + Send + Sync + UserRepository<R>,
 {
     type Error = <Repo as UserRepository<R>>::Error;
@@ -73,7 +72,6 @@ where
 #[async_trait]
 impl<Repo, R, A> LoginQueryTrait<R> for LoginQuery<Repo, A>
 where
-    R: Debug + Send + Sync,
     Repo: Debug + Send + Sync + UserRepository<R>,
     A: AuthenticationStrategy,
 {

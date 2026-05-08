@@ -47,7 +47,7 @@ macro_rules! aggregate_errors {
     };
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(thiserror::Error)]
 pub enum Error<Repo, Agg, R = ()>
 where
     Repo: ReadRepository<Agg, R> + WriteRepository<Agg>,
@@ -65,4 +65,23 @@ where
     ParseUuidError(#[from] uuid::Error),
     #[error("{0:?}")]
     SerdeJsonError(#[from] serde_json::Error),
+}
+
+impl<Repo, Agg, R> std::fmt::Debug for Error<Repo, Agg, R>
+where
+    Repo: ReadRepository<Agg, R> + WriteRepository<Agg>,
+    Agg: Debug + Aggregate,
+    <Repo as ReadRepository<Agg, R>>::Error: Debug,
+    <Repo as WriteRepository<Agg>>::Error: Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::AdminError(e) => write!(f, "AdminError({e:?})"),
+            Self::TenantError(e) => write!(f, "TenantError({e:?})"),
+            Self::ReadRepositoryError(e) => write!(f, "ReadRepositoryError({e:?})"),
+            Self::WriteRepositoryError(e) => write!(f, "WriteRepositoryError({e:?})"),
+            Self::ParseUuidError(e) => write!(f, "ParseUuidError({e:?})"),
+            Self::SerdeJsonError(e) => write!(f, "SerdeJsonError({e:?})"),
+        }
+    }
 }

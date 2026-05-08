@@ -5,8 +5,8 @@ use eventually::aggregate::repository::{Getter, Saver};
 use zeitrak_core::tenant::{
     timesheet::TimesheetId,
     timesheet_tag::{
-        CreateTimesheetTagInput, RenameTimesheetTagInput, TimesheetTagCommand, TimesheetTagId,
-        TimesheetTagRow,
+        CreateTimesheetTagInput, RenameTimesheetTagInput, TimesheetTagCommand,
+        TimesheetTagCommandTrait, TimesheetTagId, TimesheetTagRow,
     },
 };
 use zeitrak_infrastructure_impl::tenant::timesheet_tag::repositories::TimesheetTagRepository;
