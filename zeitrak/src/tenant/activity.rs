@@ -1,8 +1,7 @@
 use anyhow::Result;
-use eventually::aggregate::repository::{Getter, Saver};
 use zeitrak_core::tenant::activity::{
-    ActivityCommand, ActivityCommandTrait, ActivityId, ActivityRow, CreateActivityInput,
-    UpdateActivityInput,
+    ActivityHandler, ActivityHandlerTrait, ActivityId, ActivityQuery, ActivityQueryTrait, ActivityRow,
+    CreateActivityInput, UpdateActivityInput,
 };
 use zeitrak_infrastructure_impl::tenant::activity::repositories::ActivityRepository;
 
@@ -10,7 +9,10 @@ use zeitrak_infrastructure_impl::tenant::activity::repositories::ActivityReposit
 pub async fn list(workspace_id: &str) -> Result<Vec<ActivityRow>> {
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = ActivityRepository::from_pool(pool).await?;
-    Ok(repo.all().await?)
+    ActivityQuery::new(repo)
+        .list_all()
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
 /// Create a new activity, returning the saved view.
@@ -23,12 +25,11 @@ pub async fn create(
 
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = ActivityRepository::from_pool(pool).await?;
-
     let id = ActivityId::new();
-    let mut cmd = ActivityCommand::create(id.clone(), name.clone(), comment.clone())?;
-    repo.save(&mut cmd).await?;
-
-    Ok(ActivityRow::new(id, name, comment))
+    ActivityHandler::new(repo)
+        .create(id, name, comment)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
 /// Soft-delete an activity (excluded from future queries).
@@ -36,11 +37,10 @@ pub async fn delete(workspace_id: &str, id: &str) -> Result<()> {
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = ActivityRepository::from_pool(pool).await?;
     let agg_id: ActivityId = id.parse()?;
-    let root = repo.get(&agg_id).await?;
-    let mut cmd: ActivityCommand = root.into();
-    cmd.delete()?;
-    repo.save(&mut cmd).await?;
-    Ok(())
+    ActivityHandler::new(repo)
+        .delete(agg_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
 /// Update an existing activity's name and optional comment.
@@ -54,12 +54,9 @@ pub async fn update(
 
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = ActivityRepository::from_pool(pool).await?;
-
     let agg_id: ActivityId = id.parse()?;
-    let root = repo.get(&agg_id).await?;
-    let mut cmd: ActivityCommand = root.into();
-    cmd.update(name, comment)?;
-    repo.save(&mut cmd).await?;
-
-    Ok(())
+    ActivityHandler::new(repo)
+        .update(agg_id, name, comment)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
 }

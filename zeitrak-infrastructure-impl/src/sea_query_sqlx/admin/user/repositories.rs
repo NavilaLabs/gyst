@@ -59,7 +59,8 @@ impl UserRepository {
         SeaQueryReadModel::new(&self.store.pool, TABLE)
     }
 
-    fn row_to_view(&self, row: AnyRow) -> Result<UserRow, crate::Error> {
+    #[allow(clippy::unused_self)]
+    fn row_to_view(&self, row: &AnyRow) -> Result<UserRow, crate::Error> {
         let id: String = row.try_get("id")?;
         let id = UserId::from_str(&id)?;
         let name: String = row.try_get("name")?;
@@ -81,19 +82,14 @@ impl UserRepository {
         ))
     }
 
-    /// Fetch a `UserRow` view by string ID.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the database query fails.
-    pub async fn find_view_by_id(&self, id: &str) -> Result<Option<UserRow>, crate::Error> {
+    async fn find_view_by_id_impl(&self, id: &str) -> Result<Option<UserRow>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm
             .select()
             .and_where(Expr::col(Alias::new("id")).eq(id))
             .to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
-        row.map(|r| self.row_to_view(r)).transpose()
+        row.map(|r| self.row_to_view(&r)).transpose()
     }
 }
 
@@ -213,6 +209,10 @@ impl WriteRepository<User> for UserRepository {
 #[async_trait]
 impl UserRepositoryTrait<AnyRow> for UserRepository {
     type Error = crate::Error;
+
+    async fn find_view_by_id(&self, id: &str) -> Result<Option<UserRow>, crate::Error> {
+        self.find_view_by_id_impl(id).await
+    }
 
     async fn find_credentials_by_email(
         &self,

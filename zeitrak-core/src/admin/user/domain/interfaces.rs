@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use crate::{
-    admin::user::{self, domain::aggregates::User},
+    admin::user::{self, application::rows::UserRow, domain::aggregates::User},
     shared::repositories::{ReadRepository, Repository, WriteRepository},
 };
 use async_trait::async_trait;
@@ -25,6 +25,16 @@ pub trait UserRepository<R>: Repository<User, R> + Send + Sync {
         &self,
         email: &str,
     ) -> Result<Option<(String, String, String)>, <Self as UserRepository<R>>::Error>;
+
+    /// Returns the view row for the given user ID, or `None` if not found.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    async fn find_view_by_id(
+        &self,
+        id: &str,
+    ) -> Result<Option<UserRow>, <Self as UserRepository<R>>::Error>;
 
     /// # Errors
     ///
@@ -118,6 +128,13 @@ pub mod in_memory_repository {
             &self,
             _email: &str,
         ) -> Result<Option<(String, String, String)>, <Self as UserRepository<()>>::Error> {
+            Ok(None)
+        }
+
+        async fn find_view_by_id(
+            &self,
+            _id: &str,
+        ) -> Result<Option<crate::admin::user::application::rows::UserRow>, StubError> {
             Ok(None)
         }
     }

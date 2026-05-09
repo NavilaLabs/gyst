@@ -5,7 +5,7 @@ pub use application::{
     UserRoot,
     commands::{UserCommand, UserCommandTrait},
     inputs::{CreateUserInput, UpdateUserSettingsInput},
-    queries::{LoginQuery, LoginQueryTrait, UserQuery},
+    queries::{LoginQuery, LoginQueryTrait, UserQuery, UserQueryTrait},
     rows::UserRow,
 };
 pub use domain::{

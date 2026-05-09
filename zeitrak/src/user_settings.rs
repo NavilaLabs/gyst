@@ -1,13 +1,15 @@
 use anyhow::Result;
-use zeitrak_core::admin::user::{UserCommand, UserCommandTrait, UserId, UserRow};
+use zeitrak_core::admin::user::{UserCommand, UserCommandTrait, UserQuery, UserQueryTrait, UserId, UserRow};
 use zeitrak_infrastructure_impl::{Pool, admin::user::repositories::UserRepository};
 
 /// Returns the current settings for the given user.
 pub async fn get_user_settings(user_id: &str) -> Result<UserRow> {
     let pool = Pool::connect_admin().await?;
     let repo = UserRepository::from_pool(pool).await?;
-    repo.find_view_by_id(user_id)
-        .await?
+    UserQuery::new(repo)
+        .find_view_by_id(user_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?
         .ok_or_else(|| anyhow::anyhow!("user not found"))
 }
 

@@ -3,7 +3,7 @@ pub(crate) mod domain;
 
 pub use application::{
     TimesheetRoot,
-    commands::{TimesheetCommand, TimesheetCommandTrait},
+    commands::{TimesheetCommand, TimesheetCommandTrait, TimesheetHandler, TimesheetHandlerTrait},
     inputs::StartTimesheetInput,
     queries::{TimesheetQuery, TimesheetQueryTrait},
     views::TimesheetRow,

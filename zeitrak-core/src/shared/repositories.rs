@@ -17,6 +17,9 @@ where
 {
     type Error: Debug + Send + Sync;
 
+    /// # Errors
+    ///
+    /// Returns an error if the row cannot be converted to an aggregate root.
     fn row_to_root(&self, row: R) -> Result<Root<T>, Self::Error>;
 }
 

@@ -84,7 +84,7 @@ async fn get_tenant_pool(tenant_token: &str) -> Result<Pool<ScopeTenant, StateCo
     let mut database_name_builder = TenantDatabaseNameConcreteBuilder::new();
     TenantDatabaseNameDirector::construct(&mut database_name_builder, tenant_token);
     let database_name = database_name_builder.tenant_database_name();
-    let database_url = format!("postgres://postgres:postgres@postgres-test:5432/{database_name}",);
+    let database_url = format!("postgres://postgres:postgres@postgres-test:5432/{database_name}");
     Pool::connect(&DatabaseUri::from(Url::parse(&database_url).unwrap())).await
 }
 

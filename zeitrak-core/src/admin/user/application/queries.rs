@@ -4,7 +4,12 @@ use async_trait::async_trait;
 use eventually::aggregate::Root;
 
 use crate::admin::authenticator::{AuthenticationStrategy, Authenticator, Credentials};
-use crate::admin::user::{self, domain::aggregates::{User, UserId}, domain::interfaces::UserRepository};
+use crate::admin::user::{
+    self,
+    application::rows::UserRow,
+    domain::aggregates::{User, UserId},
+    domain::interfaces::UserRepository,
+};
 
 #[async_trait]
 pub trait UserQueryTrait<R> {
@@ -12,6 +17,8 @@ pub trait UserQueryTrait<R> {
 
     async fn find_by_id(&self, id: UserId) -> Result<Option<Root<User>>, Self::Error>;
     async fn find_all(&self) -> Result<Vec<Root<User>>, Self::Error>;
+    async fn find_view_by_id(&self, id: &str) -> Result<Option<UserRow>, Self::Error>;
+    async fn has_at_least_one_user(&self) -> Result<bool, Self::Error>;
 }
 
 #[async_trait]
@@ -45,6 +52,14 @@ where
 
     async fn find_all(&self) -> Result<Vec<Root<User>>, Self::Error> {
         self.repository.all().await.map_err(Into::into)
+    }
+
+    async fn find_view_by_id(&self, id: &str) -> Result<Option<UserRow>, Self::Error> {
+        self.repository.find_view_by_id(id).await
+    }
+
+    async fn has_at_least_one_user(&self) -> Result<bool, Self::Error> {
+        self.repository.has_at_least_one_user().await
     }
 }
 

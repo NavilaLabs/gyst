@@ -5,7 +5,7 @@ use zeitrak::infrastructure::{
     BackoffConfig, Pool, ProjectionDaemon, ProjectionRunner, ProjectionSource, SqlCheckpoint,
     tenant::projectors::TenantProjector,
 };
-use zeitrak_core::shared::repositories::ReadRepository;
+use zeitrak_core::admin::workspace::{WorkspaceQuery, WorkspaceQueryTrait};
 use zeitrak_infrastructure_impl::ConnectedAdminPool;
 use tracing::warn;
 
@@ -37,17 +37,28 @@ async fn main() -> Result<()> {
     }
     let admin_pool = admin_pool.unwrap();
 
-    let workspace_repo =
+    let mut workspaces = WorkspaceQuery::new(
         zeitrak::infrastructure::admin::workspace::repositories::WorkspaceRepository::from_pool(
-            admin_pool,
+            admin_pool.clone(),
         )
-        .await?;
-    let mut workspaces = workspace_repo.all().await?;
+        .await?,
+    )
+    .find_all()
+    .await
+    .map_err(|e| anyhow!("{e}"))?;
 
     while workspaces.is_empty() {
         tracing::warn!("No workspaces found in admin database — nothing to project.");
         tokio::time::sleep(Duration::from_secs(3)).await;
-        workspaces = workspace_repo.all().await?;
+        workspaces = WorkspaceQuery::new(
+            zeitrak::infrastructure::admin::workspace::repositories::WorkspaceRepository::from_pool(
+                admin_pool.clone(),
+            )
+            .await?,
+        )
+        .find_all()
+        .await
+        .map_err(|e| anyhow!("{e}"))?;
     }
 
     tracing::info!(

@@ -39,7 +39,7 @@ pub struct UserCommand<Repo> {
 }
 
 impl<Repo> UserCommand<Repo> {
-    pub fn new(repository: Repo) -> Self {
+    pub const fn new(repository: Repo) -> Self {
         Self { repository }
     }
 }

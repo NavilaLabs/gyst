@@ -2,6 +2,9 @@
 
 pub mod authentication;
 pub mod authorization;
+pub mod auth {
+    pub use super::authentication::{CurrentUser, validate_token};
+}
 pub mod error;
 pub mod setup;
 pub mod tenant;

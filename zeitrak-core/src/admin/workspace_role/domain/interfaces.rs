@@ -17,6 +17,7 @@ pub trait WorkspaceRoleRepository<R>: Repository<WorkspaceRole, R> + Send + Sync
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 pub mod in_memory_repository {
     use async_trait::async_trait;
     use eventually::aggregate::{

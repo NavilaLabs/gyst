@@ -25,6 +25,12 @@ pub struct TimesheetRepository {
     store: SnapshotRepository<Timesheet, ConnectedTenantPool>,
 }
 
+impl std::fmt::Debug for TimesheetRepository {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TimesheetRepository").finish_non_exhaustive()
+    }
+}
+
 impl Deref for TimesheetRepository {
     type Target = Repository<Timesheet, Json<Timesheet>, Json<TimesheetEvent>>;
 
@@ -235,6 +241,18 @@ impl Saver<Timesheet> for TimesheetRepository {
     }
 }
 
+#[async_trait]
 impl TimesheetRepositoryTrait<AnyRow> for TimesheetRepository {
     type Error = crate::Error;
+
+    async fn recent_for_user(&self, user_id: &str) -> Result<Vec<TimesheetRow>, crate::Error> {
+        self.recent_for_user(user_id).await
+    }
+
+    async fn running_for_user(
+        &self,
+        user_id: &str,
+    ) -> Result<Option<TimesheetRow>, crate::Error> {
+        self.running_for_user(user_id).await
+    }
 }

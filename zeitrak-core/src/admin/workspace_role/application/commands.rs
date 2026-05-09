@@ -46,7 +46,7 @@ pub struct WorkspaceRoleCommand<Repo> {
 }
 
 impl<Repo> WorkspaceRoleCommand<Repo> {
-    pub fn new(repository: Repo) -> Self {
+    pub const fn new(repository: Repo) -> Self {
         Self { repository }
     }
 }
@@ -54,7 +54,6 @@ impl<Repo> WorkspaceRoleCommand<Repo> {
 #[async_trait]
 impl<Repo, R> WorkspaceRoleCommandTrait<R> for WorkspaceRoleCommand<Repo>
 where
-    R: Debug,
     Repo: Debug + WorkspaceRoleRepository<R>,
 {
     type Error = crate::Error<Repo, WorkspaceRole, R>;

@@ -1,5 +1,9 @@
 use anyhow::Result;
-use zeitrak_core::admin::{authenticator::Authenticator, user::{LoginQuery, LoginQueryTrait}};
+use zeitrak_core::admin::{
+    authenticator::Authenticator,
+    user::{LoginQuery, LoginQueryTrait},
+    workspace::{WorkspaceQuery, WorkspaceQueryTrait},
+};
 use zeitrak_infrastructure::config::CONFIG;
 use zeitrak_infrastructure_impl::{
     Pool,
@@ -61,6 +65,9 @@ pub fn validate_token(token: &str) -> Result<CurrentUser> {
 /// Returns the first workspace ID the given user belongs to, or `None`.
 pub async fn get_user_workspace(user_id: &str) -> Result<Option<String>> {
     let pool = Pool::connect_admin().await?;
-    let workspace_repo = WorkspaceRepository::from_pool(pool).await?;
-    Ok(workspace_repo.find_workspace_for_user(user_id).await?)
+    let repo = WorkspaceRepository::from_pool(pool).await?;
+    WorkspaceQuery::new(repo)
+        .find_workspace_for_user(user_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
 }

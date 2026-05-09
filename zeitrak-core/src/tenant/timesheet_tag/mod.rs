@@ -3,7 +3,12 @@ pub(crate) mod domain;
 
 pub use application::{
     TimesheetTagRoot,
-    commands::{TimesheetTagCommand, TimesheetTagCommandTrait},
+    commands::{
+        TimesheetTagCommand,
+        TimesheetTagCommandTrait,
+        TimesheetTagHandler,
+        TimesheetTagHandlerTrait,
+    },
     inputs::{CreateTimesheetTagInput, RenameTimesheetTagInput},
     queries::{TimesheetTagQuery, TimesheetTagQueryTrait},
     views::TimesheetTagRow,

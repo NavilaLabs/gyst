@@ -1,9 +1,8 @@
 use anyhow::Result;
-use eventually::aggregate::{Root, repository::Saver};
 use zeitrak_core::admin::{
-    user::{UserEvent, UserId, UserRepository as UserRepositoryTrait},
-    workspace::{Workspace, WorkspaceEvent, WorkspaceId},
-    workspace_role::{WorkspaceRole, WorkspaceRoleEvent, WorkspaceRoleId},
+    user::{UserCommand, UserCommandTrait, UserQuery, UserQueryTrait, UserId},
+    workspace::{WorkspaceCommand, WorkspaceCommandTrait, WorkspaceId},
+    workspace_role::{WorkspaceRoleCommand, WorkspaceRoleCommandTrait, WorkspaceRoleId},
 };
 use zeitrak_infrastructure::database::Migrate;
 use zeitrak_infrastructure_impl::{
@@ -35,8 +34,11 @@ pub async fn init_admin_db() -> Result<()> {
 /// Returns `true` if at least one user exists, meaning setup has already been run.
 pub async fn is_setup_complete() -> Result<bool> {
     let pool = Pool::connect_admin().await?;
-    let user_repo = UserRepository::from_pool(pool).await?;
-    Ok(user_repo.has_at_least_one_user().await?)
+    let repo = UserRepository::from_pool(pool).await?;
+    UserQuery::new(repo)
+        .has_at_least_one_user()
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
 pub async fn setup_application(
@@ -48,59 +50,41 @@ pub async fn setup_application(
     let pool = Pool::connect_admin().await?;
 
     let user_repo = UserRepository::from_pool(pool.clone()).await?;
-
-    if user_repo.has_at_least_one_user().await? {
+    if UserQuery::new(user_repo)
+        .has_at_least_one_user()
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?
+    {
         anyhow::bail!("application is already set up");
     }
 
     // 1. Create the admin user.
     let password = hash_password(&password)?;
     let user_id = UserId::new();
-    let mut user_root = Root::<zeitrak_core::admin::user::User>::record_new(
-        UserEvent::Created {
-            id: user_id.clone(),
-            name: username,
-            email,
-            password,
-        }
-        .into(),
-    )?;
-    user_repo.save(&mut user_root).await?;
+    let _ = UserCommand::new(UserRepository::from_pool(pool.clone()).await?)
+        .create(user_id.clone(), username, email, password)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    // 2. Create the workspace (save first so the projection row exists before the role).
+    // 2. Create the workspace.
     let workspace_id = WorkspaceId::new();
-    let workspace_repo = WorkspaceRepository::from_pool(pool.clone()).await?;
-    let mut workspace_root = Root::<Workspace>::record_new(
-        WorkspaceEvent::Created {
-            id: workspace_id.clone(),
-            name: Some(workspace_name),
-        }
-        .into(),
-    )?;
-    workspace_repo.save(&mut workspace_root).await?;
+    let _ = WorkspaceCommand::new(WorkspaceRepository::from_pool(pool.clone()).await?)
+        .create(workspace_id.clone(), Some(workspace_name))
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     // 3. Create the "admin" role for this workspace.
-    let role_repo = WorkspaceRoleRepository::from_pool(pool.clone()).await?;
     let role_id = WorkspaceRoleId::new();
-    let mut role_root = Root::<WorkspaceRole>::record_new(
-        WorkspaceRoleEvent::Created {
-            id: role_id.clone(),
-            workspace_id: workspace_id.clone(),
-            name: Some("admin".to_string()),
-        }
-        .into(),
-    )?;
-    role_repo.save(&mut role_root).await?;
+    let _ = WorkspaceRoleCommand::new(WorkspaceRoleRepository::from_pool(pool.clone()).await?)
+        .create(role_id.clone(), workspace_id.clone(), Some("admin".to_string()))
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     // 4. Assign the user to the workspace with the admin role.
-    workspace_root.record_that(
-        WorkspaceEvent::UserRoleAssigned {
-            user_id,
-            workspace_role_id: role_id,
-        }
-        .into(),
-    )?;
-    workspace_repo.save(&mut workspace_root).await?;
+    WorkspaceCommand::new(WorkspaceRepository::from_pool(pool.clone()).await?)
+        .assign_user_role(workspace_id.clone(), user_id, role_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     // 5. Create and migrate the tenant database for this workspace.
     let tenant_token = workspace_id.to_string();

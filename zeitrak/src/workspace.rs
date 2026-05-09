@@ -1,5 +1,8 @@
 use anyhow::Result;
-use zeitrak_core::admin::workspace::{WorkspaceCommand, WorkspaceCommandTrait, WorkspaceId, WorkspaceRow};
+use zeitrak_core::admin::workspace::{
+    WorkspaceCommand, WorkspaceCommandTrait, WorkspaceId, WorkspaceQuery, WorkspaceQueryTrait,
+    WorkspaceRow,
+};
 use zeitrak_infrastructure_impl::{Pool, admin::workspace::repositories::WorkspaceRepository};
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +16,10 @@ pub struct WorkspaceInfo {
 pub async fn list_user_workspaces(user_id: &str) -> Result<Vec<WorkspaceInfo>> {
     let pool = Pool::connect_admin().await?;
     let repo = WorkspaceRepository::from_pool(pool).await?;
-    let rows = repo.find_workspaces_for_user(user_id).await?;
+    let rows = WorkspaceQuery::new(repo)
+        .find_workspaces_for_user(user_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
     Ok(rows
         .into_iter()
         .map(|(id, name)| WorkspaceInfo { id, name })
@@ -24,8 +30,10 @@ pub async fn list_user_workspaces(user_id: &str) -> Result<Vec<WorkspaceInfo>> {
 pub async fn get_workspace_settings(workspace_id: &str) -> Result<WorkspaceRow> {
     let pool = Pool::connect_admin().await?;
     let repo = WorkspaceRepository::from_pool(pool).await?;
-    repo.find_view_by_id(workspace_id)
-        .await?
+    WorkspaceQuery::new(repo)
+        .find_view_by_id(workspace_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?
         .ok_or_else(|| anyhow::anyhow!("workspace not found"))
 }
 

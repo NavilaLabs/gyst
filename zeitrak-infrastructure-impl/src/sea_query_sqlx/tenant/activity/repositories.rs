@@ -22,6 +22,12 @@ pub struct ActivityRepository {
     store: SnapshotRepository<Activity, ConnectedTenantPool>,
 }
 
+impl std::fmt::Debug for ActivityRepository {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ActivityRepository").finish_non_exhaustive()
+    }
+}
+
 impl Deref for ActivityRepository {
     type Target = Repository<Activity, Json<Activity>, Json<ActivityEvent>>;
 
@@ -153,6 +159,11 @@ impl Saver<Activity> for ActivityRepository {
     }
 }
 
+#[async_trait]
 impl ActivityRepositoryTrait<AnyRow> for ActivityRepository {
     type Error = crate::Error;
+
+    async fn list_all(&self) -> Result<Vec<ActivityRow>, crate::Error> {
+        self.all().await
+    }
 }

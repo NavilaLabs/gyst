@@ -1,18 +1,24 @@
 use std::fmt::Debug;
 
+use async_trait::async_trait;
 use eventually::aggregate;
 
 use crate::tenant::activity::{
     self,
+    application::views::ActivityRow,
     domain::{
         aggregates::{Activity, ActivityId},
         events::ActivityEvent,
+        interfaces::ActivityRepository,
     },
 };
 
 pub trait ActivityCommandTrait<T> {
     type Error: Debug + Sync + Send;
 
+    /// # Errors
+    ///
+    /// Returns an error if the event cannot be applied to the aggregate.
     fn create(
         &self,
         id: ActivityId,
@@ -20,15 +26,21 @@ pub trait ActivityCommandTrait<T> {
         comment: Option<String>,
     ) -> Result<T, Self::Error>;
 
+    /// # Errors
+    ///
+    /// Returns an error if the event cannot be applied to the aggregate.
     fn update(&mut self, name: String, comment: Option<String>) -> Result<(), Self::Error>;
 
+    /// # Errors
+    ///
+    /// Returns an error if the event cannot be applied to the aggregate.
     fn delete(&mut self) -> Result<(), Self::Error>;
 }
 
 #[eventually_macros::aggregate_root(Activity)]
 pub struct ActivityCommand;
 
-impl ActivityCommandTrait<ActivityCommand> for ActivityCommand {
+impl ActivityCommandTrait<Self> for ActivityCommand {
     type Error = activity::Error;
 
     fn create(
@@ -36,7 +48,7 @@ impl ActivityCommandTrait<ActivityCommand> for ActivityCommand {
         id: ActivityId,
         name: String,
         comment: Option<String>,
-    ) -> Result<ActivityCommand, Self::Error> {
+    ) -> Result<Self, Self::Error> {
         Ok(aggregate::Root::<Activity>::record_new(
             ActivityEvent::Created { id, name, comment }.into(),
         )?
@@ -65,6 +77,100 @@ impl ActivityCommand {
             ActivityEvent::Created { id, name, comment }.into(),
         )?
         .into())
+    }
+}
+
+#[async_trait]
+pub trait ActivityHandlerTrait<R> {
+    type Error: Debug + Sync + Send;
+
+    async fn create(
+        &self,
+        id: ActivityId,
+        name: String,
+        comment: Option<String>,
+    ) -> Result<ActivityRow, Self::Error>;
+
+    async fn update(
+        &self,
+        id: ActivityId,
+        name: String,
+        comment: Option<String>,
+    ) -> Result<(), Self::Error>;
+
+    async fn delete(&self, id: ActivityId) -> Result<(), Self::Error>;
+}
+
+#[derive(Debug)]
+pub struct ActivityHandler<Repo> {
+    repository: Repo,
+}
+
+impl<Repo> ActivityHandler<Repo> {
+    pub const fn new(repository: Repo) -> Self {
+        Self { repository }
+    }
+}
+
+#[async_trait]
+impl<Repo, R> ActivityHandlerTrait<R> for ActivityHandler<Repo>
+where
+    Repo: Debug + ActivityRepository<R>,
+{
+    type Error = crate::Error<Repo, Activity, R>;
+
+    async fn create(
+        &self,
+        id: ActivityId,
+        name: String,
+        comment: Option<String>,
+    ) -> Result<ActivityRow, Self::Error> {
+        let mut root = aggregate::Root::<Activity>::record_new(
+            ActivityEvent::Created {
+                id: id.clone(),
+                name: name.clone(),
+                comment: comment.clone(),
+            }
+            .into(),
+        )?;
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))?;
+        Ok(ActivityRow::new(id, name, comment))
+    }
+
+    async fn update(
+        &self,
+        id: ActivityId,
+        name: String,
+        comment: Option<String>,
+    ) -> Result<(), Self::Error> {
+        let mut root: ActivityCommand = self
+            .repository
+            .get(&id)
+            .await
+            .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
+            .into();
+        root.update(name, comment)?;
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))
+    }
+
+    async fn delete(&self, id: ActivityId) -> Result<(), Self::Error> {
+        let mut root: ActivityCommand = self
+            .repository
+            .get(&id)
+            .await
+            .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
+            .into();
+        root.delete()?;
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))
     }
 }
 

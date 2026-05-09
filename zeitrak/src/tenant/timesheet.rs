@@ -1,11 +1,13 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use eventually::aggregate::repository::{Getter, Saver};
 use zeitrak_core::{
     shared::AggregateId,
     tenant::{
         activity::ActivityId,
-        timesheet::{TimesheetCommand, TimesheetCommandTrait, TimesheetId, TimesheetRow},
+        timesheet::{
+            TimesheetHandler, TimesheetHandlerTrait, TimesheetId, TimesheetQuery,
+            TimesheetQueryTrait, TimesheetRow,
+        },
     },
 };
 use zeitrak_infrastructure_impl::tenant::timesheet::repositories::TimesheetRepository;
@@ -13,13 +15,19 @@ use zeitrak_infrastructure_impl::tenant::timesheet::repositories::TimesheetRepos
 pub async fn recent(workspace_id: &str, user_id: &str) -> Result<Vec<TimesheetRow>> {
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = TimesheetRepository::from_pool(pool).await?;
-    Ok(repo.recent_for_user(user_id).await?)
+    TimesheetQuery::new(repo)
+        .recent_for_user(user_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
 pub async fn running(workspace_id: &str, user_id: &str) -> Result<Option<TimesheetRow>> {
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = TimesheetRepository::from_pool(pool).await?;
-    Ok(repo.running_for_user(user_id).await?)
+    TimesheetQuery::new(repo)
+        .running_for_user(user_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
 pub async fn start(
@@ -29,9 +37,13 @@ pub async fn start(
     description: Option<String>,
 ) -> Result<TimesheetRow> {
     let pool = super::tenant_pool(workspace_id).await?;
-    let repo = TimesheetRepository::from_pool(pool).await?;
 
-    if repo.running_for_user(user_id).await?.is_some() {
+    // Check for an already-running timer before starting a new one.
+    let running = TimesheetQuery::new(TimesheetRepository::from_pool(pool.clone()).await?)
+        .running_for_user(user_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    if running.is_some() {
         return Err(crate::error::ValidationError::new(
             "A timer is already running — stop it before starting a new one",
         )
@@ -44,50 +56,36 @@ pub async fn start(
     let start_time = Utc::now().to_rfc3339();
     let timezone = "UTC".to_string();
 
-    let mut cmd = TimesheetCommand::start(
-        id.clone(),
-        uid.clone(),
-        aid.clone(),
-        start_time.clone(),
-        timezone.clone(),
-    )?;
-    if let Some(ref desc) = description {
-        cmd.update(Some(desc.clone()))?;
-    }
-    repo.save(&mut cmd).await?;
-
-    Ok(TimesheetRow::new(
-        id,
-        uid,
-        aid,
-        start_time,
-        None,
-        None,
-        description,
-        timezone,
-    ))
+    TimesheetHandler::new(TimesheetRepository::from_pool(pool).await?)
+        .start(id, uid, aid, start_time, timezone, description)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
 pub async fn stop(workspace_id: &str, timesheet_id: &str) -> Result<()> {
     let pool = super::tenant_pool(workspace_id).await?;
-    let repo = TimesheetRepository::from_pool(pool).await?;
-
     let agg_id: TimesheetId = timesheet_id.parse()?;
-    let root = repo.get(&agg_id).await?;
-    let mut cmd: TimesheetCommand = root.into();
+
+    // Load start_time to compute duration before stopping.
+    let root = TimesheetQuery::new(TimesheetRepository::from_pool(pool.clone()).await?)
+        .find_by_id(agg_id.clone())
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?
+        .ok_or_else(|| anyhow::anyhow!("timesheet not found"))?;
 
     let end_time = Utc::now();
     let end_rfc = end_time.to_rfc3339();
     #[allow(clippy::cast_possible_truncation)]
-    let duration = DateTime::parse_from_rfc3339(cmd.start_time())
+    let duration = DateTime::parse_from_rfc3339(root.start_time())
         .ok()
         .map_or(0, |start| {
             (end_time - start.with_timezone(&Utc)).num_seconds() as i32
         });
 
-    cmd.stop(end_rfc, duration)?;
-    repo.save(&mut cmd).await?;
-    Ok(())
+    TimesheetHandler::new(TimesheetRepository::from_pool(pool).await?)
+        .stop(agg_id, end_rfc, duration)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
 pub async fn update(
@@ -98,23 +96,21 @@ pub async fn update(
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = TimesheetRepository::from_pool(pool).await?;
     let agg_id: TimesheetId = timesheet_id.parse()?;
-    let root = repo.get(&agg_id).await?;
-    let mut cmd: TimesheetCommand = root.into();
-    cmd.update(description)?;
-    repo.save(&mut cmd).await?;
-    Ok(())
+    TimesheetHandler::new(repo)
+        .update(agg_id, description)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
 pub async fn reassign(workspace_id: &str, timesheet_id: &str, activity_id: &str) -> Result<()> {
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = TimesheetRepository::from_pool(pool).await?;
     let agg_id: TimesheetId = timesheet_id.parse()?;
-    let root = repo.get(&agg_id).await?;
-    let mut cmd: TimesheetCommand = root.into();
     let aid: ActivityId = activity_id.parse()?;
-    cmd.reassign(aid)?;
-    repo.save(&mut cmd).await?;
-    Ok(())
+    TimesheetHandler::new(repo)
+        .reassign(agg_id, aid)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
 /// Create a completed timesheet from explicit start and end times (manual entry).
@@ -145,42 +141,21 @@ pub async fn create_manual(
     let id = TimesheetId::new();
     let uid: AggregateId = user_id.parse()?;
     let aid: Option<ActivityId> = activity_id.map(str::parse).transpose()?;
-    let timezone = "UTC".to_string();
 
-    let mut cmd = TimesheetCommand::start(
-        id.clone(),
-        uid.clone(),
-        aid.clone(),
-        start_rfc.clone(),
-        timezone.clone(),
-    )?;
-    cmd.stop(end_rfc.clone(), duration)?;
-    if let Some(ref desc) = description {
-        cmd.update(Some(desc.clone()))?;
-    }
-    repo.save(&mut cmd).await?;
-
-    Ok(TimesheetRow::new(
-        id,
-        uid,
-        aid,
-        start_rfc,
-        Some(end_rfc),
-        Some(duration),
-        description,
-        timezone,
-    ))
+    TimesheetHandler::new(repo)
+        .create_manual(id, uid, aid, start_rfc, end_rfc, duration, description)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
 pub async fn cancel(workspace_id: &str, timesheet_id: &str) -> Result<()> {
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = TimesheetRepository::from_pool(pool).await?;
     let agg_id: TimesheetId = timesheet_id.parse()?;
-    let root = repo.get(&agg_id).await?;
-    let mut cmd: TimesheetCommand = root.into();
-    cmd.cancel()?;
-    repo.save(&mut cmd).await?;
-    Ok(())
+    TimesheetHandler::new(repo)
+        .cancel(agg_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
 pub async fn update_time(
@@ -207,11 +182,10 @@ pub async fn update_time(
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = TimesheetRepository::from_pool(pool).await?;
     let agg_id: TimesheetId = timesheet_id.parse()?;
-    let root = repo.get(&agg_id).await?;
-    let mut cmd: TimesheetCommand = root.into();
-    cmd.update_time(start_dt.to_rfc3339(), end_rfc, duration)?;
-    repo.save(&mut cmd).await?;
-    Ok(())
+    TimesheetHandler::new(repo)
+        .update_time(agg_id, start_dt.to_rfc3339(), end_rfc, duration)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
 fn parse_datetime_utc(s: &str) -> Result<DateTime<Utc>> {

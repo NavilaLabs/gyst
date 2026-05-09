@@ -24,6 +24,12 @@ pub struct TimesheetTagRepository {
     store: SnapshotRepository<TimesheetTag, ConnectedTenantPool>,
 }
 
+impl std::fmt::Debug for TimesheetTagRepository {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TimesheetTagRepository").finish_non_exhaustive()
+    }
+}
+
 impl Deref for TimesheetTagRepository {
     type Target = Repository<TimesheetTag, Json<TimesheetTag>, Json<TimesheetTagEvent>>;
 
@@ -214,6 +220,25 @@ impl Saver<TimesheetTag> for TimesheetTagRepository {
     }
 }
 
+#[async_trait]
 impl TimesheetTagRepositoryTrait<AnyRow> for TimesheetTagRepository {
     type Error = crate::Error;
+
+    async fn list_all(&self) -> Result<Vec<TimesheetTagRow>, crate::Error> {
+        self.all().await
+    }
+
+    async fn for_timesheet(
+        &self,
+        timesheet_id: &str,
+    ) -> Result<Vec<TimesheetTagRow>, crate::Error> {
+        self.for_timesheet(timesheet_id).await
+    }
+
+    async fn for_timesheets_batch(
+        &self,
+        timesheet_ids: &[&str],
+    ) -> Result<HashMap<String, Vec<TimesheetTagRow>>, crate::Error> {
+        self.for_timesheets_batch(timesheet_ids).await
+    }
 }

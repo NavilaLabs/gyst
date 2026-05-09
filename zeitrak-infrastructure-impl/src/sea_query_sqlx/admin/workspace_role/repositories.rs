@@ -24,6 +24,12 @@ pub struct WorkspaceRoleRepository {
     store: SnapshotRepository<WorkspaceRole, ConnectedAdminPool>,
 }
 
+impl std::fmt::Debug for WorkspaceRoleRepository {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WorkspaceRoleRepository").finish_non_exhaustive()
+    }
+}
+
 impl Deref for WorkspaceRoleRepository {
     type Target = Repository<WorkspaceRole, Json<WorkspaceRole>, Json<WorkspaceRoleEvent>>;
 

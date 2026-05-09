@@ -24,7 +24,7 @@ pub struct PermissionCommand<Repo> {
 }
 
 impl<Repo> PermissionCommand<Repo> {
-    pub fn new(repository: Repo) -> Self {
+    pub const fn new(repository: Repo) -> Self {
         Self { repository }
     }
 }

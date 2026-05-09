@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 use crate::{
-    admin::workspace::{self, domain::aggregates::Workspace},
+    admin::workspace::{self, application::rows::WorkspaceRow, domain::aggregates::Workspace},
     shared::repositories::{ReadRepository, Repository, WriteRepository},
 };
 
@@ -14,9 +14,40 @@ pub trait WorkspaceRepository<R>: Repository<Workspace, R> + Send + Sync {
         + From<workspace::Error>
         + From<<Self as ReadRepository<Workspace, R>>::Error>
         + From<<Self as WriteRepository<Workspace>>::Error>;
+
+    /// Returns all (`workspace_id`, `workspace_name`) pairs the given user belongs to.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    async fn find_workspaces_for_user(
+        &self,
+        user_id: &str,
+    ) -> Result<Vec<(String, Option<String>)>, <Self as WorkspaceRepository<R>>::Error>;
+
+    /// Returns the first workspace ID the given user belongs to, or `None`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    async fn find_workspace_for_user(
+        &self,
+        user_id: &str,
+    ) -> Result<Option<String>, <Self as WorkspaceRepository<R>>::Error>;
+
+    /// Returns the view row for the given workspace ID, or `None` if not found.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    async fn find_view_by_id(
+        &self,
+        id: &str,
+    ) -> Result<Option<WorkspaceRow>, <Self as WorkspaceRepository<R>>::Error>;
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 pub mod in_memory_repository {
     use async_trait::async_trait;
     use eventually::aggregate::{
@@ -95,7 +126,29 @@ pub mod in_memory_repository {
         type Error = StubError;
     }
 
+    #[async_trait]
     impl WorkspaceRepository<()> for InMemoryWorkspaceRepository {
         type Error = StubError;
+
+        async fn find_workspaces_for_user(
+            &self,
+            _user_id: &str,
+        ) -> Result<Vec<(String, Option<String>)>, StubError> {
+            Ok(vec![])
+        }
+
+        async fn find_workspace_for_user(
+            &self,
+            _user_id: &str,
+        ) -> Result<Option<String>, StubError> {
+            Ok(None)
+        }
+
+        async fn find_view_by_id(
+            &self,
+            _id: &str,
+        ) -> Result<Option<WorkspaceRow>, StubError> {
+            Ok(None)
+        }
     }
 }

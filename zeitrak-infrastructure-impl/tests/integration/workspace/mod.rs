@@ -3,7 +3,7 @@ use eventually::aggregate::{
     repository::{Getter, Saver},
 };
 use eventually_projection::{Projector, RawEvent};
-use zeitrak_core::admin::workspace::{Workspace, WorkspaceEvent, WorkspaceId};
+use zeitrak_core::admin::workspace::{Workspace, WorkspaceEvent, WorkspaceId, WorkspaceRepository as _};
 use zeitrak_infrastructure_impl::admin::workspace::{
     projectors::WorkspaceProjector, repositories::WorkspaceRepository,
 };

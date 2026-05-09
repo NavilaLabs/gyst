@@ -3,7 +3,7 @@ pub(crate) mod domain;
 
 pub use application::{
     ActivityRoot,
-    commands::{ActivityCommand, ActivityCommandTrait},
+    commands::{ActivityCommand, ActivityCommandTrait, ActivityHandler, ActivityHandlerTrait},
     inputs::{CreateActivityInput, UpdateActivityInput},
     queries::{ActivityQuery, ActivityQueryTrait},
     views::ActivityRow,

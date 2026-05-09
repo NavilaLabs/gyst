@@ -1,19 +1,26 @@
 use std::fmt::Debug;
 
+use async_trait::async_trait;
 use eventually::aggregate;
 
+use crate::shared::AggregateId;
 use crate::tenant::activity::ActivityId;
 use crate::tenant::timesheet::{
     self,
+    application::views::TimesheetRow,
     domain::{
         aggregates::{Timesheet, TimesheetId},
         events::{TimesheetEvent, UserId},
+        interfaces::TimesheetRepository,
     },
 };
 
 pub trait TimesheetCommandTrait<T> {
     type Error: Debug + Sync + Send;
 
+    /// # Errors
+    ///
+    /// Returns an error if the event cannot be applied to the aggregate.
     #[allow(clippy::too_many_arguments)]
     fn start(
         &self,
@@ -24,14 +31,29 @@ pub trait TimesheetCommandTrait<T> {
         timezone: String,
     ) -> Result<T, Self::Error>;
 
+    /// # Errors
+    ///
+    /// Returns an error if the event cannot be applied to the aggregate.
     fn stop(&mut self, end_time: String, duration: i32) -> Result<(), Self::Error>;
 
+    /// # Errors
+    ///
+    /// Returns an error if the event cannot be applied to the aggregate.
     fn update(&mut self, description: Option<String>) -> Result<(), Self::Error>;
 
+    /// # Errors
+    ///
+    /// Returns an error if the event cannot be applied to the aggregate.
     fn reassign(&mut self, activity_id: ActivityId) -> Result<(), Self::Error>;
 
+    /// # Errors
+    ///
+    /// Returns an error if the event cannot be applied to the aggregate.
     fn cancel(&mut self) -> Result<(), Self::Error>;
 
+    /// # Errors
+    ///
+    /// Returns an error if the event cannot be applied to the aggregate.
     fn update_time(
         &mut self,
         start_time: String,
@@ -43,7 +65,7 @@ pub trait TimesheetCommandTrait<T> {
 #[eventually_macros::aggregate_root(Timesheet)]
 pub struct TimesheetCommand;
 
-impl TimesheetCommandTrait<TimesheetCommand> for TimesheetCommand {
+impl TimesheetCommandTrait<Self> for TimesheetCommand {
     type Error = timesheet::Error;
 
     #[allow(clippy::too_many_arguments)]
@@ -54,7 +76,7 @@ impl TimesheetCommandTrait<TimesheetCommand> for TimesheetCommand {
         activity_id: Option<ActivityId>,
         start_time: String,
         timezone: String,
-    ) -> Result<TimesheetCommand, Self::Error> {
+    ) -> Result<Self, Self::Error> {
         Ok(aggregate::Root::<Timesheet>::record_new(
             TimesheetEvent::Started {
                 id,
@@ -124,6 +146,247 @@ impl TimesheetCommand {
             .into(),
         )?
         .into())
+    }
+}
+
+#[async_trait]
+pub trait TimesheetHandlerTrait<R> {
+    type Error: Debug + Sync + Send;
+
+    #[allow(clippy::too_many_arguments)]
+    async fn start(
+        &self,
+        id: TimesheetId,
+        user_id: AggregateId,
+        activity_id: Option<ActivityId>,
+        start_time: String,
+        timezone: String,
+        description: Option<String>,
+    ) -> Result<TimesheetRow, Self::Error>;
+
+    async fn stop(&self, id: TimesheetId, end_time: String, duration: i32)
+        -> Result<(), Self::Error>;
+
+    async fn update(
+        &self,
+        id: TimesheetId,
+        description: Option<String>,
+    ) -> Result<(), Self::Error>;
+
+    async fn reassign(
+        &self,
+        id: TimesheetId,
+        activity_id: ActivityId,
+    ) -> Result<(), Self::Error>;
+
+    async fn cancel(&self, id: TimesheetId) -> Result<(), Self::Error>;
+
+    #[allow(clippy::too_many_arguments)]
+    async fn create_manual(
+        &self,
+        id: TimesheetId,
+        user_id: AggregateId,
+        activity_id: Option<ActivityId>,
+        start_time: String,
+        end_time: String,
+        duration: i32,
+        description: Option<String>,
+    ) -> Result<TimesheetRow, Self::Error>;
+
+    async fn update_time(
+        &self,
+        id: TimesheetId,
+        start_time: String,
+        end_time: Option<String>,
+        duration: Option<i32>,
+    ) -> Result<(), Self::Error>;
+}
+
+#[derive(Debug)]
+pub struct TimesheetHandler<Repo> {
+    repository: Repo,
+}
+
+impl<Repo> TimesheetHandler<Repo> {
+    pub const fn new(repository: Repo) -> Self {
+        Self { repository }
+    }
+}
+
+#[async_trait]
+impl<Repo, R> TimesheetHandlerTrait<R> for TimesheetHandler<Repo>
+where
+    Repo: Debug + TimesheetRepository<R>,
+{
+    type Error = crate::Error<Repo, Timesheet, R>;
+
+    async fn start(
+        &self,
+        id: TimesheetId,
+        user_id: AggregateId,
+        activity_id: Option<ActivityId>,
+        start_time: String,
+        timezone: String,
+        description: Option<String>,
+    ) -> Result<TimesheetRow, Self::Error> {
+        let mut root: TimesheetCommand = aggregate::Root::<Timesheet>::record_new(
+            TimesheetEvent::Started {
+                id: id.clone(),
+                user_id: user_id.clone(),
+                activity_id: activity_id.clone(),
+                start_time: start_time.clone(),
+                timezone: timezone.clone(),
+            }
+            .into(),
+        )?
+        .into();
+        if let Some(ref desc) = description {
+            root.update(Some(desc.clone()))?;
+        }
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))?;
+        Ok(TimesheetRow::new(
+            id,
+            user_id,
+            activity_id,
+            start_time,
+            None,
+            None,
+            description,
+            timezone,
+        ))
+    }
+
+    async fn stop(
+        &self,
+        id: TimesheetId,
+        end_time: String,
+        duration: i32,
+    ) -> Result<(), Self::Error> {
+        let mut root: TimesheetCommand = self
+            .repository
+            .get(&id)
+            .await
+            .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
+            .into();
+        root.stop(end_time, duration)?;
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))
+    }
+
+    async fn update(
+        &self,
+        id: TimesheetId,
+        description: Option<String>,
+    ) -> Result<(), Self::Error> {
+        let mut root: TimesheetCommand = self
+            .repository
+            .get(&id)
+            .await
+            .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
+            .into();
+        root.update(description)?;
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))
+    }
+
+    async fn reassign(
+        &self,
+        id: TimesheetId,
+        activity_id: ActivityId,
+    ) -> Result<(), Self::Error> {
+        let mut root: TimesheetCommand = self
+            .repository
+            .get(&id)
+            .await
+            .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
+            .into();
+        root.reassign(activity_id)?;
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))
+    }
+
+    async fn cancel(&self, id: TimesheetId) -> Result<(), Self::Error> {
+        let mut root: TimesheetCommand = self
+            .repository
+            .get(&id)
+            .await
+            .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
+            .into();
+        root.cancel()?;
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))
+    }
+
+    async fn create_manual(
+        &self,
+        id: TimesheetId,
+        user_id: AggregateId,
+        activity_id: Option<ActivityId>,
+        start_time: String,
+        end_time: String,
+        duration: i32,
+        description: Option<String>,
+    ) -> Result<TimesheetRow, Self::Error> {
+        let mut root: TimesheetCommand = aggregate::Root::<Timesheet>::record_new(
+            TimesheetEvent::Started {
+                id: id.clone(),
+                user_id: user_id.clone(),
+                activity_id: activity_id.clone(),
+                start_time: start_time.clone(),
+                timezone: "UTC".to_string(),
+            }
+            .into(),
+        )?
+        .into();
+        root.stop(end_time.clone(), duration)?;
+        if let Some(ref desc) = description {
+            root.update(Some(desc.clone()))?;
+        }
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))?;
+        Ok(TimesheetRow::new(
+            id,
+            user_id,
+            activity_id,
+            start_time,
+            Some(end_time),
+            Some(duration),
+            description,
+            "UTC".to_string(),
+        ))
+    }
+
+    async fn update_time(
+        &self,
+        id: TimesheetId,
+        start_time: String,
+        end_time: Option<String>,
+        duration: Option<i32>,
+    ) -> Result<(), Self::Error> {
+        let mut root: TimesheetCommand = self
+            .repository
+            .get(&id)
+            .await
+            .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
+            .into();
+        root.update_time(start_time, end_time, duration)?;
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))
     }
 }
 

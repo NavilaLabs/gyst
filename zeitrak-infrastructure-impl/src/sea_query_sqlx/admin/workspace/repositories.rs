@@ -58,7 +58,8 @@ impl WorkspaceRepository {
         SeaQueryReadModel::new(&self.store.pool, TABLE)
     }
 
-    fn row_to_view(&self, row: AnyRow) -> Result<WorkspaceRow, crate::Error> {
+    #[allow(clippy::unused_self)]
+    fn row_to_view(&self, row: &AnyRow) -> Result<WorkspaceRow, crate::Error> {
         let id: String = row.try_get("id")?;
         let id = WorkspaceId::from_str(&id)?;
         let name: Option<String> = row.try_get("name")?;
@@ -69,12 +70,7 @@ impl WorkspaceRepository {
         Ok(WorkspaceRow::new_with_settings(id, name, timezone, date_format, currency, week_start))
     }
 
-    /// Returns all (`workspace_id`, `workspace_name`) pairs the given user belongs to.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the database query fails.
-    pub async fn find_workspaces_for_user(
+    async fn find_workspaces_for_user_impl(
         &self,
         user_id: &str,
     ) -> Result<Vec<(String, Option<String>)>, crate::Error> {
@@ -98,12 +94,7 @@ impl WorkspaceRepository {
             .collect()
     }
 
-    /// Returns the first workspace ID the given user belongs to, or `None`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the database query fails.
-    pub async fn find_workspace_for_user(
+    async fn find_workspace_for_user_impl(
         &self,
         user_id: &str,
     ) -> Result<Option<String>, crate::Error> {
@@ -123,19 +114,14 @@ impl WorkspaceRepository {
             .transpose()
     }
 
-    /// Fetch a `WorkspaceRow` by string ID, avoiding the `AnyPool` UUID-type panic.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the database query fails.
-    pub async fn find_view_by_id(&self, id: &str) -> Result<Option<WorkspaceRow>, crate::Error> {
+    async fn find_view_by_id_impl(&self, id: &str) -> Result<Option<WorkspaceRow>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm
             .select()
             .and_where(Expr::col(Alias::new("id")).eq(id))
             .to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
-        row.map(|r| self.row_to_view(r)).transpose()
+        row.map(|r| self.row_to_view(&r)).transpose()
     }
 }
 
@@ -235,6 +221,25 @@ impl Saver<Workspace> for WorkspaceRepository {
     }
 }
 
+#[async_trait]
 impl WorkspaceRepositoryTrait<AnyRow> for WorkspaceRepository {
     type Error = crate::Error;
+
+    async fn find_workspaces_for_user(
+        &self,
+        user_id: &str,
+    ) -> Result<Vec<(String, Option<String>)>, crate::Error> {
+        self.find_workspaces_for_user_impl(user_id).await
+    }
+
+    async fn find_workspace_for_user(
+        &self,
+        user_id: &str,
+    ) -> Result<Option<String>, crate::Error> {
+        self.find_workspace_for_user_impl(user_id).await
+    }
+
+    async fn find_view_by_id(&self, id: &str) -> Result<Option<WorkspaceRow>, crate::Error> {
+        self.find_view_by_id_impl(id).await
+    }
 }

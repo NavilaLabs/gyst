@@ -68,7 +68,7 @@ pub struct WorkspaceCommand<Repo> {
 }
 
 impl<Repo> WorkspaceCommand<Repo> {
-    pub fn new(repository: Repo) -> Self {
+    pub const fn new(repository: Repo) -> Self {
         Self { repository }
     }
 }
