@@ -5,7 +5,7 @@ database:
     admin:
       name: ${ADMIN_DATABASE_NAME}
     tenant:
-      name_prefix: loom_tenant_
+      name_prefix: zeitrak_tenant_
 
   pool:
     max_size: 20

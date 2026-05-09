@@ -1,27 +1,27 @@
 set dotenv-load := true
-set dotenv-filename := ".env.dev"
+set dotenv-filename := ".env"
 set shell := ["bash", "-uc"]
 
 serve:
     just update && \
-    cd /workspaces/loom/loom-presentation/gui/packages/web && \
+    cd /workspaces/zeitrak/zeitrak-presentation/gui/packages/web && \
     dx serve --fullstack --port 8080 --addr 0.0.0.0
 
 project-admin:
     just update && \
-    cargo run -p loom --bin admin-projection-daemon
+    cargo run -p zeitrak --bin admin-projection-daemon
 
 project-tenant:
     just update && \
-    cargo run -p loom --bin tenant-projection-daemon
+    cargo run -p zeitrak --bin tenant-projection-daemon
 
 watch-tw:
     just update && \
-    cd /workspaces/loom/loom-presentation/gui/packages/ui && \
+    cd /workspaces/zeitrak/zeitrak-presentation/gui/packages/ui && \
     deno run -A npm:@tailwindcss/cli -i ./input.css -o ./assets/tailwind.css --watch
 
 update:
-    cargo update && cd loom-presentation/gui && cargo update
+    cargo update && cd zeitrak-presentation/gui && cargo update
 
 load-dev-env:
-    [ -f .env.dev ] && set -a && source .env.dev && set +a
+    [ -f .env ] && set -a && source .env && set +a

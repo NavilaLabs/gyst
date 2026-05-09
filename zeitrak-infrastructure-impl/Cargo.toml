@@ -1,0 +1,53 @@
+[package]
+name = "zeitrak-infrastructure-impl"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+chrono = { workspace = true }
+embassy-futures = { workspace = true }
+eventually = { version = "0.5", git = "https://github.com/get-eventually/eventually-rs" }
+eventually-any = { version = "0.1", git = "https://github.com/NavilaLabs/eventually-any", features = [
+  "snapshots",
+  "tracing",
+] }
+eventually-projection = { version = "0.1", git = "https://github.com/NavilaLabs/eventually-projection", features = [
+  "tracing",
+] }
+zeitrak-core = { path = "../zeitrak-core" }
+zeitrak-admin-migrations = { path = "../zeitrak-migrations/zeitrak-admin-migrations" }
+zeitrak-infrastructure = { path = "../zeitrak-infrastructure" }
+zeitrak-tenant-migrations = { path = "../zeitrak-migrations/zeitrak-tenant-migrations" }
+sea-orm = { version = "2.0.0-rc.28", optional = true, default-features = false, features = ["sqlx-postgres", "sqlx-sqlite"] }
+sea-query = { version = "1.0.0-rc.28", optional = true }
+sea-query-sqlx = { version = "0.8.0-rc.11", features = ["sqlx-any", "runtime-tokio-rustls", "with-json", "with-chrono", "with-time", "with-uuid", "with-rust_decimal"], optional = true }
+serde.workspace = true
+serde_json = { workspace = true }
+sqlx = { workspace = true, optional = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
+bcrypt = "0.19"
+
+[dev-dependencies]
+eventually = { version = "0.5", git = "https://github.com/get-eventually/eventually-rs" }
+serial_test = "3.4"
+tempfile = "3"
+tokio = { workspace = true }
+zeitrak-tests = { path = "../zeitrak-tests" }
+with-lifecycle = { path = "../with-lifecycle" }
+
+[features]
+default = ["sea-query-sqlx", "sqlite"]
+sea-query-sqlx = ["dep:sea-orm", "dep:sea-query", "dep:sea-query-sqlx", "dep:sqlx"]
+sqlite = ["zeitrak-admin-migrations/sqlite", "zeitrak-tenant-migrations/sqlite", "eventually-any/sqlite", "eventually-projection/sqlite", "sea-orm/sqlx-sqlite", "dep:sea-query", "dep:sea-query-sqlx", "sqlx/sqlite"]
+postgres = ["zeitrak-admin-migrations/postgres", "zeitrak-tenant-migrations/postgres", "eventually-any/postgres", "eventually-projection/postgres", "sea-orm/sqlx-postgres", "dep:sea-query", "dep:sea-query-sqlx", "sqlx/postgres"]
+
+[[test]]
+name = "integration_infrastructure"
+path = "tests/integration/integration_tests.rs"
+
+[lints]
+workspace = true

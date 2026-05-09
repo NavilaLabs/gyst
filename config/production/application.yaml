@@ -1,5 +1,5 @@
 application:
   environment: production
-  name: Loom
+  name: Zeitrak
   project_root: ${APP_PROJECT_ROOT}
   authentication_secret: ${APP_AUTHENTICATION_SECRET}

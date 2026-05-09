@@ -1,0 +1,17 @@
+[package]
+name = "api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { version = "1", optional = true }
+dioxus = { workspace = true, features = ["fullstack"] }
+zeitrak = { path = "../../../../zeitrak", optional = true }
+serde = { version = "1", features = ["derive"] }
+tower-sessions = { version = "0.14", optional = true }
+
+[features]
+# default = ["server"]
+server = ["dioxus/server", "dep:anyhow", "dep:zeitrak", "dep:tower-sessions", "sqlite"]
+postgres = ["zeitrak/postgres"]
+sqlite = ["zeitrak/sqlite"]

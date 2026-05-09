@@ -1,6 +1,5 @@
 #!/bin/bash
 
-cp .env.dev.dist .env.dev
-cp .env.test.dist .env.test
+cp .env.dev.dist .env
 
-set -a && . ./.env.dev && set +a
+set -a && . ./.env && set +a

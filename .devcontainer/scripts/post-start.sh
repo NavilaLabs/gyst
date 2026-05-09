@@ -1,14 +1,14 @@
 #!/bin/bash
 
-sudo chown -R "$(whoami)":"$(whoami)" /workspaces/loom
+sudo chown -R "$(whoami)":"$(whoami)" /workspaces/zeitrak
 sudo chown -R "$(whoami)":"$(whoami)" /sqlite
 
 # Make scripts executable
-chmod +x /workspaces/loom/scripts/*.sh
+chmod +x /workspaces/zeitrak/scripts/*.sh
 
 # Add scripts to PATH if not already there
-if [[ ":$PATH:" != *":/workspaces/loom/scripts:"* ]]; then
-    echo 'export PATH="/workspaces/loom/scripts:$PATH"' >> ~/.bashrc
+if [[ ":$PATH:" != *":/workspaces/zeitrak/scripts:"* ]]; then
+    echo 'export PATH="/workspaces/zeitrak/scripts:$PATH"' >> ~/.bashrc
 fi
 
 # Install Deno only if it's missing
