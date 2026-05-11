@@ -1,10 +1,10 @@
 use std::fmt::Debug;
 
-use async_trait::async_trait;
 use crate::{
     admin::workspace_role::{self, domain::aggregates::WorkspaceRole},
     shared::repositories::{ReadRepository, Repository, WriteRepository},
 };
+use async_trait::async_trait;
 
 #[async_trait]
 pub trait WorkspaceRoleRepository<R>: Repository<WorkspaceRole, R> + Send + Sync {
@@ -28,7 +28,10 @@ pub mod in_memory_repository {
     use super::*;
     use crate::{
         admin::workspace_role::WorkspaceRoleId,
-        shared::{AggregateId, repositories::{ReadRepository, Repository, RowToRoot, WriteRepository}},
+        shared::{
+            AggregateId,
+            repositories::{ReadRepository, Repository, RowToRoot, WriteRepository},
+        },
     };
 
     impl RowToRoot<(), WorkspaceRole> for InMemoryWorkspaceRoleRepository {
@@ -45,22 +48,30 @@ pub mod in_memory_repository {
     pub struct StubError;
 
     impl From<GetError> for StubError {
-        fn from(_: GetError) -> Self { Self }
+        fn from(_: GetError) -> Self {
+            Self
+        }
     }
 
     impl From<SaveError> for StubError {
-        fn from(_: SaveError) -> Self { Self }
+        fn from(_: SaveError) -> Self {
+            Self
+        }
     }
 
     impl From<workspace_role::Error> for StubError {
-        fn from(_: workspace_role::Error) -> Self { Self }
+        fn from(_: workspace_role::Error) -> Self {
+            Self
+        }
     }
 
     #[derive(Debug)]
     pub struct InMemoryWorkspaceRoleRepository;
 
     impl InMemoryWorkspaceRoleRepository {
-        pub fn new() -> Self { Self }
+        pub fn new() -> Self {
+            Self
+        }
     }
 
     #[async_trait]
@@ -82,13 +93,30 @@ pub mod in_memory_repository {
         type Error = StubError;
         type Filter = ();
 
-        async fn find(&self, _id: AggregateId) -> Result<Option<Root<WorkspaceRole>>, StubError> { Ok(None) }
-        async fn find_by(&self, _filter: ()) -> Result<Option<Root<WorkspaceRole>>, StubError> { Ok(None) }
-        async fn find_many(&self, _ids: Vec<AggregateId>) -> Result<Vec<Root<WorkspaceRole>>, StubError> { Ok(vec![]) }
-        async fn find_many_by(&self, _filter: ()) -> Result<Vec<Root<WorkspaceRole>>, StubError> { Ok(vec![]) }
-        async fn all(&self) -> Result<Vec<Root<WorkspaceRole>>, StubError> { Ok(vec![]) }
-        async fn count_by(&self, _filter: ()) -> Result<u64, StubError> { Ok(0) }
-        async fn count(&self) -> Result<u64, StubError> { Ok(0) }
+        async fn find(&self, _id: AggregateId) -> Result<Option<Root<WorkspaceRole>>, StubError> {
+            Ok(None)
+        }
+        async fn find_by(&self, _filter: ()) -> Result<Option<Root<WorkspaceRole>>, StubError> {
+            Ok(None)
+        }
+        async fn find_many(
+            &self,
+            _ids: Vec<AggregateId>,
+        ) -> Result<Vec<Root<WorkspaceRole>>, StubError> {
+            Ok(vec![])
+        }
+        async fn find_many_by(&self, _filter: ()) -> Result<Vec<Root<WorkspaceRole>>, StubError> {
+            Ok(vec![])
+        }
+        async fn all(&self) -> Result<Vec<Root<WorkspaceRole>>, StubError> {
+            Ok(vec![])
+        }
+        async fn count_by(&self, _filter: ()) -> Result<u64, StubError> {
+            Ok(0)
+        }
+        async fn count(&self) -> Result<u64, StubError> {
+            Ok(0)
+        }
     }
 
     #[async_trait]

@@ -68,7 +68,12 @@ where
         name: Option<String>,
     ) -> Result<Root<WorkspaceRole>, <Self as WorkspaceRoleCommandTrait<R>>::Error> {
         let mut root = Root::<WorkspaceRole>::record_new(
-            WorkspaceRoleEvent::Created { id, workspace_id, name }.into(),
+            WorkspaceRoleEvent::Created {
+                id,
+                workspace_id,
+                name,
+            }
+            .into(),
         )?;
         self.repository
             .save(&mut root)
@@ -152,7 +157,8 @@ mod tests {
             .parse()
             .expect("valid UUID");
 
-        let result = cmd.record_that(WorkspaceRoleEvent::PermissionGranted { permission_id }.into());
+        let result =
+            cmd.record_that(WorkspaceRoleEvent::PermissionGranted { permission_id }.into());
         assert!(result.is_ok());
         assert_eq!(cmd.version(), 2);
     }
@@ -163,8 +169,15 @@ mod tests {
         let mut cmd = make_command_shell(role_id, workspace_id);
         let permission_id: PermissionId = "019d0ce8-facb-7c90-b9d7-287ae4f17c94".parse().unwrap();
 
-        cmd.record_that(WorkspaceRoleEvent::PermissionGranted { permission_id: permission_id.clone() }.into()).unwrap();
-        let result = cmd.record_that(WorkspaceRoleEvent::PermissionRevoked { permission_id }.into());
+        cmd.record_that(
+            WorkspaceRoleEvent::PermissionGranted {
+                permission_id: permission_id.clone(),
+            }
+            .into(),
+        )
+        .unwrap();
+        let result =
+            cmd.record_that(WorkspaceRoleEvent::PermissionRevoked { permission_id }.into());
 
         assert!(result.is_ok());
         assert_eq!(cmd.version(), 3);

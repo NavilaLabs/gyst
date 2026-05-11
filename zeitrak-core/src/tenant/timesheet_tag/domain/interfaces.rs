@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-use async_trait::async_trait;
 use crate::{
     shared::repositories::{ReadRepository, Repository, WriteRepository},
-    tenant::timesheet_tag::{application::views::TimesheetTagRow, domain::aggregates::TimesheetTag},
+    tenant::timesheet_tag::{
+        application::views::TimesheetTagRow, domain::aggregates::TimesheetTag,
+    },
 };
+use async_trait::async_trait;
 
 #[async_trait]
 pub trait TimesheetTagRepository<R>: Repository<TimesheetTag, R> + Send + Sync {

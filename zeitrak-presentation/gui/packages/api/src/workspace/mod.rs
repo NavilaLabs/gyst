@@ -7,6 +7,22 @@ pub struct WorkspaceDto {
     pub name: Option<String>,
 }
 
+/// Creates a new workspace for the authenticated user and selects it in the session.
+///
+/// The user is automatically assigned the "admin" role in the new workspace.
+#[post("/api/workspaces/create")]
+pub async fn create_workspace(workspace_name: String) -> Result<WorkspaceDto, ServerFnError> {
+    #[cfg(feature = "server")]
+    {
+        _create_workspace(workspace_name).await
+    }
+    #[cfg(not(feature = "server"))]
+    {
+        let _ = workspace_name;
+        Ok(WorkspaceDto { id: String::new(), name: None })
+    }
+}
+
 /// Returns the workspaces available to the currently authenticated user.
 #[get("/api/workspaces")]
 pub async fn list_workspaces() -> Result<Vec<WorkspaceDto>, ServerFnError> {
@@ -32,6 +48,40 @@ pub async fn select_workspace(workspace_id: String) -> Result<(), ServerFnError>
         let _ = workspace_id;
         Ok(())
     }
+}
+
+#[cfg(feature = "server")]
+async fn _create_workspace(workspace_name: String) -> Result<WorkspaceDto, ServerFnError> {
+    use crate::session::{internal, session_user};
+    use dioxus::fullstack::extract;
+    use tower_sessions::Session;
+
+    let mut user = session_user().await?;
+    let user_id = user.id.parse().map_err(|_| ServerFnError::ServerError {
+        message: "invalid user id in session".into(),
+        code: 500,
+        details: None,
+    })?;
+
+    let workspace_id = zeitrak::workspace::create_workspace_for_user(user_id, workspace_name.clone())
+        .await
+        .map_err(internal)?;
+
+    user.workspace_id = Some(workspace_id.to_string());
+    let session: Session = extract().await?;
+    session
+        .insert("user", user)
+        .await
+        .map_err(|e| ServerFnError::ServerError {
+            message: e.to_string(),
+            code: 500,
+            details: None,
+        })?;
+
+    Ok(WorkspaceDto {
+        id: workspace_id.to_string(),
+        name: Some(workspace_name),
+    })
 }
 
 #[cfg(feature = "server")]

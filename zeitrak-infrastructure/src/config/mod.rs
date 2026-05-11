@@ -38,8 +38,10 @@ impl Config {
 /// Returns an error if required environment variables are missing, config files cannot be read,
 /// or the YAML content cannot be deserialized.
 pub fn load_config() -> Result<Config, crate::Error> {
-    let project_root = var("APP_PROJECT_ROOT")?;
-    let environment = var("ENVIRONMENT")?;
+    dotenvy::dotenv().ok();
+
+    let project_root = var("ZK_PROJECT_ROOT")?;
+    let environment = var("ZK_ENVIRONMENT")?;
     let config_path = format!("{project_root}/config/{environment}");
 
     let mut file_string = String::new();
@@ -52,19 +54,30 @@ pub fn load_config() -> Result<Config, crate::Error> {
     file_string.push('\n');
     file_string.push_str(&std::fs::read_to_string(&logging_config_path)?);
 
-    let mut source = serde_vars::EnvSource::default();
-    let de = serde_yaml::Deserializer::from_str(&file_string);
-    let config: Config = serde_vars::deserialize(de, &mut source)?;
+    let config = config::Config::builder()
+        .add_source(config::File::from_str(&file_string, config::FileFormat::Yaml))
+        .add_source(config::Environment::with_prefix("DATABASE"))
+        .add_source(config::Environment::with_prefix("ADMIN"))
+        .build()?;
+    let config: crate::config::Config = config.try_deserialize()?;
 
     Ok(config)
+}
+
+const fn default_true() -> bool {
+    true
+}
+
+const fn default_300() -> chrono::Duration {
+    chrono::Duration::seconds(300)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    use zeitrak_tests::test_lifecycle;
     use with_lifecycle::with_lifecycle;
+    use zeitrak_tests::test_lifecycle;
 
     #[with_lifecycle(test_lifecycle)]
     #[test]

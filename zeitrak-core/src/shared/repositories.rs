@@ -1,7 +1,10 @@
 use std::fmt::Debug;
 
 use async_trait::async_trait;
-use eventually::aggregate::{Aggregate, Root, repository::{GetError, Getter, SaveError, Saver}};
+use eventually::aggregate::{
+    Aggregate, Root,
+    repository::{GetError, Getter, SaveError, Saver},
+};
 
 use crate::shared::AggregateId;
 
@@ -9,7 +12,8 @@ use crate::shared::AggregateId;
 pub trait Repository<T, R>: ReadRepository<T, R> + WriteRepository<T>
 where
     T: Aggregate,
-{}
+{
+}
 
 pub trait RowToRoot<R, T>
 where
@@ -35,7 +39,10 @@ where
     type Filter: Send + Sync + 'static;
 
     /// Returns the record wrapped in `Some`, or `None` if it does not exist.
-    async fn find(&self, id: AggregateId) -> Result<Option<Root<T>>, <Self as ReadRepository<T, R>>::Error>;
+    async fn find(
+        &self,
+        id: AggregateId,
+    ) -> Result<Option<Root<T>>, <Self as ReadRepository<T, R>>::Error>;
 
     /// Returns `true` if a record with the given id exists.
     async fn exists(&self, id: AggregateId) -> Result<bool, <Self as ReadRepository<T, R>>::Error> {
@@ -43,21 +50,36 @@ where
     }
 
     /// Returns the first record matching `filter`, or `None` if none match.
-    async fn find_by(&self, filter: Self::Filter) -> Result<Option<Root<T>>, <Self as ReadRepository<T, R>>::Error>;
+    async fn find_by(
+        &self,
+        filter: Self::Filter,
+    ) -> Result<Option<Root<T>>, <Self as ReadRepository<T, R>>::Error>;
 
     /// Returns all records whose id is in `ids`, silently omitting missing ones.
-    async fn find_many(&self, ids: Vec<AggregateId>) -> Result<Vec<Root<T>>, <Self as ReadRepository<T, R>>::Error>;
+    async fn find_many(
+        &self,
+        ids: Vec<AggregateId>,
+    ) -> Result<Vec<Root<T>>, <Self as ReadRepository<T, R>>::Error>;
 
     /// Returns all records matching `filter`.
-    async fn find_many_by(&self, filter: Self::Filter) -> Result<Vec<Root<T>>, <Self as ReadRepository<T, R>>::Error>;
+    async fn find_many_by(
+        &self,
+        filter: Self::Filter,
+    ) -> Result<Vec<Root<T>>, <Self as ReadRepository<T, R>>::Error>;
 
     /// Returns `true` if any record matches `filter`.
-    async fn exists_by(&self, filter: Self::Filter) -> Result<bool, <Self as ReadRepository<T, R>>::Error> {
+    async fn exists_by(
+        &self,
+        filter: Self::Filter,
+    ) -> Result<bool, <Self as ReadRepository<T, R>>::Error> {
         self.find_by(filter).await.map(|opt| opt.is_some())
     }
 
     /// Returns `true` if every id in `ids` has a corresponding record.
-    async fn exists_many(&self, ids: Vec<AggregateId>) -> Result<bool, <Self as ReadRepository<T, R>>::Error> {
+    async fn exists_many(
+        &self,
+        ids: Vec<AggregateId>,
+    ) -> Result<bool, <Self as ReadRepository<T, R>>::Error> {
         let expected = ids.len();
         self.find_many(ids)
             .await
@@ -65,19 +87,28 @@ where
     }
 
     /// Returns `true` if any record matches `filter`.
-    async fn exists_many_by(&self, filter: Self::Filter) -> Result<bool, <Self as ReadRepository<T, R>>::Error> {
+    async fn exists_many_by(
+        &self,
+        filter: Self::Filter,
+    ) -> Result<bool, <Self as ReadRepository<T, R>>::Error> {
         self.find_many_by(filter)
             .await
             .map(|found| !found.is_empty())
     }
 
     /// Returns the number of records whose id is in `ids`.
-    async fn count_many(&self, ids: Vec<AggregateId>) -> Result<u64, <Self as ReadRepository<T, R>>::Error> {
+    async fn count_many(
+        &self,
+        ids: Vec<AggregateId>,
+    ) -> Result<u64, <Self as ReadRepository<T, R>>::Error> {
         self.find_many(ids).await.map(|found| found.len() as u64)
     }
 
     /// Returns the number of records matching `filter`.
-    async fn count_by(&self, filter: Self::Filter) -> Result<u64, <Self as ReadRepository<T, R>>::Error>;
+    async fn count_by(
+        &self,
+        filter: Self::Filter,
+    ) -> Result<u64, <Self as ReadRepository<T, R>>::Error>;
 
     /// Returns all records.
     async fn all(&self) -> Result<Vec<Root<T>>, <Self as ReadRepository<T, R>>::Error>;

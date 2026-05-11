@@ -2,7 +2,10 @@ use eventually::aggregate::Aggregate;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    admin::{workspace::WorkspaceId, workspace_role::{self, WorkspaceRoleEvent}},
+    admin::{
+        workspace::WorkspaceId,
+        workspace_role::{self, WorkspaceRoleEvent},
+    },
     shared::AggregateId,
 };
 
@@ -59,7 +62,9 @@ impl Aggregate for WorkspaceRole {
                 workspace_id,
                 name,
             }),
-            (Some(_), WorkspaceRoleEvent::Created { .. }) => Err(workspace_role::Error::AlreadyExists),
+            (Some(_), WorkspaceRoleEvent::Created { .. }) => {
+                Err(workspace_role::Error::AlreadyExists)
+            }
             (None, _) => Err(workspace_role::Error::NotFound),
             (
                 Some(role),

@@ -28,8 +28,8 @@ async fn initialize_databases(
 }
 
 pub mod test_lifecycle {
-    use zeitrak_tests::test_lifecycle;
     use sqlx::any::install_default_drivers;
+    use zeitrak_tests::test_lifecycle;
 
     #[allow(dead_code)]
     pub fn before() {

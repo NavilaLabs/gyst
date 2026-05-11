@@ -1,15 +1,69 @@
 use anyhow::Result;
-use zeitrak_core::admin::workspace::{
-    WorkspaceCommand, WorkspaceCommandTrait, WorkspaceId, WorkspaceQuery, WorkspaceQueryTrait,
-    WorkspaceRow,
-};
-use zeitrak_infrastructure_impl::{Pool, admin::workspace::repositories::WorkspaceRepository};
 use serde::{Deserialize, Serialize};
+use zeitrak_core::admin::{
+    user::UserId,
+    workspace::{
+        WorkspaceCommand, WorkspaceCommandTrait, WorkspaceId, WorkspaceQuery, WorkspaceQueryTrait,
+        WorkspaceRow,
+    },
+    workspace_role::{WorkspaceRoleCommand, WorkspaceRoleCommandTrait, WorkspaceRoleId},
+};
+use zeitrak_infrastructure::database::Migrate;
+use zeitrak_infrastructure_impl::{
+    Pool, ScopeDefault, ScopeTenant, StateDisconnected,
+    admin::{
+        workspace::repositories::WorkspaceRepository,
+        workspace_role::repositories::WorkspaceRoleRepository,
+    },
+    database::{Initializer, SqliteInitializationStrategy},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkspaceInfo {
     pub id: String,
     pub name: Option<String>,
+}
+
+/// Creates a new workspace for an existing user and initialises its tenant database.
+///
+/// This is the post-registration counterpart to `setup_application`: it skips
+/// user creation and sets up the workspace, admin role, and tenant DB only.
+pub async fn create_workspace_for_user(
+    user_id: UserId,
+    workspace_name: String,
+) -> Result<WorkspaceId> {
+    let pool = Pool::connect_admin().await?;
+
+    let workspace_id = WorkspaceId::new();
+    let _ = WorkspaceCommand::new(WorkspaceRepository::from_pool(pool.clone()).await?)
+        .create(workspace_id.clone(), Some(workspace_name))
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    let role_id = WorkspaceRoleId::new();
+    let _ = WorkspaceRoleCommand::new(WorkspaceRoleRepository::from_pool(pool.clone()).await?)
+        .create(
+            role_id.clone(),
+            workspace_id.clone(),
+            Some("admin".to_string()),
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    WorkspaceCommand::new(WorkspaceRepository::from_pool(pool).await?)
+        .assign_user_role(workspace_id.clone(), user_id, role_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    let tenant_token = workspace_id.to_string();
+    let default_pool = Pool::<ScopeDefault, StateDisconnected>::connect_default().await?;
+    Initializer::new(SqliteInitializationStrategy)
+        .initialize_tenant(&default_pool, Some(&tenant_token))
+        .await?;
+    let tenant_pool = Pool::<ScopeTenant, StateDisconnected>::connect_tenant(&tenant_token).await?;
+    tenant_pool.migrate_database().await?;
+
+    Ok(workspace_id)
 }
 
 /// Returns all workspaces the given user is a member of.

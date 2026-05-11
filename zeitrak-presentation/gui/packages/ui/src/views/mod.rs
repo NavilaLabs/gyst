@@ -6,6 +6,8 @@ pub mod developer;
 pub use developer::*;
 pub mod login;
 pub use login::*;
+pub mod register;
+pub use register::*;
 pub mod select_workspace;
 pub use select_workspace::*;
 pub mod setup;

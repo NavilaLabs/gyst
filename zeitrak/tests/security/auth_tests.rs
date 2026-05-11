@@ -13,12 +13,12 @@
 ///   - Algorithm confusion HS512   → rejected (only HS256 is accepted)
 ///   - "alg:none" unsigned token   → rejected
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
-use zeitrak::auth::{CurrentUser, validate_token};
-use zeitrak_tests::test_lifecycle;
 use serde::Serialize;
 use serial_test::serial;
 use std::time::{SystemTime, UNIX_EPOCH};
 use with_lifecycle::with_lifecycle;
+use zeitrak::auth::{CurrentUser, validate_token};
+use zeitrak_tests::test_lifecycle;
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 database:
-  base_uri: ${DATABASE_BASE_URI}
+  base_uri: ${ZK_DATABASE_BASE_URI}
 
   databases:
     admin:

@@ -19,6 +19,7 @@ pub trait UserQueryTrait<R> {
     async fn find_all(&self) -> Result<Vec<Root<User>>, Self::Error>;
     async fn find_view_by_id(&self, id: &str) -> Result<Option<UserRow>, Self::Error>;
     async fn has_at_least_one_user(&self) -> Result<bool, Self::Error>;
+    async fn find_id_by_email(&self, email: &str) -> Result<Option<UserId>, Self::Error>;
 }
 
 #[async_trait]
@@ -61,6 +62,10 @@ where
     async fn has_at_least_one_user(&self) -> Result<bool, Self::Error> {
         self.repository.has_at_least_one_user().await
     }
+
+    async fn find_id_by_email(&self, email: &str) -> Result<Option<UserId>, Self::Error> {
+        self.repository.find_id_by_email(email).await
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -92,11 +97,7 @@ where
 {
     type Error = <Repo as UserRepository<R>>::Error;
 
-    async fn login(
-        &self,
-        email: &str,
-        password: &str,
-    ) -> Result<String, Self::Error> {
+    async fn login(&self, email: &str, password: &str) -> Result<String, Self::Error> {
         let (user_id, stored_email, password_hash) = self
             .repository
             .find_credentials_by_email(email)

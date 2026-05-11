@@ -1,13 +1,13 @@
 use std::time::Duration;
 
 use anyhow::{Result, anyhow};
+use tracing::warn;
 use zeitrak::infrastructure::{
     BackoffConfig, Pool, ProjectionDaemon, ProjectionRunner, ProjectionSource, SqlCheckpoint,
     tenant::projectors::TenantProjector,
 };
 use zeitrak_core::admin::workspace::{WorkspaceQuery, WorkspaceQueryTrait};
 use zeitrak_infrastructure_impl::ConnectedAdminPool;
-use tracing::warn;
 
 #[tokio::main]
 async fn main() -> Result<()> {

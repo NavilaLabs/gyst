@@ -1,4 +1,5 @@
 pub mod authenticator;
+pub mod invitation;
 pub mod permission;
 pub mod user;
 pub mod workspace;
@@ -20,6 +21,8 @@ pub enum Error {
     WorkspaceError(#[from] workspace::Error),
     #[error("{0:?}")]
     WorkspaceRoleError(#[from] workspace_role::Error),
+    #[error("{0:?}")]
+    InvitationError(#[from] invitation::Error),
 }
 
 impl<Repo, Agg, R> From<permission::Error> for crate::Error<Repo, Agg, R>
@@ -59,5 +62,15 @@ where
 {
     fn from(value: workspace_role::Error) -> Self {
         Self::AdminError(Error::WorkspaceRoleError(value))
+    }
+}
+
+impl<Repo, Agg, R> From<invitation::Error> for crate::Error<Repo, Agg, R>
+where
+    Agg: Debug + Aggregate,
+    Repo: ReadRepository<Agg, R> + WriteRepository<Agg>,
+{
+    fn from(value: invitation::Error) -> Self {
+        Self::AdminError(Error::InvitationError(value))
     }
 }

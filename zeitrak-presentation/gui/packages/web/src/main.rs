@@ -9,7 +9,7 @@ use ui::{
         organisms::{Header, Sidebar},
     },
     views::{
-        setup::Setup, Activities, Dashboard, Database, Login, SelectWorkspace, Settings, Tags,
+        setup::Setup, Activities, Dashboard, Database, Login, Register, SelectWorkspace, Settings, Tags,
         Timesheets,
     },
     ActivitiesCache, GlobalStyles, RunningElapsed, RunningTimer, SidebarOpen, TagsCache,
@@ -45,6 +45,8 @@ enum Route {
         #[layout(RequireSetupComplete)]
             #[route("/login")]
             Login {},
+            #[route("/register")]
+            Register {},
 
             #[layout(RequireAuth)]
                 // Workspace selection — accessible to any authenticated user.
@@ -302,7 +304,9 @@ fn Layout() -> Element {
         Route::Settings {} => "Settings",
         Route::Database {} => "Developer",
         Route::SelectWorkspace {} => "Workspaces",
-        Route::Login {} | Route::Setup {} => "",
+        Route::Login {} => "Login",
+        Route::Setup {} => "Setup",
+        Route::Register {} => "Register",
         Route::NotFound { .. } => "Not Found",
     };
 

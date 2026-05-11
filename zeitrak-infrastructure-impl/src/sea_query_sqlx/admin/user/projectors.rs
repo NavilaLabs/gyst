@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use eventually_projection::{Projector, RawEvent};
-use zeitrak_core::admin::user::UserEvent;
 use sea_query::{DynIden, OnConflict, PostgresQueryBuilder, Query, SqliteQueryBuilder, TableRef};
 use sea_query_sqlx::SqlxBinder;
+use zeitrak_core::admin::user::UserEvent;
 
 use crate::{DatabaseType, Pool, ScopeAdmin, StateConnected};
 

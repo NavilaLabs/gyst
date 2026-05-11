@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use async_trait::async_trait;
-use eventually::aggregate::{Root};
+use eventually::aggregate::Root;
 
 use crate::admin::user::{
     application::UserRoot,
@@ -127,12 +127,14 @@ mod tests {
             .parse()
             .expect("valid UUID");
 
-        let result = UserCommand::new(InMemoryUserRepository::new()).create(
-            id.clone(),
-            "Alice".to_string(),
-            "alice@example.com".to_string(),
-            "$2b$12$hash".to_string(),
-        ).await;
+        let result = UserCommand::new(InMemoryUserRepository::new())
+            .create(
+                id.clone(),
+                "Alice".to_string(),
+                "alice@example.com".to_string(),
+                "$2b$12$hash".to_string(),
+            )
+            .await;
 
         assert!(result.is_ok());
         let cmd = result.unwrap();
@@ -143,14 +145,15 @@ mod tests {
     #[tokio::test]
     async fn create_propagates_aggregate_error_on_bad_event() {
         assert!(
-            UserCommand::new(InMemoryUserRepository::new()).create(
-                test_id(),
-                "Bob".to_string(),
-                "bob@example.com".to_string(),
-                "$2b$12$hash".to_string(),
-            )
-            .await
-            .is_ok()
+            UserCommand::new(InMemoryUserRepository::new())
+                .create(
+                    test_id(),
+                    "Bob".to_string(),
+                    "bob@example.com".to_string(),
+                    "$2b$12$hash".to_string(),
+                )
+                .await
+                .is_ok()
         );
     }
 }

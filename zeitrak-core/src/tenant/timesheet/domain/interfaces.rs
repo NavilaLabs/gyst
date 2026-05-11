@@ -1,10 +1,10 @@
 use std::fmt::Debug;
 
-use async_trait::async_trait;
 use crate::{
     shared::repositories::{ReadRepository, Repository, WriteRepository},
     tenant::timesheet::{application::views::TimesheetRow, domain::aggregates::Timesheet},
 };
+use async_trait::async_trait;
 
 #[async_trait]
 pub trait TimesheetRepository<R>: Repository<Timesheet, R> + Send + Sync {

@@ -1,17 +1,17 @@
 use std::{ops::Deref, str::FromStr};
 
 use async_trait::async_trait;
-use eventually::aggregate::{Aggregate, Root};
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
+use eventually::aggregate::{Aggregate, Root};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
+use sea_query::{Alias, Condition, Expr, ExprTrait};
+use sqlx::{Row, any::AnyRow};
 use zeitrak_core::admin::workspace::{
     Workspace, WorkspaceEvent, WorkspaceId, WorkspaceRepository as WorkspaceRepositoryTrait,
     WorkspaceRow,
 };
 use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
-use sea_query::{Alias, Condition, Expr, ExprTrait};
-use sqlx::{Row, any::AnyRow};
 
 use crate::{
     ConnectedAdminPool, infrastructure::read_model::SeaQueryReadModel, snapshot::SnapshotRepository,
@@ -25,7 +25,8 @@ pub struct WorkspaceRepository {
 
 impl std::fmt::Debug for WorkspaceRepository {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("WorkspaceRepository").finish_non_exhaustive()
+        f.debug_struct("WorkspaceRepository")
+            .finish_non_exhaustive()
     }
 }
 
@@ -63,11 +64,26 @@ impl WorkspaceRepository {
         let id: String = row.try_get("id")?;
         let id = WorkspaceId::from_str(&id)?;
         let name: Option<String> = row.try_get("name")?;
-        let timezone: String = row.try_get("timezone").unwrap_or_else(|_| "Europe/Berlin".to_string());
-        let date_format: String = row.try_get("date_format").unwrap_or_else(|_| "%Y-%m-%d".to_string());
-        let currency: String = row.try_get("currency").unwrap_or_else(|_| "EUR".to_string());
-        let week_start: String = row.try_get("week_start").unwrap_or_else(|_| "monday".to_string());
-        Ok(WorkspaceRow::new_with_settings(id, name, timezone, date_format, currency, week_start))
+        let timezone: String = row
+            .try_get("timezone")
+            .unwrap_or_else(|_| "Europe/Berlin".to_string());
+        let date_format: String = row
+            .try_get("date_format")
+            .unwrap_or_else(|_| "%Y-%m-%d".to_string());
+        let currency: String = row
+            .try_get("currency")
+            .unwrap_or_else(|_| "EUR".to_string());
+        let week_start: String = row
+            .try_get("week_start")
+            .unwrap_or_else(|_| "monday".to_string());
+        Ok(WorkspaceRow::new_with_settings(
+            id,
+            name,
+            timezone,
+            date_format,
+            currency,
+            week_start,
+        ))
     }
 
     async fn find_workspaces_for_user_impl(
@@ -132,15 +148,35 @@ impl RowToRoot<AnyRow, Workspace> for WorkspaceRepository {
         let id: String = row.try_get("id")?;
         let id = WorkspaceId::from_str(&id)?;
         let name: Option<String> = row.try_get("name")?;
-        let timezone: String = row.try_get("timezone").unwrap_or_else(|_| "Europe/Berlin".to_string());
-        let date_format: String = row.try_get("date_format").unwrap_or_else(|_| "%Y-%m-%d".to_string());
-        let currency: String = row.try_get("currency").unwrap_or_else(|_| "EUR".to_string());
-        let week_start: String = row.try_get("week_start").unwrap_or_else(|_| "monday".to_string());
-        let workspace = Workspace::apply(None, WorkspaceEvent::Created { id, name: name.clone() })
-            .expect("Created event on None state is infallible");
+        let timezone: String = row
+            .try_get("timezone")
+            .unwrap_or_else(|_| "Europe/Berlin".to_string());
+        let date_format: String = row
+            .try_get("date_format")
+            .unwrap_or_else(|_| "%Y-%m-%d".to_string());
+        let currency: String = row
+            .try_get("currency")
+            .unwrap_or_else(|_| "EUR".to_string());
+        let week_start: String = row
+            .try_get("week_start")
+            .unwrap_or_else(|_| "monday".to_string());
+        let workspace = Workspace::apply(
+            None,
+            WorkspaceEvent::Created {
+                id,
+                name: name.clone(),
+            },
+        )
+        .expect("Created event on None state is infallible");
         let workspace = Workspace::apply(
             Some(workspace),
-            WorkspaceEvent::SettingsUpdated { name, timezone, date_format, currency, week_start },
+            WorkspaceEvent::SettingsUpdated {
+                name,
+                timezone,
+                date_format,
+                currency,
+                week_start,
+            },
         )
         .expect("SettingsUpdated event on Some state is infallible");
         Ok(Root::rehydrate_from_state(0, workspace))
@@ -232,10 +268,7 @@ impl WorkspaceRepositoryTrait<AnyRow> for WorkspaceRepository {
         self.find_workspaces_for_user_impl(user_id).await
     }
 
-    async fn find_workspace_for_user(
-        &self,
-        user_id: &str,
-    ) -> Result<Option<String>, crate::Error> {
+    async fn find_workspace_for_user(&self, user_id: &str) -> Result<Option<String>, crate::Error> {
         self.find_workspace_for_user_impl(user_id).await
     }
 

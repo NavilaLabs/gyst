@@ -1,0 +1,155 @@
+use anyhow::Result;
+use zeitrak_core::admin::user::{UserQuery, UserQueryTrait};
+use zeitrak_core::admin::{
+    invitation::{
+        InvitationCommand, InvitationCommandTrait, InvitationId, InvitationQuery,
+        InvitationQueryTrait, InvitationRow,
+    },
+    workspace::{
+        WorkspaceCommand, WorkspaceCommandTrait, WorkspaceId, WorkspaceQuery, WorkspaceQueryTrait,
+    },
+    workspace_role::WorkspaceRoleId,
+};
+use zeitrak_infrastructure::email::EmailSender;
+use zeitrak_infrastructure_impl::{
+    Pool,
+    admin::{
+        invitation::repositories::InvitationRepository, user::repositories::UserRepository,
+        workspace::repositories::WorkspaceRepository,
+    },
+};
+
+use crate::{authentication::CurrentUser, authorization::AuthorizationService};
+use zeitrak_core::permissions;
+
+/// Creates a workspace invitation and sends an email to the invitee.
+///
+/// Requires the `member.invite` permission in the given workspace.
+///
+/// # Errors
+///
+/// Returns a 403-style error if the user lacks permission, or a domain error
+/// on invalid input or email delivery failure.
+pub async fn invite_member(
+    workspace_id: &str,
+    invited_by: &CurrentUser,
+    email: String,
+    workspace_role_id: WorkspaceRoleId,
+    ttl_days: u32,
+    email_sender: &dyn EmailSender,
+    base_url: &str,
+) -> Result<InvitationId> {
+    AuthorizationService::require_permission(invited_by, workspace_id, permissions::MEMBER_INVITE)
+        .await?;
+
+    let pool = Pool::connect_admin().await?;
+    let repo = InvitationRepository::from_pool(pool.clone()).await?;
+
+    let workspace_id_parsed: WorkspaceId = workspace_id.parse()?;
+    let invited_by_id = invited_by.id.parse()?;
+    let invitation_id = InvitationId::new();
+
+    let root = InvitationCommand::new(repo)
+        .create(
+            invitation_id.clone(),
+            workspace_id_parsed,
+            invited_by_id,
+            email.clone(),
+            workspace_role_id,
+            ttl_days,
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    let token = root.token().to_string();
+    let link = format!("{base_url}/invite/{token}");
+
+    let workspace_name = WorkspaceQuery::new(WorkspaceRepository::from_pool(pool.clone()).await?)
+        .find_view_by_id(workspace_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?
+        .map_or_else(
+            || "Zeitrak".to_string(),
+            |w| w.name().unwrap_or("Zeitrak").to_string(),
+        );
+
+    let inviter_name = UserQuery::new(UserRepository::from_pool(pool).await?)
+        .find_view_by_id(&invited_by.id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?
+        .map_or_else(|| invited_by.email.clone(), |u| u.name().to_string());
+
+    email_sender
+        .send_invitation(&email, &link, &workspace_name, &inviter_name)
+        .await?;
+
+    Ok(invitation_id)
+}
+
+/// Returns the invitation associated with the given token, or `None` if not found.
+///
+/// # Errors
+///
+/// Returns an error if the database query fails.
+pub async fn get_invitation_by_token(token: &str) -> Result<Option<InvitationRow>> {
+    let pool = Pool::connect_admin().await?;
+    let repo = InvitationRepository::from_pool(pool).await?;
+    InvitationQuery::new(repo)
+        .find_by_token(token)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
+}
+
+/// Returns all invitations for the given workspace.
+///
+/// # Errors
+///
+/// Returns an error if the database query fails.
+pub async fn list_workspace_invitations(workspace_id: &str) -> Result<Vec<InvitationRow>> {
+    let pool = Pool::connect_admin().await?;
+    let repo = InvitationRepository::from_pool(pool).await?;
+    let ws_id: WorkspaceId = workspace_id.parse()?;
+    InvitationQuery::new(repo)
+        .find_by_workspace(&ws_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
+}
+
+/// Accepts a workspace invitation on behalf of the authenticated user.
+///
+/// On success the user is assigned to the workspace with the role specified in
+/// the invitation.  No new tenant database is created — the workspace already
+/// has one.
+///
+/// # Errors
+///
+/// Returns an error if the token is invalid, the invitation is expired/already
+/// used, or the assignment fails.
+pub async fn accept_invitation(token: &str, user_id: &str) -> Result<WorkspaceId> {
+    let pool = Pool::connect_admin().await?;
+    let repo = InvitationRepository::from_pool(pool.clone()).await?;
+
+    let row = InvitationQuery::new(repo)
+        .find_by_token(token)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?
+        .ok_or_else(|| anyhow::anyhow!("invitation not found"))?;
+
+    let invitation_id = row.id().clone();
+    let workspace_id = row.workspace_id.clone();
+    let workspace_role_id = row.workspace_role_id.clone();
+
+    let accepted_by = user_id.parse()?;
+    InvitationCommand::new(InvitationRepository::from_pool(pool.clone()).await?)
+        .accept(invitation_id, accepted_by)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    let user_id_parsed = user_id.parse()?;
+    WorkspaceCommand::new(WorkspaceRepository::from_pool(pool).await?)
+        .assign_user_role(workspace_id.clone(), user_id_parsed, workspace_role_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    Ok(workspace_id)
+}

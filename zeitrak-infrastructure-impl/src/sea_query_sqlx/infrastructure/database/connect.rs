@@ -1,5 +1,7 @@
 use std::{str::FromStr, time::Duration};
 
+use sqlx::any::AnyPoolOptions;
+use tracing::info;
 use zeitrak_infrastructure::{
     config::CONFIG,
     database::{
@@ -7,8 +9,6 @@ use zeitrak_infrastructure::{
         database_uri_factory::{self, DatabaseUriType},
     },
 };
-use sqlx::any::AnyPoolOptions;
-use tracing::info;
 
 use crate::{
     Error, ScopeAdmin, ScopeDefault, ScopeTenant,
@@ -92,11 +92,12 @@ impl Pool<ScopeDefault, StateDisconnected> {
     ///
     /// Panics if the hardcoded default URI fails to parse (should never happen).
     pub async fn connect_default() -> Result<Pool<ScopeDefault, StateConnected>, Error> {
-        Self::connect(
-            &url::Url::from_str("sqlite:///file:zeitrak?mode=memory&cache=shared")
-                .unwrap()
-                .into(),
-        )
-        .await
+        dbg!("connect");
+        let uri = &url::Url::from_str("sqlite:///file:zeitrak?mode=memory&cache=shared")
+            .unwrap()
+            .into();
+        dbg!(&uri);
+
+        Self::connect(uri).await
     }
 }

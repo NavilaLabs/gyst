@@ -1,10 +1,12 @@
 use std::{ops::Deref, str::FromStr};
 
 use async_trait::async_trait;
-use eventually::aggregate::{Aggregate, Root};
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
+use eventually::aggregate::{Aggregate, Root};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
+use sea_query::{Condition, Expr, ExprTrait};
+use sqlx::{Row, any::AnyRow};
 use zeitrak_core::admin::user::UserId;
 use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 use zeitrak_core::tenant::activity::ActivityId;
@@ -12,11 +14,10 @@ use zeitrak_core::tenant::timesheet::{
     Timesheet, TimesheetEvent, TimesheetId, TimesheetRepository as TimesheetRepositoryTrait,
     TimesheetRow,
 };
-use sea_query::{Condition, Expr, ExprTrait};
-use sqlx::{Row, any::AnyRow};
 
 use crate::{
-    ConnectedTenantPool, infrastructure::read_model::SeaQueryReadModel, snapshot::SnapshotRepository,
+    ConnectedTenantPool, infrastructure::read_model::SeaQueryReadModel,
+    snapshot::SnapshotRepository,
 };
 
 const TABLE: &str = "projections__timesheets";
@@ -27,7 +28,8 @@ pub struct TimesheetRepository {
 
 impl std::fmt::Debug for TimesheetRepository {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("TimesheetRepository").finish_non_exhaustive()
+        f.debug_struct("TimesheetRepository")
+            .finish_non_exhaustive()
     }
 }
 
@@ -132,7 +134,13 @@ impl RowToRoot<AnyRow, Timesheet> for TimesheetRepository {
 
         let ts = Timesheet::apply(
             None,
-            TimesheetEvent::Started { id, user_id, activity_id, start_time, timezone },
+            TimesheetEvent::Started {
+                id,
+                user_id,
+                activity_id,
+                start_time,
+                timezone,
+            },
         )
         .expect("Started event on None state is infallible");
 
@@ -147,7 +155,9 @@ impl RowToRoot<AnyRow, Timesheet> for TimesheetRepository {
         let ts = match description {
             Some(desc) => Timesheet::apply(
                 Some(ts),
-                TimesheetEvent::Updated { description: Some(desc) },
+                TimesheetEvent::Updated {
+                    description: Some(desc),
+                },
             )
             .expect("Updated event on Some state is infallible"),
             None => ts,
@@ -183,10 +193,7 @@ impl ReadRepository<Timesheet, AnyRow> for TimesheetRepository {
         row.map(|r| self.row_to_root(r)).transpose()
     }
 
-    async fn find_many(
-        &self,
-        ids: Vec<TimesheetId>,
-    ) -> Result<Vec<Root<Timesheet>>, crate::Error> {
+    async fn find_many(&self, ids: Vec<TimesheetId>) -> Result<Vec<Root<Timesheet>>, crate::Error> {
         if ids.is_empty() {
             return Ok(vec![]);
         }
@@ -249,10 +256,7 @@ impl TimesheetRepositoryTrait<AnyRow> for TimesheetRepository {
         self.recent_for_user(user_id).await
     }
 
-    async fn running_for_user(
-        &self,
-        user_id: &str,
-    ) -> Result<Option<TimesheetRow>, crate::Error> {
+    async fn running_for_user(&self, user_id: &str) -> Result<Option<TimesheetRow>, crate::Error> {
         self.running_for_user(user_id).await
     }
 }

@@ -38,10 +38,10 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use zeitrak_infrastructure::database::{DatabaseUri, Migrate};
-use zeitrak_infrastructure_impl::{Error, Pool, ScopeAdmin, ScopeTenant, StateConnected};
 use tempfile::TempDir;
 use url::Url;
+use zeitrak_infrastructure::database::{DatabaseUri, Migrate};
+use zeitrak_infrastructure_impl::{Error, Pool, ScopeAdmin, ScopeTenant, StateConnected};
 
 // ── unique fixture counter ────────────────────────────────────────────────────
 

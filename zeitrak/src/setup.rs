@@ -1,32 +1,33 @@
 use anyhow::Result;
-use zeitrak_core::admin::{
-    user::{UserCommand, UserCommandTrait, UserQuery, UserQueryTrait, UserId},
-    workspace::{WorkspaceCommand, WorkspaceCommandTrait, WorkspaceId},
-    workspace_role::{WorkspaceRoleCommand, WorkspaceRoleCommandTrait, WorkspaceRoleId},
-};
+use zeitrak_core::admin::user::{UserCommand, UserCommandTrait, UserId, UserQuery, UserQueryTrait};
 use zeitrak_infrastructure::database::Migrate;
 use zeitrak_infrastructure_impl::{
-    Pool, ScopeDefault, ScopeTenant, StateDisconnected,
-    admin::{
-        authentication::hash_password, user::repositories::UserRepository,
-        workspace::repositories::WorkspaceRepository,
-        workspace_role::repositories::WorkspaceRoleRepository,
-    },
+    Pool, ScopeDefault, StateDisconnected,
+    admin::{authentication::hash_password, user::repositories::UserRepository},
     database::{Initializer, SqliteInitializationStrategy},
 };
+
+use crate::workspace::create_workspace_for_user;
 
 /// Ensures the admin `SQLite` file exists and all migrations are up to date.
 /// Call once at server startup before accepting requests.
 pub async fn init_admin_db() -> Result<()> {
     // Create the file if it doesn't exist.
+    dbg!("ck");
     let default_pool = Pool::<ScopeDefault, StateDisconnected>::connect_default().await?;
-    Initializer::new(SqliteInitializationStrategy)
-        .initialize_admin(&default_pool)
+    dbg!("connected to default");
+    let ini = Initializer::new(SqliteInitializationStrategy);
+    dbg!("cosdcn");
+    dbg!(&ini);
+    ini.initialize_admin(&default_pool)
         .await?;
+    dbg!("initialized admin");
 
     // Run pending migrations.
     let admin_pool = Pool::connect_admin().await?;
+    dbg!("connected to admin");
     admin_pool.migrate_database().await?;
+    dbg!("migrated admin");
 
     Ok(())
 }
@@ -66,34 +67,8 @@ pub async fn setup_application(
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    // 2. Create the workspace.
-    let workspace_id = WorkspaceId::new();
-    let _ = WorkspaceCommand::new(WorkspaceRepository::from_pool(pool.clone()).await?)
-        .create(workspace_id.clone(), Some(workspace_name))
-        .await
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
-
-    // 3. Create the "admin" role for this workspace.
-    let role_id = WorkspaceRoleId::new();
-    let _ = WorkspaceRoleCommand::new(WorkspaceRoleRepository::from_pool(pool.clone()).await?)
-        .create(role_id.clone(), workspace_id.clone(), Some("admin".to_string()))
-        .await
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
-
-    // 4. Assign the user to the workspace with the admin role.
-    WorkspaceCommand::new(WorkspaceRepository::from_pool(pool.clone()).await?)
-        .assign_user_role(workspace_id.clone(), user_id, role_id)
-        .await
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
-
-    // 5. Create and migrate the tenant database for this workspace.
-    let tenant_token = workspace_id.to_string();
-    let default_pool = Pool::<ScopeDefault, StateDisconnected>::connect_default().await?;
-    Initializer::new(SqliteInitializationStrategy)
-        .initialize_tenant(&default_pool, Some(&tenant_token))
-        .await?;
-    let tenant_pool = Pool::<ScopeTenant, StateDisconnected>::connect_tenant(&tenant_token).await?;
-    tenant_pool.migrate_database().await?;
+    // 2–5. Create the workspace, admin role, assign user, init tenant DB.
+    create_workspace_for_user(user_id, workspace_name).await?;
 
     Ok(())
 }

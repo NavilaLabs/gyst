@@ -4,8 +4,8 @@ use eventually_projection::{Projector, RawEvent};
 use crate::{
     Pool, ScopeAdmin, StateConnected,
     sea_query_sqlx::admin::{
-        permission::projectors::PermissionProjector, user::projectors::UserProjector,
-        workspace::projectors::WorkspaceProjector,
+        invitation::projectors::InvitationProjector, permission::projectors::PermissionProjector,
+        user::projectors::UserProjector, workspace::projectors::WorkspaceProjector,
         workspace_role::projectors::WorkspaceRoleProjector,
     },
 };
@@ -24,6 +24,7 @@ pub struct AdminProjector {
     workspace: WorkspaceProjector,
     workspace_role: WorkspaceRoleProjector,
     permission: PermissionProjector,
+    invitation: InvitationProjector,
 }
 
 impl AdminProjector {
@@ -33,7 +34,8 @@ impl AdminProjector {
             user: UserProjector::new(pool.clone()),
             workspace: WorkspaceProjector::new(pool.clone()),
             workspace_role: WorkspaceRoleProjector::new(pool.clone()),
-            permission: PermissionProjector::new(pool),
+            permission: PermissionProjector::new(pool.clone()),
+            invitation: InvitationProjector::new(pool),
         }
     }
 }
@@ -46,7 +48,8 @@ impl Projector for AdminProjector {
         self.user.handle(event.clone()).await?;
         self.workspace.handle(event.clone()).await?;
         self.workspace_role.handle(event.clone()).await?;
-        self.permission.handle(event).await?;
+        self.permission.handle(event.clone()).await?;
+        self.invitation.handle(event).await?;
         Ok(())
     }
 }

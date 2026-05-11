@@ -3,12 +3,12 @@ use eventually::aggregate::{
     repository::{Getter, Saver},
 };
 use eventually_projection::{Projector, RawEvent};
+use sqlx::Row;
 use zeitrak_core::admin::user::{User, UserEvent, UserId};
 use zeitrak_infrastructure_impl::admin::user::{
     projectors::UserProjector, repositories::UserRepository,
 };
 use zeitrak_tests::TestFixture;
-use sqlx::Row;
 
 fn test_id() -> UserId {
     "019d0ce8-facb-7c90-b9d7-287ae4f17c91"

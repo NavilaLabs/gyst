@@ -4,9 +4,7 @@ pub(crate) mod domain;
 pub use application::{
     TimesheetTagRoot,
     commands::{
-        TimesheetTagCommand,
-        TimesheetTagCommandTrait,
-        TimesheetTagHandler,
+        TimesheetTagCommand, TimesheetTagCommandTrait, TimesheetTagHandler,
         TimesheetTagHandlerTrait,
     },
     inputs::{CreateTimesheetTagInput, RenameTimesheetTagInput},

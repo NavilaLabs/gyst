@@ -1,5 +1,5 @@
-pub use zeitrak_shared_migrations::Error;
 pub use sea_orm_migration::prelude::*;
+pub use zeitrak_shared_migrations::Error;
 
 mod m20251214_102154_create_event_streams_table;
 mod m20251214_102155_create_events_table;

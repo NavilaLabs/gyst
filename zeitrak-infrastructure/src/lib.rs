@@ -1,5 +1,8 @@
+extern crate config as config_rs;
+
 pub mod config;
 pub mod database;
+pub mod email;
 
 pub trait ImplError {
     type Error: From<Error> + Send + Sync;
@@ -16,11 +19,9 @@ pub enum Error {
     #[error("{0}")]
     Url(#[from] url::ParseError),
     #[error("{0}")]
-    YamlError(#[from] serde_yaml::Error),
-    #[error("{0}")]
     JsonError(#[from] serde_json::Error),
     #[error("{0}")]
-    ConfigError(#[from] config::Error),
+    ConfigError(#[from] config_rs::ConfigError),
     #[error("{0}")]
     DatabaseError(#[from] database::Error),
 }

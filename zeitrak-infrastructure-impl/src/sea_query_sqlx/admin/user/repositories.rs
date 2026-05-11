@@ -214,6 +214,23 @@ impl UserRepositoryTrait<AnyRow> for UserRepository {
         self.find_view_by_id_impl(id).await
     }
 
+    async fn find_id_by_email(&self, email: &str) -> Result<Option<UserId>, crate::Error> {
+        let statement = sea_query::Query::select()
+            .expr(Expr::col(Alias::new("id")))
+            .from(Alias::new(TABLE))
+            .and_where(Expr::col(Alias::new("email")).eq(email))
+            .to_owned();
+        let (sql, arguments) = self.store.pool.build_query(&statement);
+        let row = sqlx::query_with(&sql, arguments)
+            .fetch_optional(self.store.pool.as_ref())
+            .await?;
+        row.map(|r| {
+            let id: String = r.try_get(0usize)?;
+            UserId::from_str(&id).map_err(Into::into)
+        })
+        .transpose()
+    }
+
     async fn find_credentials_by_email(
         &self,
         email: &str,

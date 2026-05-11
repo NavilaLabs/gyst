@@ -8,10 +8,10 @@ RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ca
 RUN cargo binstall dioxus-cli --root /.cargo -y --force
 ENV PATH="/.cargo/bin:$PATH"
 
-ENV ENVIRONMENT=production
-ENV APP_PROJECT_ROOT="/app"
-ENV DATABASE_BASE_URI=sqlite:///app/databases
-ENV ADMIN_DATABASE_NAME=zeitrak_admin
+ENV ZK_ENVIRONMENT=production
+ENV ZK_PROJECT_ROOT="/app"
+ENV ZK_DATABASE_BASE_URI=sqlite:///app/databases
+ENV ZK_ADMIN_DATABASE_NAME=zeitrak_admin
 
 COPY . .
 
@@ -47,10 +47,10 @@ RUN mkdir databases
 EXPOSE 8080
 ENV PORT=8080
 ENV IP=0.0.0.0
-ENV ENVIRONMENT=production
-ENV APP_PROJECT_ROOT="/app"
-ENV DATABASE_BASE_URI=sqlite:///app/databases
-ENV ADMIN_DATABASE_NAME=zeitrak_admin
+ENV ZK_ENVIRONMENT=production
+ENV ZK_PROJECT_ROOT="/app"
+ENV ZK_DATABASE_BASE_URI=sqlite:///app/databases
+ENV ZK_ADMIN_DATABASE_NAME=zeitrak_admin
 
 RUN chmod +x /app/entrypoint.sh
 ENTRYPOINT ["/app/entrypoint.sh"]
