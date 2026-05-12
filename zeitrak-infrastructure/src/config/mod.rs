@@ -1,6 +1,12 @@
+// TODO: implement validator crate for the configs
+
 use std::sync::LazyLock;
 
 use dotenvy::var;
+use figment::{
+    Figment,
+    providers::{Format, Serialized, Yaml},
+};
 use serde::{Deserialize, Serialize};
 
 mod application;
@@ -15,7 +21,7 @@ pub enum Error {
 pub static CONFIG: LazyLock<Config> =
     LazyLock::new(|| load_config().expect("Failed to load configuration"));
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     application: application::Application,
     database: database::Database,
@@ -38,38 +44,35 @@ impl Config {
 /// Returns an error if required environment variables are missing, config files cannot be read,
 /// or the YAML content cannot be deserialized.
 pub fn load_config() -> Result<Config, crate::Error> {
-    dotenvy::dotenv().ok();
+    dbg!("cskjdnvc");
+    // dotenvy::dotenv().ok();
+    dbg!("vdgfboitrzobi");
 
     let project_root = var("ZK_PROJECT_ROOT")?;
+    dbg!(&project_root);
     let environment = var("ZK_ENVIRONMENT")?;
+    dbg!(&environment);
     let config_path = format!("{project_root}/config/{environment}");
+
+    dbg!(&config_path);
 
     let mut file_string = String::new();
     let application_config_path = format!("{config_path}/application.yaml");
     let database_config_path = format!("{config_path}/database.yaml");
-    let logging_config_path = format!("{config_path}/logging.yaml");
+    // let logging_config_path = format!("{config_path}/logging.yaml");
     file_string.push_str(&std::fs::read_to_string(&application_config_path)?);
     file_string.push('\n');
     file_string.push_str(&std::fs::read_to_string(&database_config_path)?);
-    file_string.push('\n');
-    file_string.push_str(&std::fs::read_to_string(&logging_config_path)?);
+    // file_string.push('\n');
+    // file_string.push_str(&std::fs::read_to_string(&logging_config_path)?);
 
-    let config = config::Config::builder()
-        .add_source(config::File::from_str(&file_string, config::FileFormat::Yaml))
-        .add_source(config::Environment::with_prefix("DATABASE"))
-        .add_source(config::Environment::with_prefix("ADMIN"))
-        .build()?;
-    let config: crate::config::Config = config.try_deserialize()?;
+    let config: Config = Figment::new()
+        .merge(Serialized::defaults(Config::default()))
+        .merge(Yaml::string(&file_string))
+        // .merge(Env::prefixed("ZK_"))
+        .extract()?;
 
     Ok(config)
-}
-
-const fn default_true() -> bool {
-    true
-}
-
-const fn default_300() -> chrono::Duration {
-    chrono::Duration::seconds(300)
 }
 
 #[cfg(test)]

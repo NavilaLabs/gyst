@@ -55,6 +55,8 @@ pub mod jwt {
             };
 
             let secret = CONFIG.application().security().authentication_secret();
+            assert_ne!(secret, String::new());
+
             encode(
                 &Header::new(Algorithm::HS256),
                 &claims,

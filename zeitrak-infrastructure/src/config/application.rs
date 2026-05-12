@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use crate::config::{default_true, default_300};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "application")]
@@ -8,10 +7,21 @@ pub struct Application {
     name: String,
     project_root: String,
     security: SecurityConfig,
-    #[serde(default)]
-    base_url: Option<String>,
-    #[serde(default)]
-    smtp: Option<SmtpConfig>,
+    base_url: String,
+    smtp: SmtpConfig,
+}
+
+impl Default for Application {
+    fn default() -> Self {
+        Self {
+            environment: "development".to_string(),
+            name: "Zeitrak".to_string(),
+            project_root: "/workspaces/zeitrak".to_string(),
+            security: SecurityConfig::default(),
+            base_url: "http://localhost:8080".to_string(),
+            smtp: SmtpConfig::default(),
+        }
+    }
 }
 
 impl Application {
@@ -33,14 +43,14 @@ impl Application {
 
     /// The public base URL of the application, used to build invitation links.
     #[must_use]
-    pub fn base_url(&self) -> Option<&str> {
-        self.base_url.as_deref()
+    pub fn base_url(&self) -> &str {
+        &self.base_url
     }
 
     /// SMTP configuration for sending emails, if configured.
     #[must_use]
-    pub const fn smtp(&self) -> Option<&SmtpConfig> {
-        self.smtp.as_ref()
+    pub const fn smtp(&self) -> &SmtpConfig {
+        &self.smtp
     }
 }
 
@@ -48,10 +58,18 @@ impl Application {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecurityConfig {
     authentication_secret: String,
-    #[serde(default = "default_true")]
     invite_only: bool,
-    #[serde(default = "default_300")]
     invite_token_expiry: chrono::Duration,
+}
+
+impl Default for SecurityConfig {
+    fn default() -> Self {
+        Self {
+            authentication_secret: String::new(),
+            invite_only: true,
+            invite_token_expiry: chrono::Duration::seconds(300),
+        }
+    }
 }
 
 impl SecurityConfig {
@@ -76,6 +94,18 @@ pub struct SmtpConfig {
     username: String,
     password: String,
     from_address: String,
+}
+
+impl Default for SmtpConfig {
+    fn default() -> Self {
+        Self {
+            host: "http://localhost".to_string(),
+            port: 1025,
+            username: "".to_string(),
+            password: "".to_string(),
+            from_address: "Zeitrak".to_string(),
+        }
+    }
 }
 
 impl SmtpConfig {

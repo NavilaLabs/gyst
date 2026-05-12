@@ -12,10 +12,7 @@ use zeitrak_infrastructure_impl::smtp::{SmtpConfig, SmtpEmailSender};
 ///
 /// Returns an error if the SMTP configuration is missing or invalid.
 pub fn email_sender_from_config() -> Result<impl EmailSender> {
-    let smtp_cfg = CONFIG
-        .application()
-        .smtp()
-        .ok_or_else(|| anyhow::anyhow!("SMTP is not configured"))?;
+    let smtp_cfg = CONFIG.application().smtp();
 
     SmtpEmailSender::new(SmtpConfig {
         host: smtp_cfg.host().to_string(),
@@ -29,8 +26,5 @@ pub fn email_sender_from_config() -> Result<impl EmailSender> {
 /// Returns the base URL for building invitation links.
 #[must_use]
 pub fn base_url() -> &'static str {
-    CONFIG
-        .application()
-        .base_url()
-        .unwrap_or("http://localhost:8080")
+    CONFIG.application().base_url()
 }

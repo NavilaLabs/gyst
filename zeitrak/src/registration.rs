@@ -15,6 +15,7 @@ pub async fn register_user(name: String, email: String, password: String) -> Res
     validate(&CreateUserInput {
         name: name.clone(),
         email: email.clone(),
+        password: password.clone(),
     })?;
 
     let pool = Pool::connect_admin().await?;

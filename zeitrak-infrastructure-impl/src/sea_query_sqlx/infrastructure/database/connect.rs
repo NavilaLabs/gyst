@@ -21,15 +21,20 @@ impl<Scope> Pool<Scope, StateDisconnected> {
     /// Returns an error if the pool cannot connect to the database at `uri`.
     pub async fn connect(uri: &DatabaseUri) -> Result<Pool<Scope, StateConnected>, Error> {
         sqlx::any::install_default_drivers();
-
+        dbg!("drivers installed");
         let mut pool = AnyPoolOptions::new();
+        dbg!("new pool");
+        let co = &CONFIG.database();
+        dbg!("csökdjncv");
         let pool_config = CONFIG.database().pool();
+        dbg!("poll config loaded");
         let max_size = pool_config.max_size();
         pool = pool.max_connections(max_size);
         let min_size = pool_config.min_size();
         pool = pool.min_connections(min_size);
         let timeout_seconds = pool_config.timeout_seconds();
         pool = pool.idle_timeout(Duration::from_secs(timeout_seconds));
+        dbg!("pool configured");
         let database_type = match uri.scheme() {
             "postgres" => DatabaseType::Postgres,
             "sqlite" => DatabaseType::Sqlite,

@@ -1,5 +1,3 @@
-extern crate config as config_rs;
-
 pub mod config;
 pub mod database;
 pub mod email;
@@ -21,7 +19,7 @@ pub enum Error {
     #[error("{0}")]
     JsonError(#[from] serde_json::Error),
     #[error("{0}")]
-    ConfigError(#[from] config_rs::ConfigError),
+    ConfigError(#[from] figment::Error),
     #[error("{0}")]
     DatabaseError(#[from] database::Error),
 }

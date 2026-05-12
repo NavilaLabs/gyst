@@ -5,5 +5,3 @@ application:
 
   security:
     authentication_secret: ${ZK_AUTHENTICATION_SECRET}
-    invite_only: ${APP_INVITE_ONLY}
-    invite_token_expiry: ${ZK_INVITE_TOKEN_EXPIRY}

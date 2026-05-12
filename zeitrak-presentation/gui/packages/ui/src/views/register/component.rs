@@ -10,8 +10,10 @@ type AuthState = Signal<Option<Option<api::auth::UserInfo>>>;
 
 #[component]
 pub fn Register() -> Element {
+    let mut name = use_signal(String::new);
     let mut email = use_signal(String::new);
     let mut password = use_signal(String::new);
+    let repeat_password = use_signal(String::new);
     let mut error = use_signal(|| None::<String>);
     let mut submitting = use_signal(|| false);
 
@@ -19,14 +21,22 @@ pub fn Register() -> Element {
     let mut auth: AuthState = use_context();
 
     let on_submit = move |_| {
+        let name = name.read().clone();
         let email = email.read().clone();
         let password = password.read().clone();
+        let repeat_password = repeat_password.read().clone();
 
         async move {
             submitting.set(true);
             error.set(None);
 
-            match api::login::login(email, password).await {
+            if password != repeat_password {
+                error.set(Some("error-password-mismatch".to_string()));
+                submitting.set(false);
+                return;
+            }
+
+            match api::registration::register(name, email, password).await {
                 Ok(()) => {
                     // Fetch fresh user info and push it into the global auth signal
                     // so the navbar updates immediately without waiting for a re-mount.
@@ -68,6 +78,15 @@ pub fn Register() -> Element {
                                 oninput: move |e: FormEvent| password.set(e.value()),
                             }
                         }
+                        FormField {
+                            Label { html_for: "repeat-password", class: "w-full", "Repeate password" }
+                            Input {
+                                id: "repeat-password",
+                                r#type: "password",
+                                class: "w-full",
+                                oninput: move |e: FormEvent| password.set(e.value()),
+                            }
+                        }
                         if let Some(msg) = error.read().as_deref() {
                             p { class: "text-red-500 text-sm mt-2", "{msg}" }
                         }
@@ -81,10 +100,10 @@ pub fn Register() -> Element {
                         onclick: on_submit,
                         if *submitting.read() {
                             Icon { icon: HiRefresh, width: 16, height: 16 }
-                            "Signing in…"
+                            "Please wait…"
                         } else {
                             Icon { icon: HiLogin, width: 16, height: 16 }
-                            "Sign in"
+                            "Register"
                         }
                     }
                 }
