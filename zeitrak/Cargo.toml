@@ -16,6 +16,11 @@ name = "security"
 path = "tests/security/mod.rs"
 required-features = ["sqlite"]
 
+[[test]]
+name = "registration"
+path = "tests/registration/mod.rs"
+required-features = ["sqlite"]
+
 [dependencies]
 anyhow = "1"
 async-trait = { workspace = true }
@@ -28,6 +33,7 @@ serde = { workspace = true }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
+uuid = { workspace = true }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 zeitrak-core = { path = "../zeitrak-core" }
@@ -36,7 +42,7 @@ zeitrak-infrastructure-impl = { path = "../zeitrak-infrastructure-impl" }
 
 [dev-dependencies]
 jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
-zeitrak-tests = { path = "../zeitrak-tests" }
+zeitrak-tests = { path = "../zeitrak-tests", features = ["sqlite"] }
 serial_test = "3.4"
 tokio = { workspace = true }
 with-lifecycle = { path = "../with-lifecycle" }

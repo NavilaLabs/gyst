@@ -108,6 +108,10 @@ pub struct SmtpConfig {
     username: String,
     password: String,
     from_address: String,
+    /// When `false`, connect over plain SMTP with no TLS (suitable for
+    /// local dev tools such as MailHog).  Defaults to `true`.
+    #[serde(default = "SmtpConfig::default_use_tls")]
+    use_tls: bool,
 }
 
 impl Default for SmtpConfig {
@@ -118,11 +122,16 @@ impl Default for SmtpConfig {
             username: String::new(),
             password: String::new(),
             from_address: "noreply@zeitrak.app".to_string(),
+            use_tls: true,
         }
     }
 }
 
 impl SmtpConfig {
+    fn default_use_tls() -> bool {
+        true
+    }
+
     /// SMTP server hostname or IP address.
     #[must_use]
     pub fn host(&self) -> &str {
@@ -151,5 +160,11 @@ impl SmtpConfig {
     #[must_use]
     pub fn from_address(&self) -> &str {
         &self.from_address
+    }
+
+    /// Whether to use STARTTLS when connecting to the SMTP server.
+    #[must_use]
+    pub const fn use_tls(&self) -> bool {
+        self.use_tls
     }
 }

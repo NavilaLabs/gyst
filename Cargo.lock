@@ -4214,6 +4214,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "uuid",
  "with-lifecycle",
  "zeitrak-core",
  "zeitrak-infrastructure",
@@ -4325,12 +4326,17 @@ dependencies = [
 name = "zeitrak-tests"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "async-trait",
  "dotenvy",
  "embassy-futures",
+ "eventually-projection",
+ "serde_json",
  "sqlx",
  "tempfile",
  "tracing",
  "url",
+ "zeitrak-core",
  "zeitrak-infrastructure",
  "zeitrak-infrastructure-impl",
 ]

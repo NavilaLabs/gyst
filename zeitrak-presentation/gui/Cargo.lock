@@ -9652,6 +9652,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "uuid",
  "zeitrak-core",
  "zeitrak-infrastructure",
  "zeitrak-infrastructure-impl",

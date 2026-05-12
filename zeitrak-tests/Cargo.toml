@@ -4,14 +4,24 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+anyhow = "1"
+async-trait = { workspace = true }
 dotenvy = { workspace = true }
 embassy-futures.workspace = true
+eventually-projection = { version = "0.1", git = "https://github.com/NavilaLabs/eventually-projection", features = ["tracing"] }
+serde_json = { workspace = true }
+zeitrak-core = { path = "../zeitrak-core" }
 zeitrak-infrastructure = { path = "../zeitrak-infrastructure" }
 zeitrak-infrastructure-impl = { path = "../zeitrak-infrastructure-impl" }
 tempfile = "3"
 url = { workspace = true }
 sqlx = { workspace = true, features = ["any"] }
 tracing = { workspace = true }
+
+[features]
+default = []
+sqlite = ["zeitrak-infrastructure-impl/sqlite", "eventually-projection/sqlite"]
+postgres = ["zeitrak-infrastructure-impl/postgres", "eventually-projection/postgres"]
 
 [lints]
 workspace = true

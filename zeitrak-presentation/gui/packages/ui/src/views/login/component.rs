@@ -17,6 +17,7 @@ pub fn Login() -> Element {
 
     let navigator = use_navigator();
     let mut auth: AuthState = use_context();
+    let invite_only = use_resource(|| api::registration::is_invite_only());
 
     let on_submit = move |_| {
         let email = email.read().clone();
@@ -74,6 +75,13 @@ pub fn Login() -> Element {
                     }
                 }
                 CardFooter {
+                    if matches!(invite_only.value().cloned(), Some(Ok(false))) {
+                        a {
+                            href: "/register",
+                            class: "text-sm underline self-center",
+                            "Create an account"
+                        }
+                    }
                     Button {
                         class: "ms-auto",
                         r#type: "submit",

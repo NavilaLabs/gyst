@@ -36,12 +36,25 @@
 //! number of tests (e.g. JWT validation) that need `.env.test` loaded but do
 //! **not** need a database.  Database tests should use [`TestFixture`] instead.
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{
+    Arc, Mutex,
+    atomic::{AtomicU64, Ordering},
+};
 
+use async_trait::async_trait;
+use eventually_projection::{Projector, RawEvent};
+use sqlx::Row;
 use tempfile::TempDir;
 use url::Url;
-use zeitrak_infrastructure::database::{DatabaseUri, Migrate};
-use zeitrak_infrastructure_impl::{Error, Pool, ScopeAdmin, ScopeTenant, StateConnected};
+use zeitrak_core::admin::user::UserRepository as UserRepositoryTrait;
+use zeitrak_infrastructure::{
+    database::{DatabaseUri, Migrate},
+    email::EmailSender,
+};
+use zeitrak_infrastructure_impl::{
+    Error, Pool, ScopeAdmin, ScopeTenant, StateConnected,
+    admin::user::{projectors::UserProjector, repositories::UserRepository},
+};
 
 // ── unique fixture counter ────────────────────────────────────────────────────
 
@@ -167,5 +180,172 @@ pub mod test_database_lifecycle {
 
     pub fn after() {
         test_lifecycle::after();
+    }
+}
+
+// ── Projector helpers ─────────────────────────────────────────────────────────
+
+/// Runs all events currently in the admin database through the [`UserProjector`].
+///
+/// Call this after application-service operations that save to the event store
+/// (e.g. `register_user_on`) so that the projection tables reflect the latest
+/// state before making read assertions.
+///
+/// In production the projector runs as a separate daemon; in tests this function
+/// replaces it with a single synchronous flush.
+///
+/// # Panics
+///
+/// Panics if the event query or any projector handler returns an error.
+pub async fn flush_user_projector(pool: &Pool<ScopeAdmin, StateConnected>) {
+    let rows = sqlx::query(
+        "SELECT event_stream_id, type, version, global_position, event, metadata, schema_version \
+         FROM events ORDER BY global_position",
+    )
+    .fetch_all(pool.as_ref())
+    .await
+    .expect("must query events table");
+
+    let mut projector = UserProjector::new(pool.clone());
+
+    for row in rows {
+        let stream_id: String = row.get("event_stream_id");
+        let event_type: String = row.get("type");
+        let version: i64 = row.get("version");
+        let global_position: i64 = row.get("global_position");
+        let payload_bytes: Vec<u8> = row.get("event");
+        let metadata_bytes: Option<Vec<u8>> = row.try_get("metadata").ok();
+        let metadata = metadata_bytes
+            .and_then(|b| serde_json::from_slice(&b).ok())
+            .unwrap_or(serde_json::Value::Null);
+        let schema_version: i64 = row.get("schema_version");
+
+        #[allow(clippy::cast_sign_loss)]
+        projector
+            .handle(RawEvent {
+                stream_id,
+                event_type,
+                version,
+                global_position,
+                payload_bytes,
+                metadata,
+                schema_version: schema_version as u32,
+            })
+            .await
+            .expect("UserProjector must handle event without error");
+    }
+}
+
+// ── Projection query helpers ──────────────────────────────────────────────────
+
+/// Returns `true` when the user's `is_verified` flag is set in the projection.
+///
+/// Call after [`flush_user_projector`] to assert the verified state that the
+/// projector writes from `UserVerified` events.
+///
+/// # Panics
+///
+/// Panics if the repository cannot be created, the query fails, or no user row
+/// exists for `user_id`.
+pub async fn is_user_email_verified(pool: &Pool<ScopeAdmin, StateConnected>, user_id: &str) -> bool {
+    let repo = UserRepository::from_pool(pool.clone())
+        .await
+        .expect("must create UserRepository");
+    repo.find_view_by_id(user_id)
+        .await
+        .expect("find_view_by_id must succeed")
+        .expect("user row must exist")
+        .is_verified
+}
+
+// ── RecordingEmailSender ──────────────────────────────────────────────────────
+
+/// A captured outbound email.
+#[derive(Debug, Clone)]
+pub struct SentEmail {
+    pub to: String,
+    pub kind: SentEmailKind,
+}
+
+/// The specific content of a captured email.
+#[derive(Debug, Clone)]
+pub enum SentEmailKind {
+    Invitation {
+        invitation_link: String,
+        workspace_name: String,
+        invited_by_name: String,
+    },
+    Verification {
+        verification_link: String,
+    },
+}
+
+/// An [`EmailSender`] that records every outbound email in memory.
+///
+/// Use this in tests to assert that the right emails were sent without
+/// requiring a real SMTP server.
+///
+/// ```rust,ignore
+/// let sender = RecordingEmailSender::new();
+/// // … call code under test that accepts &dyn EmailSender …
+/// let sent = sender.sent();
+/// assert_eq!(sent.len(), 1);
+/// ```
+#[derive(Clone, Default)]
+pub struct RecordingEmailSender {
+    sent: Arc<Mutex<Vec<SentEmail>>>,
+}
+
+impl RecordingEmailSender {
+    /// Creates a new, empty recorder.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Returns a snapshot of all emails sent so far.
+    pub fn sent(&self) -> Vec<SentEmail> {
+        self.sent.lock().expect("mutex must not be poisoned").clone()
+    }
+}
+
+#[async_trait]
+impl EmailSender for RecordingEmailSender {
+    async fn send_invitation(
+        &self,
+        to: &str,
+        invitation_link: &str,
+        workspace_name: &str,
+        invited_by_name: &str,
+    ) -> anyhow::Result<()> {
+        self.sent
+            .lock()
+            .expect("mutex must not be poisoned")
+            .push(SentEmail {
+                to: to.to_string(),
+                kind: SentEmailKind::Invitation {
+                    invitation_link: invitation_link.to_string(),
+                    workspace_name: workspace_name.to_string(),
+                    invited_by_name: invited_by_name.to_string(),
+                },
+            });
+        Ok(())
+    }
+
+    async fn send_verification_email(
+        &self,
+        to: &str,
+        verification_link: &str,
+    ) -> anyhow::Result<()> {
+        self.sent
+            .lock()
+            .expect("mutex must not be poisoned")
+            .push(SentEmail {
+                to: to.to_string(),
+                kind: SentEmailKind::Verification {
+                    verification_link: verification_link.to_string(),
+                },
+            });
+        Ok(())
     }
 }

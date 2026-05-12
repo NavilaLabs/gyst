@@ -13,6 +13,8 @@ pub struct SmtpConfig {
     pub username: String,
     pub password: String,
     pub from_address: String,
+    /// When `false`, connect over plain SMTP without TLS (e.g. MailHog).
+    pub use_tls: bool,
 }
 
 /// SMTP-backed implementation of [`EmailSender`].
@@ -28,11 +30,17 @@ impl SmtpEmailSender {
     ///
     /// Returns an error if the SMTP connection cannot be established.
     pub fn new(config: SmtpConfig) -> anyhow::Result<Self> {
-        let credentials = Credentials::new(config.username, config.password);
-        let transport = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&config.host)?
-            .port(config.port)
-            .credentials(credentials)
-            .build();
+        let transport = if config.use_tls {
+            let credentials = Credentials::new(config.username, config.password);
+            AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&config.host)?
+                .port(config.port)
+                .credentials(credentials)
+                .build()
+        } else {
+            AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(&config.host)
+                .port(config.port)
+                .build()
+        };
         Ok(Self {
             transport,
             from_address: config.from_address,
@@ -61,6 +69,28 @@ impl EmailSender for SmtpEmailSender {
             .subject(format!(
                 "You're invited to join {workspace_name} on Zeitrak"
             ))
+            .header(ContentType::TEXT_PLAIN)
+            .body(body)?;
+
+        self.transport.send(email).await?;
+        Ok(())
+    }
+
+    async fn send_verification_email(
+        &self,
+        to: &str,
+        verification_link: &str,
+    ) -> anyhow::Result<()> {
+        let body = format!(
+            "Welcome to Zeitrak! Please verify your email address by clicking the link below:\n\n\
+             {verification_link}\n\n\
+             This link expires in 24 hours. If you did not register, you can safely ignore this email."
+        );
+
+        let email = Message::builder()
+            .from(self.from_address.parse()?)
+            .to(to.parse()?)
+            .subject("Verify your Zeitrak account")
             .header(ContentType::TEXT_PLAIN)
             .body(body)?;
 

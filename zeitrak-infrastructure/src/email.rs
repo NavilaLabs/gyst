@@ -18,4 +18,15 @@ pub trait EmailSender: Send + Sync {
         workspace_name: &str,
         invited_by_name: &str,
     ) -> anyhow::Result<()>;
+
+    /// Sends an email verification link to a newly registered user.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying transport fails.
+    async fn send_verification_email(
+        &self,
+        to: &str,
+        verification_link: &str,
+    ) -> anyhow::Result<()>;
 }

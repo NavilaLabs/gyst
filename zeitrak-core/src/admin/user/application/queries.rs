@@ -20,6 +20,10 @@ pub trait UserQueryTrait<R> {
     async fn find_view_by_id(&self, id: &str) -> Result<Option<UserRow>, Self::Error>;
     async fn has_at_least_one_user(&self) -> Result<bool, Self::Error>;
     async fn find_id_by_email(&self, email: &str) -> Result<Option<UserId>, Self::Error>;
+    async fn find_id_by_verification_token(
+        &self,
+        token: &str,
+    ) -> Result<Option<UserId>, Self::Error>;
 }
 
 #[async_trait]
@@ -65,6 +69,13 @@ where
 
     async fn find_id_by_email(&self, email: &str) -> Result<Option<UserId>, Self::Error> {
         self.repository.find_id_by_email(email).await
+    }
+
+    async fn find_id_by_verification_token(
+        &self,
+        token: &str,
+    ) -> Result<Option<UserId>, Self::Error> {
+        self.repository.find_id_by_verification_token(token).await
     }
 }
 

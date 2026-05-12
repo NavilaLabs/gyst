@@ -18,6 +18,7 @@ mod m20260410_000003_add_workspace_settings;
 mod m20260410_000004_fix_date_format_strings;
 mod m20260410_000005_add_aggregate_type_to_event_streams;
 mod m20260509_000001_create_invitations_projection_table;
+mod m20260512_000001_add_email_verification;
 
 pub struct Migrator;
 
@@ -46,6 +47,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260410_000004_fix_date_format_strings::Migration),
             Box::new(m20260410_000005_add_aggregate_type_to_event_streams::Migration),
             Box::new(m20260509_000001_create_invitations_projection_table::Migration),
+            Box::new(m20260512_000001_add_email_verification::Migration),
         ]
     }
 }

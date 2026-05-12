@@ -80,6 +80,28 @@ pub async fn list_invitations() -> Result<Vec<InvitationDto>, ServerFnError> {
     }
 }
 
+/// Registers a new user and immediately accepts a pending invitation.
+///
+/// Used during invitation-only registration: the email is taken from the invitation,
+/// so only name and password are required from the user.
+/// On success a session is started with the workspace already selected.
+#[post("/api/invitations/register-and-accept")]
+pub async fn register_and_accept(
+    name: String,
+    password: String,
+    token: String,
+) -> Result<(), ServerFnError> {
+    #[cfg(feature = "server")]
+    {
+        _register_and_accept(name, password, token).await
+    }
+    #[cfg(not(feature = "server"))]
+    {
+        let _ = (name, password, token);
+        Ok(())
+    }
+}
+
 #[cfg(feature = "server")]
 async fn _send_invitation(
     email: String,
@@ -172,6 +194,70 @@ async fn _accept_invitation(token: String) -> Result<String, ServerFnError> {
         })?;
 
     Ok(workspace_id.to_string())
+}
+
+#[cfg(feature = "server")]
+async fn _register_and_accept(
+    name: String,
+    password: String,
+    token: String,
+) -> Result<(), ServerFnError> {
+    use crate::{auth::UserInfo, session::internal};
+    use dioxus::fullstack::extract;
+    use tower_sessions::Session;
+    use zeitrak::core::admin::invitation::InvitationStatus;
+
+    let invitation = zeitrak::invitation::get_invitation_by_token(&token)
+        .await
+        .map_err(internal)?
+        .ok_or_else(|| ServerFnError::ServerError {
+            message: "Invitation not found or has expired.".into(),
+            code: 404,
+            details: None,
+        })?;
+
+    if invitation.status != InvitationStatus::Pending {
+        return Err(ServerFnError::ServerError {
+            message: "This invitation has already been used or revoked.".into(),
+            code: 410,
+            details: None,
+        });
+    }
+
+    let email = invitation.email().to_string();
+
+    let email_sender = zeitrak::email::email_sender_from_config().map_err(internal)?;
+    let base_url = zeitrak::email::base_url();
+    let user_id =
+        zeitrak::registration::register_user(name, email.clone(), password, &email_sender, base_url)
+            .await
+            .map_err(internal)?;
+
+    let workspace_id = zeitrak::invitation::accept_invitation(&token, &user_id.to_string())
+        .await
+        .map_err(internal)?;
+
+    let is_admin = zeitrak::authorization::AuthorizationService::is_admin(&user_id.to_string())
+        .await
+        .map_err(internal)?;
+
+    let session: Session = extract().await?;
+    session
+        .insert(
+            "user",
+            UserInfo {
+                id: user_id.to_string(),
+                email,
+                is_admin,
+                workspace_id: Some(workspace_id.to_string()),
+            },
+        )
+        .await
+        .map_err(|e| ServerFnError::ServerError {
+            message: e.to_string(),
+            code: 500,
+            details: None,
+        })
 }
 
 #[cfg(feature = "server")]

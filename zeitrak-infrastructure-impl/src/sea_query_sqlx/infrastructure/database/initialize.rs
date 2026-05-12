@@ -88,11 +88,9 @@ pub trait InitializationStrategy {
         &self,
         pool: &Pool<ScopeDefault, StateConnected>,
     ) -> Result<bool, Error> {
-        dbg!("is_admin_initialized");
         let admin_database_uri =
             database_uri_factory::Factory::new_database_uri(&DatabaseUriType::Admin)
                 .uri(&pool.database_type().to_string(), None)?;
-        dbg!(&admin_database_uri);
         self.check_is_initialized(pool, &admin_database_uri).await
     }
 
@@ -216,12 +214,10 @@ impl InitializationStrategy for SqliteInitializationStrategy {
         _pool: &Pool<ScopeDefault, StateConnected>,
         database_uri: &DatabaseUri,
     ) -> Result<bool, Error> {
-        dbg!(database_uri);
         let mut path = database_uri.path().to_string();
         if !path.ends_with(".sqlite") {
             path = format!("{path}.sqlite");
         }
-        dbg!(&path);
 
         Ok(std::fs::metadata(&path).is_ok())
     }
@@ -277,7 +273,6 @@ pub struct Initializer<T> {
 
 impl<T: InitializationStrategy + Debug + Send + Sync> Initializer<T> {
     pub fn new(strategy: T) -> Self {
-        dbg!(&strategy);
         Self { strategy }
     }
 

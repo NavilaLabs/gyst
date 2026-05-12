@@ -31,6 +31,10 @@ pub trait UserCommandTrait<R> {
         date_format: String,
         language: String,
     ) -> Result<(), Self::Error>;
+
+    async fn request_verification(&self, id: UserId, token: String) -> Result<(), Self::Error>;
+
+    async fn verify_email(&self, id: UserId) -> Result<(), Self::Error>;
 }
 
 #[derive(Debug)]
@@ -102,6 +106,47 @@ where
             .into(),
         )?;
 
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error if the domain event cannot be applied or the root cannot be saved.
+    async fn request_verification(
+        &self,
+        id: UserId,
+        token: String,
+    ) -> Result<(), <Self as UserCommandTrait<R>>::Error> {
+        let mut root: UserRoot = self
+            .repository
+            .get(&id)
+            .await
+            .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
+            .into();
+        root.record_that(UserEvent::VerificationRequested { token }.into())?;
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error if the domain event cannot be applied or the root cannot be saved.
+    async fn verify_email(
+        &self,
+        id: UserId,
+    ) -> Result<(), <Self as UserCommandTrait<R>>::Error> {
+        let mut root: UserRoot = self
+            .repository
+            .get(&id)
+            .await
+            .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
+            .into();
+        root.record_that(UserEvent::Verified.into())?;
         self.repository
             .save(&mut root)
             .await

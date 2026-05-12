@@ -9,8 +9,8 @@ use ui::{
         organisms::{Header, Sidebar},
     },
     views::{
-        setup::Setup, Activities, Dashboard, Database, Login, Register, SelectWorkspace, Settings, Tags,
-        Timesheets,
+        setup::Setup, Activities, Dashboard, Database, InvitationAccept, Login, Register,
+        SelectWorkspace, Settings, Tags, Timesheets, VerifyEmailConfirm, VerifyEmailPending,
     },
     ActivitiesCache, GlobalStyles, RunningElapsed, RunningTimer, SidebarOpen, TagsCache,
     TimesheetsCache, UserSettings, WorkspaceSettings, FAVICON,
@@ -47,6 +47,12 @@ enum Route {
             Login {},
             #[route("/register")]
             Register {},
+            #[route("/invitations/accept/:token")]
+            InvitationAccept { token: String },
+            #[route("/verify-email/pending")]
+            VerifyEmailPending {},
+            #[route("/verify-email/:token")]
+            VerifyEmailConfirm { token: String },
 
             #[layout(RequireAuth)]
                 // Workspace selection — accessible to any authenticated user.
@@ -128,6 +134,10 @@ fn App() -> Element {
             match route {
                 Route::Login { .. } => 0,
                 Route::Setup { .. } => 1,
+                Route::Register { .. } => 1,
+                Route::InvitationAccept { .. } => 1,
+                Route::VerifyEmailPending { .. } => 1,
+                Route::VerifyEmailConfirm { .. } => 1,
                 Route::SelectWorkspace { .. } => 2,
                 Route::Dashboard { .. } => 3,
                 Route::Activities { .. } => 4,
@@ -307,6 +317,9 @@ fn Layout() -> Element {
         Route::Login {} => "Login",
         Route::Setup {} => "Setup",
         Route::Register {} => "Register",
+        Route::InvitationAccept { .. } => "Accept Invitation",
+        Route::VerifyEmailPending {} => "Verify Email",
+        Route::VerifyEmailConfirm { .. } => "Verify Email",
         Route::NotFound { .. } => "Not Found",
     };
 
@@ -315,7 +328,14 @@ fn Layout() -> Element {
         let ws_name = workspace_settings.read().name.clone();
         let skip_prefix = matches!(
             &route,
-            Route::Login {} | Route::Setup {} | Route::SelectWorkspace {} | Route::NotFound { .. }
+            Route::Login {}
+                | Route::Setup {}
+                | Route::Register {}
+                | Route::InvitationAccept { .. }
+                | Route::VerifyEmailPending {}
+                | Route::VerifyEmailConfirm { .. }
+                | Route::SelectWorkspace {}
+                | Route::NotFound { .. }
         );
         match (ws_name.filter(|_| !skip_prefix), view_title) {
             (Some(ws), vt) if !vt.is_empty() => format!("{ws} / {vt}"),

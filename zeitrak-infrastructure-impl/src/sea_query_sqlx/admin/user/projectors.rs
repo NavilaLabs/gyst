@@ -105,6 +105,60 @@ impl Projector for UserProjector {
 
                 Ok(())
             }
+            "UserVerificationRequested" => {
+                use sea_query::{Condition, Expr, ExprTrait, Query as SQ};
+
+                let UserEvent::VerificationRequested { token } =
+                    serde_json::from_slice(&event.payload_bytes)?
+                else {
+                    return Ok(());
+                };
+                let query = SQ::update()
+                    .table(TableRef::from(Self::TABLE))
+                    .values([(DynIden::from("verification_token"), token.into())])
+                    .cond_where(
+                        Condition::all()
+                            .add(Expr::col("id").eq(Expr::val(event.stream_id.clone()))),
+                    )
+                    .to_owned();
+
+                let (sql, values) = match self.pool.database_type() {
+                    DatabaseType::Sqlite => query.build_sqlx(SqliteQueryBuilder),
+                    DatabaseType::Postgres => query.build_sqlx(PostgresQueryBuilder),
+                };
+
+                sqlx::query_with(&sql, values)
+                    .execute(self.pool.as_ref())
+                    .await?;
+
+                Ok(())
+            }
+            "UserVerified" => {
+                use sea_query::{Condition, Expr, ExprTrait, Query as SQ, Value};
+
+                let query = SQ::update()
+                    .table(TableRef::from(Self::TABLE))
+                    .values([
+                        (DynIden::from("is_verified"), true.into()),
+                        (DynIden::from("verification_token"), Value::String(None).into()),
+                    ])
+                    .cond_where(
+                        Condition::all()
+                            .add(Expr::col("id").eq(Expr::val(event.stream_id.clone()))),
+                    )
+                    .to_owned();
+
+                let (sql, values) = match self.pool.database_type() {
+                    DatabaseType::Sqlite => query.build_sqlx(SqliteQueryBuilder),
+                    DatabaseType::Postgres => query.build_sqlx(PostgresQueryBuilder),
+                };
+
+                sqlx::query_with(&sql, values)
+                    .execute(self.pool.as_ref())
+                    .await?;
+
+                Ok(())
+            }
             _ => Ok(()),
         }
     }

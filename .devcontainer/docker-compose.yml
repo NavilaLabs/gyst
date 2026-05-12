@@ -23,6 +23,13 @@ services:
       - postgres-data:/var/lib/postgresql
     restart: unless-stopped
 
+  mailhog:
+    image: mailhog/mailhog:latest
+    restart: always
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
 volumes:
   postgres-data:
   sqlite-data:

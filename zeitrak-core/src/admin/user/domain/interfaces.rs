@@ -52,6 +52,16 @@ pub trait UserRepository<R>: Repository<User, R> + Send + Sync {
         email: &str,
     ) -> Result<Option<UserId>, <Self as UserRepository<R>>::Error>;
 
+    /// Returns the user ID whose `verification_token` matches, or `None`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    async fn find_id_by_verification_token(
+        &self,
+        token: &str,
+    ) -> Result<Option<UserId>, <Self as UserRepository<R>>::Error>;
+
     /// # Errors
     ///
     /// Returns an error if the database count query fails.
@@ -183,6 +193,13 @@ pub mod in_memory_repository {
         }
 
         async fn find_id_by_email(&self, _email: &str) -> Result<Option<UserId>, StubError> {
+            Ok(None)
+        }
+
+        async fn find_id_by_verification_token(
+            &self,
+            _token: &str,
+        ) -> Result<Option<UserId>, StubError> {
             Ok(None)
         }
     }

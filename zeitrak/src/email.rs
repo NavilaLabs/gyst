@@ -20,6 +20,7 @@ pub fn email_sender_from_config() -> Result<impl EmailSender> {
         username: smtp_cfg.username().to_string(),
         password: smtp_cfg.password().to_string(),
         from_address: smtp_cfg.from_address().to_string(),
+        use_tls: smtp_cfg.use_tls(),
     })
 }
 
