@@ -230,17 +230,13 @@ impl InitializationStrategy for SqliteInitializationStrategy {
         &self,
         pool: &Pool<ScopeDefault, StateConnected>,
     ) -> Result<(), Error> {
-        dbg!(&pool);
         if self.is_admin_initialized(pool).await? {
             info!("Admin database already initialized");
             return Ok(());
         }
-        dbg!("not initialized");
         let uri = database_uri_factory::Factory::new_database_uri(&DatabaseUriType::Admin)
             .uri(&DatabaseType::Sqlite.to_string(), None)?;
-        dbg!(&uri);
         let uri = uri.to_string().replace("sqlite://", "");
-        dbg!(&uri);
         info!("Initializing admin database: {}", uri);
         std::fs::File::create(&uri)?;
 

@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "application")]
 pub struct Application {
     environment: String,
     name: String,
@@ -25,18 +24,26 @@ impl Default for Application {
 }
 
 impl Application {
+    /// The active environment name (e.g. `development`, `production`).
+    #[must_use]
     pub fn environment(&self) -> &str {
         &self.environment
     }
 
+    /// The human-readable application name.
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    /// Absolute path to the project workspace root.
+    #[must_use]
     pub fn project_root(&self) -> &str {
         &self.project_root
     }
 
+    /// Security-related settings (JWT secret, invite policy, etc.).
+    #[must_use]
     pub const fn security(&self) -> &SecurityConfig {
         &self.security
     }
@@ -47,19 +54,20 @@ impl Application {
         &self.base_url
     }
 
-    /// SMTP configuration for sending emails, if configured.
+    /// SMTP configuration for sending transactional emails.
     #[must_use]
     pub const fn smtp(&self) -> &SmtpConfig {
         &self.smtp
     }
 }
 
-/// Security configuration for the application.
+/// Security configuration (authentication, invitation policy).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecurityConfig {
     authentication_secret: String,
     invite_only: bool,
-    invite_token_expiry: chrono::Duration,
+    /// How long an invitation token stays valid, in seconds.
+    invite_token_expiry_secs: i64,
 }
 
 impl Default for SecurityConfig {
@@ -67,22 +75,28 @@ impl Default for SecurityConfig {
         Self {
             authentication_secret: String::new(),
             invite_only: true,
-            invite_token_expiry: chrono::Duration::seconds(300),
+            invite_token_expiry_secs: 300,
         }
     }
 }
 
 impl SecurityConfig {
+    /// The HS256 secret used to sign and verify JWT tokens.
+    #[must_use]
     pub fn authentication_secret(&self) -> &str {
         &self.authentication_secret
     }
 
-    pub fn invite_only(&self) -> bool {
+    /// Whether registration is restricted to invited users only.
+    #[must_use]
+    pub const fn invite_only(&self) -> bool {
         self.invite_only
     }
 
-    pub fn invite_token_expiry(&self) -> &chrono::Duration {
-        &self.invite_token_expiry
+    /// How long an invitation token stays valid.
+    #[must_use]
+    pub const fn invite_token_expiry(&self) -> chrono::Duration {
+        chrono::Duration::seconds(self.invite_token_expiry_secs)
     }
 }
 
@@ -99,33 +113,42 @@ pub struct SmtpConfig {
 impl Default for SmtpConfig {
     fn default() -> Self {
         Self {
-            host: "http://localhost".to_string(),
+            host: "localhost".to_string(),
             port: 1025,
-            username: "".to_string(),
-            password: "".to_string(),
-            from_address: "Zeitrak".to_string(),
+            username: String::new(),
+            password: String::new(),
+            from_address: "noreply@zeitrak.app".to_string(),
         }
     }
 }
 
 impl SmtpConfig {
+    /// SMTP server hostname or IP address.
+    #[must_use]
     pub fn host(&self) -> &str {
         &self.host
     }
 
-    pub fn port(&self) -> u16 {
+    /// SMTP server port.
+    #[must_use]
+    pub const fn port(&self) -> u16 {
         self.port
     }
 
+    /// SMTP authentication username.
+    #[must_use]
     pub fn username(&self) -> &str {
         &self.username
     }
 
+    /// SMTP authentication password.
+    #[must_use]
     pub fn password(&self) -> &str {
         &self.password
     }
 
-    #[allow(clippy::wrong_self_convention)]
+    /// The sender address used in outgoing emails.
+    #[must_use]
     pub fn from_address(&self) -> &str {
         &self.from_address
     }

@@ -12,9 +12,9 @@ pub struct CreateUserInput {
 }
 
 fn validate_password_strength(password: &str) -> Result<(), ValidationError> {
-    let has_upper = password.chars().any(|c| c.is_uppercase());
-    let has_lower = password.chars().any(|c| c.is_lowercase());
-    let has_digit = password.chars().any(|c| c.is_numeric());
+    let has_upper = password.chars().any(char::is_uppercase);
+    let has_lower = password.chars().any(char::is_lowercase);
+    let has_digit = password.chars().any(char::is_numeric);
     let has_special = password.chars().any(|c| !c.is_alphanumeric());
 
     if has_upper && has_lower && has_digit && has_special {

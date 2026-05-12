@@ -13,21 +13,13 @@ use crate::workspace::create_workspace_for_user;
 /// Call once at server startup before accepting requests.
 pub async fn init_admin_db() -> Result<()> {
     // Create the file if it doesn't exist.
-    dbg!("ck");
     let default_pool = Pool::<ScopeDefault, StateDisconnected>::connect_default().await?;
-    dbg!("connected to default");
     let ini = Initializer::new(SqliteInitializationStrategy);
-    dbg!("cosdcn");
-    dbg!(&ini);
-    ini.initialize_admin(&default_pool)
-        .await?;
-    dbg!("initialized admin");
+    ini.initialize_admin(&default_pool).await?;
 
     // Run pending migrations.
     let admin_pool = Pool::connect_admin().await?;
-    dbg!("connected to admin");
     admin_pool.migrate_database().await?;
-    dbg!("migrated admin");
 
     Ok(())
 }

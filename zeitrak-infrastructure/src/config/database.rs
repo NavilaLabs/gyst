@@ -18,14 +18,17 @@ impl Default for Database {
 }
 
 impl Database {
+    #[must_use]
     pub fn base_uri(&self) -> &str {
         &self.base_uri
     }
 
+    #[must_use]
     pub const fn databases(&self) -> &Databases {
         &self.databases
     }
 
+    #[must_use]
     pub const fn pool(&self) -> &Pool {
         &self.pool
     }
@@ -38,10 +41,12 @@ pub struct Databases {
 }
 
 impl Databases {
+    #[must_use]
     pub const fn admin(&self) -> &AdminDatabase {
         &self.admin
     }
 
+    #[must_use]
     pub const fn tenant(&self) -> &TenantDatabase {
         &self.tenant
     }
@@ -61,6 +66,7 @@ impl Default for AdminDatabase {
 }
 
 impl AdminDatabase {
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -80,6 +86,7 @@ impl Default for TenantDatabase {
 }
 
 impl TenantDatabase {
+    #[must_use]
     pub fn name_prefix(&self) -> &str {
         &self.name_prefix
     }
@@ -103,14 +110,17 @@ impl Default for Pool {
 }
 
 impl Pool {
+    #[must_use]
     pub const fn max_size(&self) -> u32 {
         self.max_size
     }
 
+    #[must_use]
     pub const fn min_size(&self) -> u32 {
         self.min_size
     }
 
+    #[must_use]
     pub const fn timeout_seconds(&self) -> u64 {
         self.timeout_seconds
     }

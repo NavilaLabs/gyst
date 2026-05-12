@@ -1,7 +1,8 @@
 application:
   environment: test
   name: Zeitrak
-  project_root: ${ZK_PROJECT_ROOT}
-
+  project_root: /workspaces/zeitrak
+  base_url: "http://localhost:8080"
   security:
-    authentication_secret: ${ZK_AUTHENTICATION_SECRET}
+    invite_only: false
+    invite_token_expiry_secs: 300

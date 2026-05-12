@@ -21,20 +21,11 @@ impl<Scope> Pool<Scope, StateDisconnected> {
     /// Returns an error if the pool cannot connect to the database at `uri`.
     pub async fn connect(uri: &DatabaseUri) -> Result<Pool<Scope, StateConnected>, Error> {
         sqlx::any::install_default_drivers();
-        dbg!("drivers installed");
-        let mut pool = AnyPoolOptions::new();
-        dbg!("new pool");
-        let co = &CONFIG.database();
-        dbg!("csökdjncv");
         let pool_config = CONFIG.database().pool();
-        dbg!("poll config loaded");
-        let max_size = pool_config.max_size();
-        pool = pool.max_connections(max_size);
-        let min_size = pool_config.min_size();
-        pool = pool.min_connections(min_size);
-        let timeout_seconds = pool_config.timeout_seconds();
-        pool = pool.idle_timeout(Duration::from_secs(timeout_seconds));
-        dbg!("pool configured");
+        let pool = AnyPoolOptions::new()
+            .max_connections(pool_config.max_size())
+            .min_connections(pool_config.min_size())
+            .idle_timeout(Duration::from_secs(pool_config.timeout_seconds()));
         let database_type = match uri.scheme() {
             "postgres" => DatabaseType::Postgres,
             "sqlite" => DatabaseType::Sqlite,
@@ -97,11 +88,9 @@ impl Pool<ScopeDefault, StateDisconnected> {
     ///
     /// Panics if the hardcoded default URI fails to parse (should never happen).
     pub async fn connect_default() -> Result<Pool<ScopeDefault, StateConnected>, Error> {
-        dbg!("connect");
         let uri = &url::Url::from_str("sqlite:///file:zeitrak?mode=memory&cache=shared")
-            .unwrap()
+            .expect("hardcoded default URI must parse")
             .into();
-        dbg!(&uri);
 
         Self::connect(uri).await
     }
