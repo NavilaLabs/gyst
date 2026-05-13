@@ -40,3 +40,7 @@ style = { level = "deny" }
 # Strict: pedantic + nursery for consistency and future-proofing
 pedantic = { level = "warn" }
 nursery = { level = "warn" }
+
+[profile.dev]
+debug = true
+opt-level = 0

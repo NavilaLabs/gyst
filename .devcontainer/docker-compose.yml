@@ -4,6 +4,10 @@ services:
       context: ..
       dockerfile: ./.devcontainer/Dockerfile
     command: sleep infinity
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
     ports:
       - "8080:8080"
     networks:
