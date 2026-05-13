@@ -115,6 +115,80 @@ pub async fn list_workspace_invitations(workspace_id: &str) -> Result<Vec<Invita
         .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
+/// Returns all pending, non-expired invitations addressed to the given email.
+///
+/// # Errors
+///
+/// Returns an error if the database query fails.
+pub async fn list_pending_invitations_for_email(email: &str) -> Result<Vec<InvitationRow>> {
+    let pool = Pool::connect_admin().await?;
+    let repo = InvitationRepository::from_pool(pool).await?;
+    InvitationQuery::new(repo)
+        .find_all_pending_for_email(email)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
+}
+
+/// Revokes a pending invitation on behalf of a workspace admin.
+///
+/// Requires the `member.invite` permission in the invitation's workspace.
+///
+/// # Errors
+///
+/// Returns an error if the token is invalid, the caller lacks permission, or
+/// the database operation fails.
+pub async fn revoke_invitation(token: &str, revoked_by: &CurrentUser) -> Result<()> {
+    let pool = Pool::connect_admin().await?;
+    let repo = InvitationRepository::from_pool(pool.clone()).await?;
+
+    let row = InvitationQuery::new(repo)
+        .find_by_token(token)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?
+        .ok_or_else(|| anyhow::anyhow!("invitation not found"))?;
+
+    AuthorizationService::require_permission(
+        revoked_by,
+        &row.workspace_id.to_string(),
+        permissions::MEMBER_INVITE,
+    )
+    .await?;
+
+    InvitationCommand::new(InvitationRepository::from_pool(pool).await?)
+        .revoke(row.id().clone())
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
+}
+
+/// Declines a pending invitation on behalf of the invited user.
+///
+/// Verifies that the invitation email matches `user_email` before revoking.
+///
+/// # Errors
+///
+/// Returns an error if the token is invalid, the email does not match, or the
+/// database operation fails.
+pub async fn decline_invitation(token: &str, user_email: &str) -> Result<()> {
+    let pool = Pool::connect_admin().await?;
+    let repo = InvitationRepository::from_pool(pool.clone()).await?;
+
+    let row = InvitationQuery::new(repo)
+        .find_by_token(token)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?
+        .ok_or_else(|| anyhow::anyhow!("invitation not found"))?;
+
+    anyhow::ensure!(
+        row.email() == user_email,
+        "invitation does not belong to this user"
+    );
+
+    InvitationCommand::new(InvitationRepository::from_pool(pool).await?)
+        .revoke(row.id().clone())
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
+}
+
 /// Accepts a workspace invitation on behalf of the authenticated user.
 ///
 /// On success the user is assigned to the workspace with the role specified in

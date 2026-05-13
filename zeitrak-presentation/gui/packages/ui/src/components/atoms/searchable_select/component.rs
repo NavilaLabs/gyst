@@ -1,5 +1,6 @@
 use crate::components::atoms::select::SelectOption;
 use dioxus::prelude::*;
+use dioxus_i18n::tid;
 
 /// A single-value select with a search input and a scrollable, filtered list.
 ///
@@ -82,7 +83,7 @@ pub fn SearchableSelect<T: Clone + PartialEq + std::fmt::Debug + 'static>(
                     input {
                         class: "ss-search",
                         r#type: "text",
-                        placeholder: "Search…",
+                        placeholder: tid!("searchable-select-search"),
                         autofocus: true,
                         value: query.read().clone(),
                         oninput: move |e| query.set(e.value()),
@@ -91,7 +92,7 @@ pub fn SearchableSelect<T: Clone + PartialEq + std::fmt::Debug + 'static>(
                     // Scrollable option list.
                     div { class: "ss-list",
                         if filtered.is_empty() {
-                            div { class: "ss-empty", "No results" }
+                            div { class: "ss-empty", {tid!("searchable-select-no-results")} }
                         }
                         for option in filtered {
                             {

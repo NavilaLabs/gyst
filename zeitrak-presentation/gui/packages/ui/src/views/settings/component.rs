@@ -3,10 +3,16 @@ use crate::components::atoms::{
     Button, Input, SearchableSelect, Select, SelectOption, ToastExt, Toasts,
 };
 use crate::layouts::DefaultLayout;
+use api::invitation::InvitationDto;
+use api::workspace_role::WorkspaceRoleDto;
 use chrono::NaiveDate;
 use dioxus::prelude::*;
-use dioxus_free_icons::icons::hi_solid_icons::{HiOfficeBuilding, HiSave, HiUser};
+use dioxus_free_icons::icons::hi_solid_icons::{
+    HiOfficeBuilding, HiSave, HiTrash, HiUser, HiUsers,
+};
 use dioxus_free_icons::Icon;
+use dioxus_i18n::{prelude::i18n, tid};
+use unic_langid::langid;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -80,12 +86,21 @@ fn week_start_options() -> Vec<SelectOption<String>> {
 enum Tab {
     User,
     Workspace,
+    Members,
+}
+
+fn ttl_options() -> Vec<SelectOption<u32>> {
+    [(7u32, "7 days"), (14, "14 days"), (30, "30 days")]
+        .into_iter()
+        .map(|(val, label)| SelectOption::new(val, label))
+        .collect()
 }
 
 #[component]
 pub fn Settings() -> Element {
     let mut toasts: Toasts = use_context();
     let mut active_tab = use_signal(|| Tab::User);
+    let mut i18n = i18n();
 
     // Global context — read first so we can seed local signals.
     let mut global_user_settings: crate::UserSettings = use_context();
@@ -135,6 +150,14 @@ pub fn Settings() -> Element {
     let mut ws_saving = use_signal(|| false);
     let mut ws_loaded = use_signal(|| false);
 
+    // ── Members state ─────────────────────────────────────────────────────
+    let mut roles = use_signal(Vec::<WorkspaceRoleDto>::new);
+    let mut workspace_invitations = use_signal(Vec::<InvitationDto>::new);
+    let mut invite_email = use_signal(String::new);
+    let mut invite_role_id = use_signal(String::new);
+    let mut invite_ttl = use_signal(|| 7u32);
+    let mut invite_sending = use_signal(|| false);
+
     // Load both on mount — overwrites the context-seeded values with fresh data.
     use_resource(move || async move {
         match api::settings::get_user_settings().await {
@@ -162,6 +185,21 @@ pub fn Settings() -> Element {
         }
     });
 
+    use_resource(move || async move {
+        if let Ok(list) = api::workspace_role::list_workspace_roles().await {
+            if let Some(first) = list.first() {
+                invite_role_id.set(first.id.clone());
+            }
+            roles.set(list);
+        }
+    });
+
+    use_resource(move || async move {
+        if let Ok(list) = api::invitation::list_invitations().await {
+            workspace_invitations.set(list);
+        }
+    });
+
     let on_save_user = move |_| async move {
         let timezone = user_timezone.peek().clone();
         let date_format = user_date_format.peek().clone();
@@ -179,6 +217,11 @@ pub fn Settings() -> Element {
                 // Push to global context so other views update immediately.
                 global_user_settings.write().timezone = timezone;
                 global_user_settings.write().date_format = date_format;
+                let lang_id = match language.as_str() {
+                    "de" => langid!("de-DE"),
+                    _ => langid!("en-US"),
+                };
+                i18n.set_language(lang_id);
                 global_user_settings.write().language = language;
                 toasts.push_success("User settings saved");
             }
@@ -236,13 +279,19 @@ pub fn Settings() -> Element {
                         class: if *active_tab.read() == Tab::User { "tab-pill tab-pill--active" } else { "tab-pill" },
                         onclick: move |_| active_tab.set(Tab::User),
                         Icon { icon: HiUser, width: 14, height: 14 }
-                        "My Settings"
+                        {tid!("settings-tab-my-settings")}
                     }
                     button {
                         class: if *active_tab.read() == Tab::Workspace { "tab-pill tab-pill--active" } else { "tab-pill" },
                         onclick: move |_| active_tab.set(Tab::Workspace),
                         Icon { icon: HiOfficeBuilding, width: 14, height: 14 }
-                        "Workspace Settings"
+                        {tid!("settings-tab-workspace-settings")}
+                    }
+                    button {
+                        class: if *active_tab.read() == Tab::Members { "tab-pill tab-pill--active" } else { "tab-pill" },
+                        onclick: move |_| active_tab.set(Tab::Members),
+                        Icon { icon: HiUsers, width: 14, height: 14 }
+                        {tid!("settings-tab-members")}
                     }
                 }
 
@@ -253,37 +302,37 @@ pub fn Settings() -> Element {
                             CardTitle {
                                 div { class: "flex items-center gap-2",
                                     Icon { icon: HiUser, width: 18, height: 18 }
-                                    "My Settings"
+                                    {tid!("settings-my-settings-title")}
                                 }
                             }
                         }
                         CardContent {
                             div { class: "space-y-4",
                                 div { class: "form-field",
-                                    label { class: "form-label", "Timezone" }
+                                    label { class: "form-label", {tid!("common-timezone")} }
                                     SearchableSelect::<String> {
                                         options: timezone_options(),
                                         value: Some(user_timezone.read().clone()),
                                         on_change: move |v| user_timezone.set(v),
-                                        placeholder: "Select timezone".to_string(),
+                                        placeholder: tid!("common-select-timezone"),
                                     }
                                 }
                                 div { class: "form-field",
-                                    label { class: "form-label", "Date Format" }
+                                    label { class: "form-label", {tid!("common-date-format")} }
                                     Select::<String> {
                                         options: date_format_options(),
                                         value: Some(user_date_format.read().clone()),
                                         on_change: move |v| user_date_format.set(v),
-                                        placeholder: "Select format".to_string(),
+                                        placeholder: tid!("common-select-format"),
                                     }
                                 }
                                 div { class: "form-field",
-                                    label { class: "form-label", "Language" }
+                                    label { class: "form-label", {tid!("common-language")} }
                                     Select::<String> {
                                         options: language_options(),
                                         value: Some(user_language.read().clone()),
                                         on_change: move |v| user_language.set(v),
-                                        placeholder: "Select language".to_string(),
+                                        placeholder: tid!("common-select-language"),
                                     }
                                 }
                             }
@@ -293,7 +342,146 @@ pub fn Settings() -> Element {
                                 onclick: on_save_user,
                                 disabled: *user_saving.read(),
                                 Icon { icon: HiSave, width: 16, height: 16 }
-                                if *user_saving.read() { "Saving…" } else { "Save Settings" }
+                                if *user_saving.read() { {tid!("common-saving")} } else { {tid!("common-save-settings")} }
+                            }
+                        }
+                    }
+                }
+
+                // ── Members ───────────────────────────────────────────────────
+                if *active_tab.read() == Tab::Members {
+                    // Invite member card
+                    Card { data_size: "md",
+                        CardHeader {
+                            CardTitle {
+                                div { class: "flex items-center gap-2",
+                                    Icon { icon: HiUsers, width: 18, height: 18 }
+                                    {tid!("settings-invite-member-title")}
+                                }
+                            }
+                        }
+                        CardContent {
+                            div { class: "space-y-4",
+                                div { class: "form-field",
+                                    label { class: "form-label", {tid!("settings-invite-email-label")} }
+                                    Input {
+                                        placeholder: tid!("settings-invite-email-placeholder"),
+                                        value: invite_email.read().clone(),
+                                        oninput: move |e: FormEvent| invite_email.set(e.value()),
+                                    }
+                                }
+                                div { class: "form-field",
+                                    label { class: "form-label", {tid!("common-role")} }
+                                    Select::<String> {
+                                        options: roles.read().iter().map(|r| SelectOption::new(r.id.clone(), r.name.clone())).collect(),
+                                        value: Some(invite_role_id.read().clone()),
+                                        on_change: move |v| invite_role_id.set(v),
+                                        placeholder: tid!("settings-invite-role-placeholder"),
+                                    }
+                                }
+                                div { class: "form-field",
+                                    label { class: "form-label", {tid!("settings-invite-expires-label")} }
+                                    Select::<u32> {
+                                        options: ttl_options(),
+                                        value: Some(*invite_ttl.read()),
+                                        on_change: move |v| invite_ttl.set(v),
+                                        placeholder: tid!("settings-invite-duration-placeholder"),
+                                    }
+                                }
+                            }
+                        }
+                        CardFooter {
+                            Button {
+                                disabled: *invite_sending.read() || invite_email.read().is_empty() || invite_role_id.read().is_empty(),
+                                onclick: move |_| async move {
+                                    let email = invite_email.peek().clone();
+                                    let role_id = invite_role_id.peek().clone();
+                                    let ttl = *invite_ttl.peek();
+                                    invite_sending.set(true);
+                                    match api::invitation::send_invitation(email, role_id, ttl).await {
+                                        Ok(_) => {
+                                            invite_email.set(String::new());
+                                            toasts.push_success("Invitation sent");
+                                            if let Ok(list) = api::invitation::list_invitations().await {
+                                                workspace_invitations.set(list);
+                                            }
+                                        }
+                                        Err(e) => toasts.push_error(e.to_string()),
+                                    }
+                                    invite_sending.set(false);
+                                },
+                                if *invite_sending.read() { {tid!("settings-invite-sending")} } else { {tid!("settings-invite-send")} }
+                            }
+                        }
+                    }
+
+                    // Open invitations card
+                    {
+                        let pending: Vec<InvitationDto> = workspace_invitations
+                            .read()
+                            .iter()
+                            .filter(|i| i.status == "pending")
+                            .cloned()
+                            .collect();
+
+                        rsx! {
+                            Card { data_size: "md",
+                                CardHeader {
+                                    CardTitle {
+                                        div { class: "flex items-center gap-2",
+                                            Icon { icon: HiUsers, width: 18, height: 18 }
+                                            {tid!("settings-open-invitations-title")}
+                                        }
+                                    }
+                                }
+                                CardContent {
+                                    if pending.is_empty() {
+                                        p { class: "text-sm text-secondary",
+                                            {tid!("settings-no-pending-invitations")}
+                                        }
+                                    } else {
+                                        div { class: "space-y-2",
+                                            for inv in pending.iter() {
+                                                {
+                                                    let inv = inv.clone();
+                                                    let token = inv.token.clone();
+                                                    let token_retain = inv.token.clone();
+                                                    rsx! {
+                                                        div {
+                                                            key: "{inv.id}",
+                                                            class: "flex items-center justify-between gap-3 py-2 border-b border-border last:border-0",
+                                                            div { class: "flex flex-col gap-0.5 min-w-0",
+                                                                span { class: "text-sm font-medium truncate",
+                                                                    "{inv.email}"
+                                                                }
+                                                                span { class: "text-xs text-secondary", {tid!("settings-invitation-pending")} }
+                                                            }
+                                                            button {
+                                                                class: "flex items-center gap-1 px-2 py-1 text-xs rounded border border-border text-secondary hover:text-error hover:border-error transition-colors cursor-pointer bg-transparent",
+                                                                title: "Revoke invitation", // tooltip only, not translated
+                                                                onclick: move |_| {
+                                                                    let t = token.clone();
+                                                                    let tr = token_retain.clone();
+                                                                    async move {
+                                                                        match api::invitation::revoke_invitation(t).await {
+                                                                            Ok(()) => {
+                                                                                workspace_invitations.write().retain(|i| i.token != tr);
+                                                                                toasts.push_success("Invitation revoked");
+                                                                            }
+                                                                            Err(e) => toasts.push_error(e.to_string()),
+                                                                        }
+                                                                    }
+                                                                },
+                                                                Icon { icon: HiTrash, width: 12, height: 12 }
+                                                                {tid!("settings-revoke-invitation")}
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -306,54 +494,54 @@ pub fn Settings() -> Element {
                             CardTitle {
                                 div { class: "flex items-center gap-2",
                                     Icon { icon: HiOfficeBuilding, width: 18, height: 18 }
-                                    "Workspace Settings"
+                                    {tid!("settings-workspace-title")}
                                 }
                             }
                         }
                         CardContent {
                             div { class: "space-y-4",
                                 div { class: "form-field",
-                                    label { class: "form-label", "Workspace Name" }
+                                    label { class: "form-label", {tid!("common-workspace-name")} }
                                     Input {
-                                        placeholder: "My Workspace",
+                                        placeholder: tid!("settings-workspace-name-placeholder"),
                                         value: ws_name.read().clone(),
                                         oninput: move |e: FormEvent| ws_name.set(e.value()),
                                     }
                                 }
                                 div { class: "form-field",
-                                    label { class: "form-label", "Timezone" }
+                                    label { class: "form-label", {tid!("common-timezone")} }
                                     SearchableSelect::<String> {
                                         options: timezone_options(),
                                         value: Some(ws_timezone.read().clone()),
                                         on_change: move |v| ws_timezone.set(v),
-                                        placeholder: "Select timezone".to_string(),
+                                        placeholder: tid!("common-select-timezone"),
                                     }
                                 }
                                 div { class: "form-field",
-                                    label { class: "form-label", "Date Format" }
+                                    label { class: "form-label", {tid!("common-date-format")} }
                                     Select::<String> {
                                         options: date_format_options(),
                                         value: Some(ws_date_format.read().clone()),
                                         on_change: move |v| ws_date_format.set(v),
-                                        placeholder: "Select format".to_string(),
+                                        placeholder: tid!("common-select-format"),
                                     }
                                 }
                                 div { class: "form-field",
-                                    label { class: "form-label", "Currency" }
+                                    label { class: "form-label", {tid!("settings-currency-label")} }
                                     Select::<String> {
                                         options: currency_options(),
                                         value: Some(ws_currency.read().clone()),
                                         on_change: move |v| ws_currency.set(v),
-                                        placeholder: "Select currency".to_string(),
+                                        placeholder: tid!("settings-currency-placeholder"),
                                     }
                                 }
                                 div { class: "form-field",
-                                    label { class: "form-label", "Week Starts On" }
+                                    label { class: "form-label", {tid!("settings-week-starts-label")} }
                                     Select::<String> {
                                         options: week_start_options(),
                                         value: Some(ws_week_start.read().clone()),
                                         on_change: move |v| ws_week_start.set(v),
-                                        placeholder: "Select day".to_string(),
+                                        placeholder: tid!("settings-week-starts-placeholder"),
                                     }
                                 }
                             }
@@ -363,7 +551,7 @@ pub fn Settings() -> Element {
                                 onclick: on_save_workspace,
                                 disabled: *ws_saving.read(),
                                 Icon { icon: HiSave, width: 16, height: 16 }
-                                if *ws_saving.read() { "Saving…" } else { "Save Settings" }
+                                if *ws_saving.read() { {tid!("common-saving")} } else { {tid!("common-save-settings")} }
                             }
                         }
                     }

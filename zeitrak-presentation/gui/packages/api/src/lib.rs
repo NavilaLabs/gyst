@@ -12,3 +12,4 @@ pub mod setup;
 pub mod timesheet;
 pub mod timesheet_tag;
 pub mod workspace;
+pub mod workspace_role;

@@ -5,6 +5,7 @@ use api::activity::ActivityDto;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{HiClock, HiPlay, HiPlus, HiRefresh, HiStop};
 use dioxus_free_icons::Icon;
+use dioxus_i18n::tid;
 
 #[derive(Clone, PartialEq, Props)]
 pub(super) struct TimerCardProps {
@@ -154,11 +155,11 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
                             CardTitle {
                                 div { class: "flex items-center gap-2",
                                     Icon { icon: HiClock, width: 18, height: 18 }
-                                    "Running Timer"
+                                    {tid!("timer-running")}
                                     span { class: "text-xs text-secondary font-normal ms-auto",
                                         {
                                             let s = user_settings.read();
-                                            format!("Started: {}", formatting::format_datetime(&ts.start_time, &s.timezone, &s.date_format))
+                                            format!("{} {}", tid!("timer-started-prefix"), formatting::format_datetime(&ts.start_time, &s.timezone, &s.date_format))
                                         }
                                     }
                                 }
@@ -167,21 +168,21 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
                         CardContent {
                             div { class: "grid grid-cols-1 gap-4 md:grid-cols-2",
                                 div { class: "form-field",
-                                    label { class: "form-label", "Activity" }
+                                    label { class: "form-label", {tid!("common-activity")} }
                                     Select::<String> {
                                         options: activities.read().iter()
                                             .map(|a| SelectOption::new(a.id.clone(), a.name.clone()))
                                             .collect(),
                                         value: run_activity_id.read().clone(),
                                         on_change: move |id: String| run_activity_id.set(Some(id)),
-                                        placeholder: "Select activity…".to_string(),
+                                        placeholder: tid!("common-select-activity"),
                                     }
                                 }
                                 div { class: "form-field",
-                                    label { class: "form-label", r#for: "run-desc", "Description" }
+                                    label { class: "form-label", r#for: "run-desc", {tid!("common-description")} }
                                     Input {
                                         id: "run-desc",
-                                        placeholder: "What are you working on?",
+                                        placeholder: tid!("timer-what-working-on"),
                                         value: run_description.read().clone(),
                                         oninput: move |e: FormEvent| run_description.set(e.value()),
                                     }
@@ -191,7 +192,7 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
                         CardFooter {
                             Button { onclick: on_stop,
                                 Icon { icon: HiStop, width: 16, height: 16 }
-                                "Stop"
+                                {tid!("common-stop")}
                             }
                         }
                     }
@@ -205,22 +206,22 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
                                 div { class: "flex items-center gap-2",
                                     if *manual_mode.read() {
                                         Icon { icon: HiPlus, width: 18, height: 18 }
-                                        "Manual Entry"
+                                        {tid!("timer-manual-entry")}
                                     } else {
                                         Icon { icon: HiPlay, width: 18, height: 18 }
-                                        "Start Timer"
+                                        {tid!("timer-start-timer")}
                                     }
                                 }
                                 div { class: "flex gap-1 text-xs",
                                     button {
                                         class: if !*manual_mode.read() { "tab-pill tab-pill--active" } else { "tab-pill" },
                                         onclick: move |_| manual_mode.set(false),
-                                        "Timer"
+                                        {tid!("timer-tab-timer")}
                                     }
                                     button {
                                         class: if *manual_mode.read() { "tab-pill tab-pill--active" } else { "tab-pill" },
                                         onclick: move |_| manual_mode.set(true),
-                                        "Manual"
+                                        {tid!("timer-tab-manual")}
                                     }
                                 }
                             }
@@ -231,21 +232,21 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
                         CardContent {
                             div { class: "grid grid-cols-1 gap-4 md:grid-cols-2",
                                 div { class: "form-field",
-                                    label { class: "form-label", "Activity" }
+                                    label { class: "form-label", {tid!("common-activity")} }
                                     Select::<String> {
                                         options: activities.read().iter()
                                             .map(|a| SelectOption::new(a.id.clone(), a.name.clone()))
                                             .collect(),
                                         value: activity_id.read().clone(),
                                         on_change: move |id: String| activity_id.set(Some(id)),
-                                        placeholder: "Select activity…".to_string(),
+                                        placeholder: tid!("common-select-activity"),
                                     }
                                 }
                                 div { class: "form-field",
-                                    label { class: "form-label", r#for: "ts-desc", "Description" }
+                                    label { class: "form-label", r#for: "ts-desc", {tid!("common-description")} }
                                     Input {
                                         id: "ts-desc",
-                                        placeholder: "Optional notes…",
+                                        placeholder: tid!("common-optional-notes"),
                                         value: description.read().clone(),
                                         oninput: move |e: FormEvent| description.set(e.value()),
                                     }
@@ -255,14 +256,14 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
                         CardFooter {
                             Button { onclick: on_start,
                                 Icon { icon: HiPlay, width: 16, height: 16 }
-                                "Start"
+                                {tid!("common-start")}
                             }
                         }
                     } else {
                         CardContent {
                             div { class: "grid grid-cols-1 gap-4 md:grid-cols-2",
                                 div { class: "form-field",
-                                    label { class: "form-label", r#for: "m-start", "Start time" }
+                                    label { class: "form-label", r#for: "m-start", {tid!("common-start-time")} }
                                     input {
                                         id: "m-start",
                                         r#type: "datetime-local",
@@ -272,7 +273,7 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
                                     }
                                 }
                                 div { class: "form-field",
-                                    label { class: "form-label", r#for: "m-end", "End time" }
+                                    label { class: "form-label", r#for: "m-end", {tid!("common-end-time")} }
                                     input {
                                         id: "m-end",
                                         r#type: "datetime-local",
@@ -282,21 +283,21 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
                                     }
                                 }
                                 div { class: "form-field",
-                                    label { class: "form-label", "Activity" }
+                                    label { class: "form-label", {tid!("common-activity")} }
                                     Select::<String> {
                                         options: activities.read().iter()
                                             .map(|a| SelectOption::new(a.id.clone(), a.name.clone()))
                                             .collect(),
                                         value: manual_activity_id.read().clone(),
                                         on_change: move |id: String| manual_activity_id.set(Some(id)),
-                                        placeholder: "Select activity…".to_string(),
+                                        placeholder: tid!("common-select-activity"),
                                     }
                                 }
                                 div { class: "form-field md:col-span-2",
-                                    label { class: "form-label", r#for: "m-desc", "Description" }
+                                    label { class: "form-label", r#for: "m-desc", {tid!("common-description")} }
                                     Input {
                                         id: "m-desc",
-                                        placeholder: "Optional notes…",
+                                        placeholder: tid!("common-optional-notes"),
                                         value: manual_description.read().clone(),
                                         oninput: move |e: FormEvent| manual_description.set(e.value()),
                                     }
@@ -309,10 +310,10 @@ pub(super) fn TimerCard(props: TimerCardProps) -> Element {
                                 disabled: *manual_submitting.read(),
                                 if *manual_submitting.read() {
                                     Icon { icon: HiRefresh, width: 16, height: 16 }
-                                    "Creating…"
+                                    {tid!("common-creating")}
                                 } else {
                                     Icon { icon: HiPlus, width: 16, height: 16 }
-                                    "Create"
+                                    {tid!("common-create")}
                                 }
                             }
                         }

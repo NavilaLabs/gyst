@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use dioxus_i18n::tid;
 
 /// Alignment for a table column / cell.
 #[derive(Clone, PartialEq, Default, Debug)]
@@ -144,7 +145,7 @@ pub fn DataTable(
                         if !loading && total == 0 {
                             tr { class: "dt-row",
                                 td { colspan: col_count as i64, class: "dt-td dt-empty",
-                                    "No records found."
+                                    {tid!("table-no-records")}
                                 }
                             }
                         }

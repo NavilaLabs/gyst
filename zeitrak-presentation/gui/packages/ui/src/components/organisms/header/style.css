@@ -112,6 +112,35 @@
     color: var(--color-text-primary);
 }
 
+/* ── Workspace switcher button ────────────────────────────────────────── */
+
+.header-switch-ws-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-secondary);
+    font-size: 0.8125rem;
+    cursor: pointer;
+    transition:
+        background-color var(--transition-fast),
+        color var(--transition-fast),
+        border-color var(--transition-fast);
+}
+
+.header-switch-ws-btn:hover {
+    background-color: var(--color-surface-tonal);
+    color: var(--color-text-primary);
+    border-color: var(--color-border-strong);
+}
+
+.header-switch-ws-label {
+    white-space: nowrap;
+}
+
 @media (max-width: 767px) {
     .header {
         padding: 0 1rem;
@@ -122,4 +151,7 @@
         display: flex;
     }
 
+    .header-switch-ws-label {
+        display: none;
+    }
 }

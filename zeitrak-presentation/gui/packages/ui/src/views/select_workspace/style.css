@@ -170,3 +170,84 @@
     color: var(--color-text-secondary);
     font-size: 0.9375rem;
 }
+
+/* ── Pending invitations section ─────────────────────────────────────── */
+
+.workspace-invitations-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.workspace-invitations-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0;
+}
+
+.workspace-item--invitation {
+    cursor: default;
+    border-color: color-mix(in srgb, var(--color-accent) 30%, var(--color-border));
+}
+
+.workspace-item--invitation:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: color-mix(in srgb, var(--color-accent) 50%, var(--color-border));
+}
+
+.workspace-item-avatar--invite {
+    background-color: color-mix(in srgb, var(--color-accent) 15%, transparent);
+    color: var(--color-accent);
+}
+
+.workspace-item-invite-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.invite-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3125rem 0.75rem;
+    border-radius: var(--radius-md);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition:
+        background-color var(--transition-fast),
+        color var(--transition-fast),
+        border-color var(--transition-fast);
+}
+
+.invite-action-btn--accept {
+    background-color: color-mix(in srgb, var(--color-accent) 12%, transparent);
+    color: var(--color-accent);
+    border-color: color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+.invite-action-btn--accept:hover {
+    background-color: var(--color-accent);
+    color: #fff;
+    border-color: var(--color-accent);
+}
+
+.invite-action-btn--decline {
+    background-color: transparent;
+    color: var(--color-text-secondary);
+    border-color: var(--color-border);
+}
+
+.invite-action-btn--decline:hover {
+    background-color: color-mix(in srgb, #d32f2f 10%, transparent);
+    color: #b71c1c;
+    border-color: color-mix(in srgb, #d32f2f 30%, transparent);
+}

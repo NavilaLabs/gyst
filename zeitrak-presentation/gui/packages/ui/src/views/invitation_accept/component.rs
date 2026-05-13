@@ -5,6 +5,7 @@ use crate::layouts::DefaultLayout;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{HiCheck, HiRefresh};
 use dioxus_free_icons::Icon;
+use dioxus_i18n::tid;
 
 type AuthState = Signal<Option<Option<api::auth::UserInfo>>>;
 
@@ -28,14 +29,14 @@ pub fn InvitationAccept(token: String) -> Element {
                     data_size: "md",
                     CardContent {
                         p { class: "text-center text-sm",
-                            "This invitation is invalid or has expired."
+                            {tid!("invitation-invalid")}
                         }
                     }
                     CardFooter {
                         a {
                             href: "/login",
                             class: "text-sm underline mx-auto",
-                            "Go to sign in"
+                            {tid!("common-go-to-sign-in")}
                         }
                     }
                 }
@@ -52,14 +53,14 @@ pub fn InvitationAccept(token: String) -> Element {
                             data_size: "md",
                             CardContent {
                                 p { class: "text-center text-sm",
-                                    "This invitation has already been used or revoked."
+                                    {tid!("invitation-revoked")}
                                 }
                             }
                             CardFooter {
                                 a {
                                     href: "/login",
                                     class: "text-sm underline mx-auto",
-                                    "Go to sign in"
+                                    {tid!("common-go-to-sign-in")}
                                 }
                             }
                         }
@@ -130,9 +131,10 @@ fn AcceptPanel(workspace_name: String, token: String) -> Element {
                 data_size: "md",
                 CardContent {
                     p { class: "text-center text-sm",
-                        "You have been invited to join "
+                        {tid!("invitation-accept-intro-pre")}
+                        " "
                         strong { "{workspace_name}" }
-                        "."
+                        {tid!("invitation-accept-intro-post")}
                     }
                     if let Some(msg) = error.read().as_deref() {
                         p { class: "text-red-500 text-sm mt-2", "{msg}" }
@@ -146,10 +148,10 @@ fn AcceptPanel(workspace_name: String, token: String) -> Element {
                         onclick: on_accept,
                         if *submitting.read() {
                             Icon { icon: HiRefresh, width: 16, height: 16 }
-                            "Accepting…"
+                            {tid!("invitation-accepting")}
                         } else {
                             Icon { icon: HiCheck, width: 16, height: 16 }
-                            "Accept invitation"
+                            {tid!("invitation-accept-btn")}
                         }
                     }
                 }
@@ -206,13 +208,14 @@ fn RegisterPanel(workspace_name: String, email: String, token: String) -> Elemen
                 data_size: "md",
                 CardContent {
                     p { class: "text-sm mb-4",
-                        "You have been invited to join "
+                        {tid!("invitation-accept-intro-pre")}
+                        " "
                         strong { "{workspace_name}" }
-                        ". Create an account to continue."
+                        {tid!("invitation-register-intro-post")}
                     }
                     Form {
                         FormField {
-                            Label { html_for: "inv-name", class: "w-full", "Name" }
+                            Label { html_for: "inv-name", class: "w-full", {tid!("common-name")} }
                             Input {
                                 id: "inv-name",
                                 r#type: "text",
@@ -221,7 +224,7 @@ fn RegisterPanel(workspace_name: String, email: String, token: String) -> Elemen
                             }
                         }
                         FormField {
-                            Label { html_for: "inv-email", class: "w-full", "Email" }
+                            Label { html_for: "inv-email", class: "w-full", {tid!("common-email")} }
                             Input {
                                 id: "inv-email",
                                 r#type: "email",
@@ -232,7 +235,7 @@ fn RegisterPanel(workspace_name: String, email: String, token: String) -> Elemen
                             }
                         }
                         FormField {
-                            Label { html_for: "inv-password", class: "w-full", "Password" }
+                            Label { html_for: "inv-password", class: "w-full", {tid!("common-password")} }
                             Input {
                                 id: "inv-password",
                                 r#type: "password",
@@ -241,7 +244,7 @@ fn RegisterPanel(workspace_name: String, email: String, token: String) -> Elemen
                             }
                         }
                         FormField {
-                            Label { html_for: "inv-repeat-password", class: "w-full", "Repeat password" }
+                            Label { html_for: "inv-repeat-password", class: "w-full", {tid!("common-repeat-password")} }
                             Input {
                                 id: "inv-repeat-password",
                                 r#type: "password",
@@ -258,7 +261,7 @@ fn RegisterPanel(workspace_name: String, email: String, token: String) -> Elemen
                     a {
                         href: "/login",
                         class: "text-sm underline self-center",
-                        "Already have an account?"
+                        {tid!("common-already-have-account")}
                     }
                     Button {
                         class: "ms-auto",
@@ -267,10 +270,10 @@ fn RegisterPanel(workspace_name: String, email: String, token: String) -> Elemen
                         onclick: on_submit,
                         if *submitting.read() {
                             Icon { icon: HiRefresh, width: 16, height: 16 }
-                            "Please wait…"
+                            {tid!("common-please-wait")}
                         } else {
                             Icon { icon: HiCheck, width: 16, height: 16 }
-                            "Register and join"
+                            {tid!("invitation-register-join")}
                         }
                     }
                 }

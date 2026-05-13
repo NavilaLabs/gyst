@@ -4,6 +4,7 @@ use dioxus_free_icons::icons::hi_solid_icons::{
     HiTag,
 };
 use dioxus_free_icons::Icon;
+use dioxus_i18n::tid;
 
 use crate::components::atoms::{Button, ButtonVariant, Navbar, NavbarItem, ToastMessage, Toasts};
 
@@ -69,8 +70,8 @@ pub fn Sidebar() -> Element {
             div { class: "sidebar-top",
                 div { class: "sidebar-brand",
                     div { class: "sidebar-brand-text",
-                        span { class: "sidebar-brand-name", "Zeitrak" }
-                        span { class: "sidebar-brand-sub", "Curated Workspace" }
+                        span { class: "sidebar-brand-name", {tid!("sidebar-brand-name")} }
+                        span { class: "sidebar-brand-sub", {tid!("sidebar-brand-sub")} }
                     }
                     button {
                         class: "sidebar-collapse-btn",
@@ -89,35 +90,35 @@ pub fn Sidebar() -> Element {
                         value: "dashboard".to_string(),
                         to: "/dashboard",
                         Icon { icon: HiHome, width: 16, height: 16 }
-                        span { class: "sidebar-label", "Dashboard" }
+                        span { class: "sidebar-label", {tid!("sidebar-nav-dashboard")} }
                     }
                     NavbarItem {
                         index: 1usize,
                         value: "timesheets".to_string(),
                         to: "/timesheets",
                         Icon { icon: HiClock, width: 16, height: 16 }
-                        span { class: "sidebar-label", "Timesheets" }
+                        span { class: "sidebar-label", {tid!("sidebar-nav-timesheets")} }
                     }
                     NavbarItem {
                         index: 2usize,
                         value: "activities".to_string(),
                         to: "/activities",
                         Icon { icon: HiTag, width: 16, height: 16 }
-                        span { class: "sidebar-label", "Activities" }
+                        span { class: "sidebar-label", {tid!("sidebar-nav-activities")} }
                     }
                     NavbarItem {
                         index: 3usize,
                         value: "tags".to_string(),
                         to: "/tags",
                         Icon { icon: HiHashtag, width: 16, height: 16 }
-                        span { class: "sidebar-label", "Tags" }
+                        span { class: "sidebar-label", {tid!("sidebar-nav-tags")} }
                     }
                     NavbarItem {
                         index: 4usize,
                         value: "settings".to_string(),
                         to: "/settings",
                         Icon { icon: HiCog, width: 16, height: 16 }
-                        span { class: "sidebar-label", "Settings" }
+                        span { class: "sidebar-label", {tid!("sidebar-nav-settings")} }
                     }
                 }
             }
@@ -127,7 +128,7 @@ pub fn Sidebar() -> Element {
                         div { class: "sidebar-timer-info",
                             div { class: "sidebar-timer-indicator",
                                 span { class: "sidebar-timer-dot" }
-                                span { class: "sidebar-timer-label sidebar-label", "Timer Running" }
+                                span { class: "sidebar-timer-label sidebar-label", {tid!("sidebar-timer-running")} }
                             }
                             span { class: "sidebar-timer-elapsed sidebar-label",
                                 {
@@ -140,7 +141,7 @@ pub fn Sidebar() -> Element {
                             variant: ButtonVariant::Ghost,
                             onclick: on_stop,
                             Icon { icon: HiStop, width: 14, height: 14 }
-                            span { class: "sidebar-label", "Stop" }
+                            span { class: "sidebar-label", {tid!("common-stop")} }
                         }
                     }
                 } else {
@@ -152,7 +153,7 @@ pub fn Sidebar() -> Element {
                             }
                         },
                         Icon { icon: HiPlay, width: 14, height: 14 }
-                        span { class: "sidebar-label", "Start Timer" }
+                        span { class: "sidebar-label", {tid!("sidebar-start-timer")} }
                     }
                 }
             }
@@ -161,7 +162,7 @@ pub fn Sidebar() -> Element {
                     variant: ButtonVariant::Ghost,
                     onclick: on_logout,
                     Icon { icon: HiLogout, width: 16, height: 16 }
-                    span { class: "sidebar-label", "Logout" }
+                    span { class: "sidebar-label", {tid!("sidebar-logout")} }
                 }
             }
         }

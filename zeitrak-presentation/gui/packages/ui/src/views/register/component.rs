@@ -5,6 +5,7 @@ use crate::layouts::DefaultLayout;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{HiLogin, HiRefresh};
 use dioxus_free_icons::Icon;
+use dioxus_i18n::tid;
 
 type AuthState = Signal<Option<Option<api::auth::UserInfo>>>;
 
@@ -62,14 +63,14 @@ pub fn Register() -> Element {
                     data_size: "md",
                     CardContent {
                         p { class: "text-center text-sm",
-                            "Registration is by invitation only."
+                            {tid!("register-invite-only")}
                         }
                     }
                     CardFooter {
                         a {
                             href: "/login",
                             class: "text-sm underline mx-auto",
-                            "Sign in instead"
+                            {tid!("register-sign-in-instead")}
                         }
                     }
                 }
@@ -83,7 +84,7 @@ pub fn Register() -> Element {
                     CardContent {
                         Form {
                             FormField {
-                                Label { html_for: "name", class: "w-full", "Name" }
+                                Label { html_for: "name", class: "w-full", {tid!("common-name")} }
                                 Input {
                                     id: "name",
                                     r#type: "text",
@@ -92,7 +93,7 @@ pub fn Register() -> Element {
                                 }
                             }
                             FormField {
-                                Label { html_for: "email", class: "w-full", "Email" }
+                                Label { html_for: "email", class: "w-full", {tid!("common-email")} }
                                 Input {
                                     id: "email",
                                     r#type: "email",
@@ -101,7 +102,7 @@ pub fn Register() -> Element {
                                 }
                             }
                             FormField {
-                                Label { html_for: "password", class: "w-full", "Password" }
+                                Label { html_for: "password", class: "w-full", {tid!("common-password")} }
                                 Input {
                                     id: "password",
                                     r#type: "password",
@@ -110,7 +111,7 @@ pub fn Register() -> Element {
                                 }
                             }
                             FormField {
-                                Label { html_for: "repeat-password", class: "w-full", "Repeat password" }
+                                Label { html_for: "repeat-password", class: "w-full", {tid!("common-repeat-password")} }
                                 Input {
                                     id: "repeat-password",
                                     r#type: "password",
@@ -127,7 +128,7 @@ pub fn Register() -> Element {
                         a {
                             href: "/login",
                             class: "text-sm underline self-center",
-                            "Already have an account?"
+                            {tid!("common-already-have-account")}
                         }
                         Button {
                             class: "ms-auto",
@@ -136,10 +137,10 @@ pub fn Register() -> Element {
                             onclick: on_submit,
                             if *submitting.read() {
                                 Icon { icon: HiRefresh, width: 16, height: 16 }
-                                "Please wait…"
+                                {tid!("common-please-wait")}
                             } else {
                                 Icon { icon: HiLogin, width: 16, height: 16 }
-                                "Register"
+                                {tid!("register-register")}
                             }
                         }
                     }

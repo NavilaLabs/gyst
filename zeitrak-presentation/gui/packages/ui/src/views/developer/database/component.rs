@@ -9,17 +9,11 @@ use crate::layouts::DefaultLayout;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::HiArrowRight;
 use dioxus_free_icons::Icon;
-use dioxus_i18n::{prelude::*, tid};
+use dioxus_i18n::tid;
 use dioxus_primitives::ContentSide;
-use unic_langid::langid;
 
 #[component]
 pub fn Database() -> Element {
-    use_init_i18n(|| {
-        I18nConfig::new(langid!("en-US"))
-            .with_locale((langid!("en-US"), include_str!("./locales/en-US.ftl")))
-            .with_locale((langid!("de-DE"), include_str!("./locales/de-DE.ftl")))
-    });
 
     rsx! {
         DefaultLayout {

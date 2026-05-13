@@ -8,6 +8,7 @@ use api::timesheet_tag::TimesheetsTagDto;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{HiPencil, HiPlus, HiSave, HiTag, HiTrash, HiX};
 use dioxus_free_icons::Icon;
+use dioxus_i18n::tid;
 
 const PAGE_SIZE: usize = 20;
 
@@ -78,7 +79,7 @@ pub fn Tags() -> Element {
         .cloned()
         .collect();
 
-    let columns = vec![ColumnDef::new("Name"), ColumnDef::new("").width("120px")];
+    let columns = vec![ColumnDef::new(tid!("common-name")), ColumnDef::new("").width("120px")];
     let col_count = columns.len();
 
     rsx! {
@@ -91,16 +92,16 @@ pub fn Tags() -> Element {
                         CardTitle {
                             div { class: "flex items-center gap-2",
                                 Icon { icon: HiTag, width: 18, height: 18 }
-                                "New Tag"
+                                {tid!("tags-new")}
                             }
                         }
                     }
                     CardContent {
                         div { class: "form-field",
-                            label { class: "form-label", r#for: "tag-name", "Name" }
+                            label { class: "form-label", r#for: "tag-name", {tid!("common-name")} }
                             Input {
                                 id: "tag-name",
-                                placeholder: "e.g. urgent",
+                                placeholder: tid!("tags-name-placeholder"),
                                 value: new_name.read().clone(),
                                 oninput: move |e: FormEvent| new_name.set(e.value()),
                             }
@@ -109,7 +110,7 @@ pub fn Tags() -> Element {
                     CardFooter {
                         Button { onclick: on_create,
                             Icon { icon: HiPlus, width: 16, height: 16 }
-                            "Create"
+                            {tid!("common-create")}
                         }
                     }
                 }
@@ -117,7 +118,7 @@ pub fn Tags() -> Element {
                 // ── Tag list ─────────────────────────────────────────────────
                 div { class: "island",
                     div { class: "island-header",
-                        span { class: "island-title", "Tags" }
+                        span { class: "island-title", {tid!("tags-title")} }
                     }
                     DataTable {
                         columns,
@@ -163,11 +164,11 @@ pub fn Tags() -> Element {
                                                             toasts.push_success("Tag deleted");
                                                         }
                                                     },
-                                                    "Yes, delete"
+                                                    {tid!("common-yes-delete")}
                                                 }
                                                 Button {
                                                     onclick: move |_| confirm_delete_id.set(None),
-                                                    "No"
+                                                    {tid!("common-no")}
                                                 }
                                             } else {
                                                 Button {
@@ -197,7 +198,7 @@ pub fn Tags() -> Element {
                                         TableExpandRow { col_count,
                                             div { class: "flex items-end gap-3",
                                                 div { class: "form-field flex-1",
-                                                    label { class: "form-label", r#for: "et-name", "Name" }
+                                                    label { class: "form-label", r#for: "et-name", {tid!("common-name")} }
                                                     Input {
                                                         id: "et-name",
                                                         value: edit_name.read().clone(),
@@ -207,12 +208,12 @@ pub fn Tags() -> Element {
                                                 div { class: "flex gap-2",
                                                     Button { onclick: on_save,
                                                         Icon { icon: HiSave, width: 14, height: 14 }
-                                                        "Save"
+                                                        {tid!("common-save")}
                                                     }
                                                     Button {
                                                         onclick: move |_| editing_id.set(None),
                                                         Icon { icon: HiX, width: 14, height: 14 }
-                                                        "Cancel"
+                                                        {tid!("common-cancel")}
                                                     }
                                                 }
                                             }

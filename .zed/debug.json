@@ -3,6 +3,6 @@
     "label": "Attach to Dioxus Server",
     "adapter": "CodeLLDB",
     "request": "attach",
-    "program": "${ZED_WORKTREE_ROOT}/zeitrak-presentation/gui/target/dx/web/debug/web/server"
+    "stopOnEntry": false
   }
 ]

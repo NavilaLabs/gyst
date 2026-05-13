@@ -51,6 +51,17 @@ pub trait InvitationRepository<R>: Repository<Invitation, R> + Send + Sync {
         &self,
         email: &str,
     ) -> Result<Vec<InvitationId>, <Self as InvitationRepository<R>>::Error>;
+
+    /// Returns full invitation rows for all pending, non-expired invitations
+    /// addressed to the given email.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    async fn find_all_pending_for_email(
+        &self,
+        email: &str,
+    ) -> Result<Vec<InvitationRow>, <Self as InvitationRepository<R>>::Error>;
 }
 
 #[cfg(test)]
@@ -192,6 +203,13 @@ pub mod in_memory_repository {
             &self,
             _email: &str,
         ) -> Result<Vec<InvitationId>, StubError> {
+            Ok(vec![])
+        }
+
+        async fn find_all_pending_for_email(
+            &self,
+            _email: &str,
+        ) -> Result<Vec<InvitationRow>, StubError> {
             Ok(vec![])
         }
     }

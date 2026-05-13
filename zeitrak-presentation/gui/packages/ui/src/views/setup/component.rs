@@ -6,6 +6,7 @@ use crate::layouts::DefaultLayout;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{HiCheck, HiChevronLeft, HiChevronRight, HiRefresh};
 use dioxus_free_icons::Icon;
+use dioxus_i18n::tid;
 
 #[component]
 pub fn Setup() -> Element {
@@ -52,25 +53,25 @@ pub fn Setup() -> Element {
                     CardContent {
                         TabList {
                             class: "w-full mb-4",
-                            TabTrigger { value: "admin", index: 0usize, "Admin User" },
-                            TabTrigger { value: "workspace", index: 1usize, "Workspace" }
+                            TabTrigger { value: "admin", index: 0usize, {tid!("setup-tab-admin")} },
+                            TabTrigger { value: "workspace", index: 1usize, {tid!("setup-tab-workspace")} }
                         }
                         TabContent { value: "admin", index: 0usize,
                             Form {
                                 FormField {
-                                    Label { html_for: "username", class: "w-full", "Username" }
+                                    Label { html_for: "username", class: "w-full", {tid!("setup-username-label")} }
                                     Input { id: "username", class: "w-full", disabled: true, placeholder: "admin" }
                                 }
                                 FormField {
-                                    Label { html_for: "email", class: "w-full", "Email" }
+                                    Label { html_for: "email", class: "w-full", {tid!("common-email")} }
                                     Input { id: "email", r#type: "email", class: "w-full", oninput: move |e: FormEvent| email.set(e.value()) }
                                 }
                                 FormField {
-                                    Label { html_for: "password", class: "w-full", "Password" }
+                                    Label { html_for: "password", class: "w-full", {tid!("common-password")} }
                                     Input { id: "password", r#type: "password", class: "w-full", oninput: move |e: FormEvent| password.set(e.value()) }
                                 }
                                 FormField {
-                                    Label { html_for: "confirm_password", class: "w-full", "Confirm Password" }
+                                    Label { html_for: "confirm_password", class: "w-full", {tid!("setup-confirm-password-label")} }
                                     Input { id: "confirm_password", r#type: "password", class: "w-full", oninput: move |e: FormEvent| confirm_password.set(e.value()) }
                                 }
                             }
@@ -78,7 +79,7 @@ pub fn Setup() -> Element {
                         TabContent { value: "workspace", index: 1usize,
                             Form {
                                 FormField {
-                                    Label { html_for: "workspace_name", class: "w-full", "Workspace Name" }
+                                    Label { html_for: "workspace_name", class: "w-full", {tid!("common-workspace-name")} }
                                     Input { id: "workspace_name", class: "w-full", oninput: move |e: FormEvent| workspace_name.set(e.value()) }
                                 }
                             }
@@ -95,14 +96,14 @@ pub fn Setup() -> Element {
                             variant: ButtonVariant::Secondary,
                             onclick: move |_| active_tab.set(Some("admin".to_string())),
                             Icon { icon: HiChevronLeft, width: 16, height: 16 }
-                            "Back"
+                            {tid!("common-back")}
                         }
                     }
                     if active_tab.read().as_deref() == Some("admin") {
                         Button {
                             class: "ms-auto",
                             onclick: move |_| active_tab.set(Some("workspace".to_string())),
-                            "Next"
+                            {tid!("common-next")}
                             Icon { icon: HiChevronRight, width: 16, height: 16 }
                         }
                     } else {
@@ -113,10 +114,10 @@ pub fn Setup() -> Element {
                             onclick: on_submit,
                             if *submitting.read() {
                                 Icon { icon: HiRefresh, width: 16, height: 16 }
-                                "Submitting…"
+                                {tid!("common-submitting")}
                             } else {
                                 Icon { icon: HiCheck, width: 16, height: 16 }
-                                "Submit"
+                                {tid!("common-submit")}
                             }
                         }
                     }

@@ -1,9 +1,0 @@
-developer-actions-database = Database
-developer-actions-database-migrations = Admin Migrations
-    .description = Manage your admin database migrations.
-developer-actions-database-migrations-run = Run migrations
-    .tooltip = Apply all pending admin migrations.
-developer-actions-database-tenant-migrations = Tenant Migrations
-    .description = Migrate the database for the currently selected workspace.
-developer-actions-database-tenant-migrations-run = Run tenant migrations
-    .tooltip = Apply all pending tenant migrations for the active workspace.

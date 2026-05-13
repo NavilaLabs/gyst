@@ -80,6 +80,49 @@ pub async fn list_invitations() -> Result<Vec<InvitationDto>, ServerFnError> {
     }
 }
 
+/// Returns all pending invitations addressed to the currently authenticated user.
+#[get("/api/invitations/mine")]
+pub async fn list_my_invitations() -> Result<Vec<InvitationDto>, ServerFnError> {
+    #[cfg(feature = "server")]
+    {
+        _list_my_invitations().await
+    }
+    #[cfg(not(feature = "server"))]
+    {
+        Ok(vec![])
+    }
+}
+
+/// Revokes a pending invitation by its token.
+///
+/// Requires the `member.invite` permission in the invitation's workspace.
+#[post("/api/invitations/revoke")]
+pub async fn revoke_invitation(token: String) -> Result<(), ServerFnError> {
+    #[cfg(feature = "server")]
+    {
+        _revoke_invitation(token).await
+    }
+    #[cfg(not(feature = "server"))]
+    {
+        let _ = token;
+        Ok(())
+    }
+}
+
+/// Declines a pending invitation addressed to the currently authenticated user.
+#[post("/api/invitations/decline")]
+pub async fn decline_invitation(token: String) -> Result<(), ServerFnError> {
+    #[cfg(feature = "server")]
+    {
+        _decline_invitation(token).await
+    }
+    #[cfg(not(feature = "server"))]
+    {
+        let _ = token;
+        Ok(())
+    }
+}
+
 /// Registers a new user and immediately accepts a pending invitation.
 ///
 /// Used during invitation-only registration: the email is taken from the invitation,
@@ -289,4 +332,61 @@ async fn _list_invitations() -> Result<Vec<InvitationDto>, ServerFnError> {
             }
         })
         .collect())
+}
+
+#[cfg(feature = "server")]
+async fn _list_my_invitations() -> Result<Vec<InvitationDto>, ServerFnError> {
+    use crate::session::{internal, session_user};
+    use zeitrak::core::admin::invitation::InvitationStatus;
+
+    let user = session_user().await?;
+    let rows = zeitrak::invitation::list_pending_invitations_for_email(&user.email)
+        .await
+        .map_err(internal)?;
+
+    Ok(rows
+        .into_iter()
+        .map(|r| {
+            let status = match r.status {
+                InvitationStatus::Pending => "pending",
+                InvitationStatus::Accepted => "accepted",
+                InvitationStatus::Revoked => "revoked",
+            };
+            InvitationDto {
+                id: r.id().to_string(),
+                workspace_id: r.workspace_id.to_string(),
+                workspace_name: r.workspace_name.clone(),
+                email: r.email().to_string(),
+                workspace_role_id: r.workspace_role_id.to_string(),
+                token: r.token().to_string(),
+                status: status.to_string(),
+            }
+        })
+        .collect())
+}
+
+#[cfg(feature = "server")]
+async fn _revoke_invitation(token: String) -> Result<(), ServerFnError> {
+    use crate::session::{internal, session_user};
+    use zeitrak::auth::CurrentUser;
+
+    let user = session_user().await?;
+    let current_user = CurrentUser {
+        id: user.id,
+        email: user.email,
+    };
+
+    zeitrak::invitation::revoke_invitation(&token, &current_user)
+        .await
+        .map_err(internal)
+}
+
+#[cfg(feature = "server")]
+async fn _decline_invitation(token: String) -> Result<(), ServerFnError> {
+    use crate::session::{internal, session_user};
+
+    let user = session_user().await?;
+    zeitrak::invitation::decline_invitation(&token, &user.email)
+        .await
+        .map_err(internal)
 }

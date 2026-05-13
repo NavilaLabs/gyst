@@ -1,6 +1,7 @@
 use crate::components::atoms::{Card, CardContent, CardFooter};
 use crate::layouts::DefaultLayout;
 use dioxus::prelude::*;
+use dioxus_i18n::tid;
 
 #[component]
 pub fn VerifyEmailPending() -> Element {
@@ -10,17 +11,16 @@ pub fn VerifyEmailPending() -> Element {
                 class: "w-full",
                 data_size: "md",
                 CardContent {
-                    p { class: "text-center font-semibold mb-2", "Check your inbox" }
+                    p { class: "text-center font-semibold mb-2", {tid!("verify-email-pending-heading")} }
                     p { class: "text-center text-sm",
-                        "We sent a verification link to your email address. \
-                         Please click the link to activate your account."
+                        {tid!("verify-email-pending-body")}
                     }
                 }
                 CardFooter {
                     a {
                         href: "/login",
                         class: "text-sm underline mx-auto",
-                        "Go to sign in"
+                        {tid!("common-go-to-sign-in")}
                     }
                 }
             }

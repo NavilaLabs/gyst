@@ -258,4 +258,21 @@ impl InvitationRepositoryTrait<AnyRow> for InvitationRepository {
             })
             .collect()
     }
+
+    async fn find_all_pending_for_email(
+        &self,
+        email: &str,
+    ) -> Result<Vec<InvitationRow>, crate::Error> {
+        let rows = sqlx::query(
+            "SELECT i.id, i.workspace_id, w.name AS workspace_name, i.email, \
+             i.workspace_role_id, i.token, i.status, i.expires_at \
+             FROM projections__invitations i \
+             LEFT JOIN projections__workspaces w ON i.workspace_id = w.id \
+             WHERE i.email = ? AND i.status = 'pending'",
+        )
+        .bind(email)
+        .fetch_all(self.store.pool.as_ref())
+        .await?;
+        rows.iter().map(|r| self.row_to_invitation_row(r)).collect()
+    }
 }

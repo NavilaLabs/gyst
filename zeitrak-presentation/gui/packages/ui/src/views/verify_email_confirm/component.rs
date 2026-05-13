@@ -1,6 +1,7 @@
 use crate::components::atoms::{Card, CardContent, CardFooter};
 use crate::layouts::DefaultLayout;
 use dioxus::prelude::*;
+use dioxus_i18n::tid;
 
 #[component]
 pub fn VerifyEmailConfirm(token: String) -> Element {
@@ -14,16 +15,16 @@ pub fn VerifyEmailConfirm(token: String) -> Element {
                     class: "w-full",
                     data_size: "md",
                     CardContent {
-                        p { class: "text-center font-semibold mb-2", "Email verified" }
+                        p { class: "text-center font-semibold mb-2", {tid!("verify-email-verified-heading")} }
                         p { class: "text-center text-sm",
-                            "Your email address has been verified. You can now sign in."
+                            {tid!("verify-email-verified-body")}
                         }
                     }
                     CardFooter {
                         a {
                             href: "/login",
                             class: "text-sm underline mx-auto",
-                            "Sign in"
+                            {tid!("common-sign-in")}
                         }
                     }
                 }
@@ -35,16 +36,16 @@ pub fn VerifyEmailConfirm(token: String) -> Element {
                     class: "w-full",
                     data_size: "md",
                     CardContent {
-                        p { class: "text-center font-semibold mb-2", "Verification failed" }
+                        p { class: "text-center font-semibold mb-2", {tid!("verify-email-failed-heading")} }
                         p { class: "text-center text-sm",
-                            "This verification link is invalid or has already been used."
+                            {tid!("verify-email-failed-body")}
                         }
                     }
                     CardFooter {
                         a {
                             href: "/login",
                             class: "text-sm underline mx-auto",
-                            "Go to sign in"
+                            {tid!("common-go-to-sign-in")}
                         }
                     }
                 }

@@ -1,0 +1,225 @@
+# ── Common ────────────────────────────────────────────────────────────────────
+
+common-name = Name
+common-email = Email
+common-password = Password
+common-repeat-password = Repeat password
+common-cancel = Cancel
+common-save = Save
+common-saving = Saving…
+common-create = Create
+common-creating = Creating…
+common-yes-delete = Yes, delete
+common-no = No
+common-please-wait = Please wait…
+common-sign-in = Sign in
+common-go-to-sign-in = Go to sign in
+common-already-have-account = Already have an account?
+common-activity = Activity
+common-description = Description
+common-start-time = Start time
+common-end-time = End time
+common-tags = Tags
+common-timezone = Timezone
+common-date-format = Date Format
+common-language = Language
+common-select-timezone = Select timezone
+common-select-format = Select format
+common-select-language = Select language
+common-select-activity = Select activity…
+common-optional-notes = Optional notes…
+common-optional-description = Optional description…
+common-submit = Submit
+common-submitting = Submitting…
+common-next = Next
+common-back = Back
+common-stop = Stop
+common-start = Start
+common-comment = Comment
+common-workspace-name = Workspace Name
+common-save-settings = Save Settings
+common-role = Role
+
+# ── Atoms ─────────────────────────────────────────────────────────────────────
+
+table-no-records = No records found.
+
+searchable-select-search = Search…
+searchable-select-no-results = No results
+
+# ── Sidebar ───────────────────────────────────────────────────────────────────
+
+sidebar-brand-name = Zeitrak
+sidebar-brand-sub = Curated Workspace
+sidebar-nav-dashboard = Dashboard
+sidebar-nav-timesheets = Timesheets
+sidebar-nav-activities = Activities
+sidebar-nav-tags = Tags
+sidebar-nav-settings = Settings
+sidebar-timer-running = Timer Running
+sidebar-start-timer = Start Timer
+sidebar-logout = Logout
+
+# ── Header ────────────────────────────────────────────────────────────────────
+
+header-switch-workspace = Switch workspace
+
+# ── Settings menu ─────────────────────────────────────────────────────────────
+
+settings-menu-theme = Theme
+settings-menu-light = Light
+settings-menu-dark = Dark
+settings-menu-system = System
+settings-menu-database = Database
+
+# ── Layout page titles ────────────────────────────────────────────────────────
+
+layout-title-dashboard = Dashboard
+layout-title-activities = Activities
+layout-title-timesheets = Timesheets
+layout-title-tags = Tags
+layout-title-settings = Settings
+layout-title-developer = Developer
+layout-title-workspaces = Workspaces
+layout-title-login = Login
+layout-title-setup = Setup
+layout-title-register = Register
+layout-title-accept-invitation = Accept Invitation
+layout-title-verify-email = Verify Email
+layout-title-not-found = Not Found
+
+# ── Dashboard ─────────────────────────────────────────────────────────────────
+
+dashboard-timer-running = Timer Running
+dashboard-quick-start = Quick Start
+dashboard-start-session = Start Session
+dashboard-today = Today
+dashboard-tracked = tracked
+dashboard-this-week = This Week
+dashboard-hours-per-day = Hours per Day
+dashboard-last-7-days = last 7 days
+dashboard-recent-entries = Recent Entries
+dashboard-unassigned = Unassigned
+
+# ── Activities ────────────────────────────────────────────────────────────────
+
+activities-title = Activities
+activities-new = New Activity
+activities-name-placeholder = Development
+
+# ── Settings ──────────────────────────────────────────────────────────────────
+
+settings-tab-my-settings = My Settings
+settings-tab-workspace-settings = Workspace Settings
+settings-tab-members = Members
+settings-my-settings-title = My Settings
+settings-invite-member-title = Invite Member
+settings-invite-email-label = Email address
+settings-invite-email-placeholder = colleague@example.com
+settings-invite-role-placeholder = Select role
+settings-invite-expires-label = Invitation expires after
+settings-invite-duration-placeholder = Select duration
+settings-invite-send = Send Invitation
+settings-invite-sending = Sending…
+settings-open-invitations-title = Open Invitations
+settings-no-pending-invitations = No pending invitations.
+settings-invitation-pending = Pending
+settings-revoke-invitation = Revoke
+settings-workspace-title = Workspace Settings
+settings-workspace-name-placeholder = My Workspace
+settings-currency-label = Currency
+settings-currency-placeholder = Select currency
+settings-week-starts-label = Week Starts On
+settings-week-starts-placeholder = Select day
+settings-select-timezone = Select timezone
+settings-select-format = Select format
+settings-select-language = Select language
+
+# ── Workspace select ──────────────────────────────────────────────────────────
+
+workspace-select-brand = Zeitrak
+workspace-select-heading = Choose your workspace
+workspace-select-subheading = Select the workspace you'd like to enter.
+workspace-select-loading = Loading workspaces…
+workspace-select-unnamed = Unnamed workspace
+workspace-select-click-to-enter = Click to enter
+workspace-select-pending-invitations = Pending invitations
+workspace-select-invited-meta = You have been invited to join this workspace
+workspace-select-accept-title = Accept invitation
+workspace-select-accept = Accept
+workspace-select-decline-title = Decline invitation
+workspace-select-decline = Decline
+
+# ── Login ─────────────────────────────────────────────────────────────────────
+
+login-create-account = Create an account
+login-signing-in = Signing in…
+
+# ── Register ──────────────────────────────────────────────────────────────────
+
+register-invite-only = Registration is by invitation only.
+register-sign-in-instead = Sign in instead
+register-register = Register
+
+# ── Invitation accept ─────────────────────────────────────────────────────────
+
+invitation-invalid = This invitation is invalid or has expired.
+invitation-revoked = This invitation has already been used or revoked.
+invitation-accept-intro-pre = You have been invited to join
+invitation-accept-intro-post = .
+invitation-accepting = Accepting…
+invitation-accept-btn = Accept invitation
+invitation-register-intro-post = . Create an account to continue.
+invitation-register-join = Register and join
+
+# ── Setup ─────────────────────────────────────────────────────────────────────
+
+setup-tab-admin = Admin User
+setup-tab-workspace = Workspace
+setup-username-label = Username
+setup-confirm-password-label = Confirm Password
+
+# ── Tags ──────────────────────────────────────────────────────────────────────
+
+tags-new = New Tag
+tags-name-placeholder = e.g. urgent
+tags-title = Tags
+
+# ── Timesheets ────────────────────────────────────────────────────────────────
+
+timesheets-recent-title = Recent
+timesheets-col-activity = Activity
+timesheets-col-start = Start
+timesheets-col-duration = Duration
+timesheets-delete-confirm = Delete this timesheet entry?
+
+# ── Timer card ────────────────────────────────────────────────────────────────
+
+timer-running = Running Timer
+timer-started-prefix = Started:
+timer-what-working-on = What are you working on?
+timer-manual-entry = Manual Entry
+timer-start-timer = Start Timer
+timer-tab-timer = Timer
+timer-tab-manual = Manual
+
+# ── Email verification ────────────────────────────────────────────────────────
+
+verify-email-verified-heading = Email verified
+verify-email-verified-body = Your email address has been verified. You can now sign in.
+verify-email-failed-heading = Verification failed
+verify-email-failed-body = This verification link is invalid or has already been used.
+verify-email-pending-heading = Check your inbox
+verify-email-pending-body = We sent a verification link to your email address. Please click the link to activate your account.
+
+# ── Developer / Database ──────────────────────────────────────────────────────
+
+developer-actions-database = Database
+developer-actions-database-migrations = Admin Migrations
+    .description = Manage your admin database migrations.
+developer-actions-database-migrations-run = Run migrations
+    .tooltip = Apply all pending admin migrations.
+developer-actions-database-tenant-migrations = Tenant Migrations
+    .description = Migrate the database for the currently selected workspace.
+developer-actions-database-tenant-migrations-run = Run tenant migrations
+    .tooltip = Apply all pending tenant migrations for the active workspace.

@@ -16,21 +16,14 @@ pub async fn is_invite_only() -> Result<bool, ServerFnError> {
 /// Verifies a user's email address using the one-time token from the verification link.
 ///
 /// Returns `()` on success. The session is not modified — the user still needs to log in.
-#[get("/api/verify-email")]
+#[server]
+#[post("/api/verify-email")]
 pub async fn verify_email(token: String) -> Result<(), ServerFnError> {
-    #[cfg(feature = "server")]
-    {
-        use crate::session::internal;
-        zeitrak::registration::verify_email_by_token(&token)
-            .await
-            .map(|_| ())
-            .map_err(internal)
-    }
-    #[cfg(not(feature = "server"))]
-    {
-        let _ = token;
-        Ok(())
-    }
+    use crate::session::internal;
+    zeitrak::registration::verify_email_by_token(&token)
+        .await
+        .map(|_| ())
+        .map_err(internal)
 }
 
 /// Registers a new user account.
@@ -39,11 +32,7 @@ pub async fn verify_email(token: String) -> Result<(), ServerFnError> {
 /// selected yet — the user must create or accept an invitation to one).
 /// Returns a 403 error when the server is configured for invitation-only registration.
 #[post("/api/register")]
-pub async fn register(
-    name: String,
-    email: String,
-    password: String,
-) -> Result<(), ServerFnError> {
+pub async fn register(name: String, email: String, password: String) -> Result<(), ServerFnError> {
     #[cfg(feature = "server")]
     {
         if zeitrak::registration::is_invite_only() {
@@ -70,10 +59,15 @@ async fn _register(name: String, email: String, password: String) -> Result<(), 
 
     let email_sender = zeitrak::email::email_sender_from_config().map_err(internal)?;
     let base_url = zeitrak::email::base_url();
-    let user_id =
-        zeitrak::registration::register_user(name, email.clone(), password, &email_sender, base_url)
-            .await
-            .map_err(internal)?;
+    let user_id = zeitrak::registration::register_user(
+        name,
+        email.clone(),
+        password,
+        &email_sender,
+        base_url,
+    )
+    .await
+    .map_err(internal)?;
 
     let is_admin = zeitrak::authorization::AuthorizationService::is_admin(&user_id.to_string())
         .await

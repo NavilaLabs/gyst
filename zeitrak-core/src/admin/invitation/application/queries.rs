@@ -20,6 +20,10 @@ pub trait InvitationQueryTrait<R> {
         workspace_id: &WorkspaceId,
     ) -> Result<Vec<InvitationRow>, Self::Error>;
     async fn find_pending_for_email(&self, email: &str) -> Result<Vec<InvitationId>, Self::Error>;
+    async fn find_all_pending_for_email(
+        &self,
+        email: &str,
+    ) -> Result<Vec<InvitationRow>, Self::Error>;
 }
 
 #[derive(Debug, Clone)]
@@ -53,5 +57,12 @@ where
 
     async fn find_pending_for_email(&self, email: &str) -> Result<Vec<InvitationId>, Self::Error> {
         self.repository.find_pending_for_email(email).await
+    }
+
+    async fn find_all_pending_for_email(
+        &self,
+        email: &str,
+    ) -> Result<Vec<InvitationRow>, Self::Error> {
+        self.repository.find_all_pending_for_email(email).await
     }
 }

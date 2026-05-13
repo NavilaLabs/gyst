@@ -113,7 +113,11 @@ pub async fn register_user_on(
 /// Verifies a user's email address using the globally configured admin pool.
 pub async fn verify_email_by_token(token: &str) -> Result<UserId> {
     let pool = Pool::connect_admin().await?;
-    verify_email_by_token_on(pool, token).await
+    let t = verify_email_by_token_on(pool, token).await;
+
+    dbg!(&t);
+
+    t
 }
 
 /// Verifies a user's email address on the given `pool`.
