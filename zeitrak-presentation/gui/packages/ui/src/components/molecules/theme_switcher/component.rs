@@ -7,6 +7,7 @@ use dioxus::document::eval;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{HiDesktopComputer, HiMoon, HiSun};
 use dioxus_free_icons::Icon;
+use dioxus_i18n::tid;
 
 #[derive(Clone, PartialEq, Copy, Debug)]
 pub enum Theme {
@@ -85,7 +86,7 @@ pub fn ThemeSwitcher() -> Element {
                         },
                         div { class: "theme-menu-item-inner",
                             Icon { icon: HiSun, width: 16, height: 16 }
-                            "Light"
+                            {tid!("settings-menu-light")}
                             if *current_theme.read() == Theme::Light {
                                 span { class: "theme-menu-item-check", "✓" }
                             }
@@ -100,7 +101,7 @@ pub fn ThemeSwitcher() -> Element {
                         },
                         div { class: "theme-menu-item-inner",
                             Icon { icon: HiMoon, width: 16, height: 16 }
-                            "Dark"
+                            {tid!("settings-menu-dark")}
                             if *current_theme.read() == Theme::Dark {
                                 span { class: "theme-menu-item-check", "✓" }
                             }
@@ -115,7 +116,7 @@ pub fn ThemeSwitcher() -> Element {
                         },
                         div { class: "theme-menu-item-inner",
                             Icon { icon: HiDesktopComputer, width: 16, height: 16 }
-                            "System"
+                            {tid!("settings-menu-system")}
                             if *current_theme.read() == Theme::System {
                                 span { class: "theme-menu-item-check", "✓" }
                             }

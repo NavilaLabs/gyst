@@ -1,10 +1,10 @@
 use std::fmt::Debug;
 
-use async_trait::async_trait;
 use crate::{
     shared::repositories::{ReadRepository, Repository, WriteRepository},
     tenant::activity::{application::views::ActivityRow, domain::aggregates::Activity},
 };
+use async_trait::async_trait;
 
 #[async_trait]
 pub trait ActivityRepository<R>: Repository<Activity, R> + Send + Sync {

@@ -1,18 +1,18 @@
 use std::{ops::Deref, str::FromStr};
 
 use async_trait::async_trait;
-use eventually::aggregate::{Aggregate, Root};
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
+use eventually::aggregate::{Aggregate, Root};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
+use sea_query::{Condition, Expr, ExprTrait};
+use sqlx::{Row, any::AnyRow};
 use zeitrak_core::admin::workspace::WorkspaceId;
 use zeitrak_core::admin::workspace_role::{
     WorkspaceRole, WorkspaceRoleEvent, WorkspaceRoleId,
     WorkspaceRoleRepository as WorkspaceRoleRepositoryTrait,
 };
 use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
-use sea_query::{Condition, Expr, ExprTrait};
-use sqlx::{Row, any::AnyRow};
 
 use crate::{
     ConnectedAdminPool, infrastructure::read_model::SeaQueryReadModel, snapshot::SnapshotRepository,
@@ -26,7 +26,8 @@ pub struct WorkspaceRoleRepository {
 
 impl std::fmt::Debug for WorkspaceRoleRepository {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("WorkspaceRoleRepository").finish_non_exhaustive()
+        f.debug_struct("WorkspaceRoleRepository")
+            .finish_non_exhaustive()
     }
 }
 
@@ -58,7 +59,6 @@ impl WorkspaceRoleRepository {
     const fn read_model(&self) -> SeaQueryReadModel<'_> {
         SeaQueryReadModel::new(&self.store.pool, TABLE)
     }
-
 }
 
 impl RowToRoot<AnyRow, WorkspaceRole> for WorkspaceRoleRepository {
@@ -70,24 +70,30 @@ impl RowToRoot<AnyRow, WorkspaceRole> for WorkspaceRoleRepository {
         let workspace_id: String = row.try_get("workspace_id")?;
         let workspace_id = WorkspaceId::from_str(&workspace_id)?;
         let name: Option<String> = row.try_get("name")?;
-        let role =
-            WorkspaceRole::apply(None, WorkspaceRoleEvent::Created { id, workspace_id, name })
-                .expect("Created event on None state is infallible");
+        let role = WorkspaceRole::apply(
+            None,
+            WorkspaceRoleEvent::Created {
+                id,
+                workspace_id,
+                name,
+            },
+        )
+        .expect("Created event on None state is infallible");
         Ok(Root::rehydrate_from_state(0, role))
     }
 }
 
-impl zeitrak_core::shared::repositories::Repository<WorkspaceRole, AnyRow> for WorkspaceRoleRepository {}
+impl zeitrak_core::shared::repositories::Repository<WorkspaceRole, AnyRow>
+    for WorkspaceRoleRepository
+{
+}
 
 #[async_trait]
 impl ReadRepository<WorkspaceRole, AnyRow> for WorkspaceRoleRepository {
     type Error = crate::Error;
     type Filter = Condition;
 
-    async fn find(
-        &self,
-        id: WorkspaceRoleId,
-    ) -> Result<Option<Root<WorkspaceRole>>, crate::Error> {
+    async fn find(&self, id: WorkspaceRoleId) -> Result<Option<Root<WorkspaceRole>>, crate::Error> {
         self.find_by(Condition::all().add(Expr::col("id").eq(id.to_string())))
             .await
     }

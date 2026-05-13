@@ -1,5 +1,11 @@
+use std::fmt::Debug;
+
 use async_trait::async_trait;
 use embassy_futures::join::join;
+use sea_query::{Expr, ExprTrait, PostgresQueryBuilder, Query};
+use sea_query_sqlx::SqlxBinder;
+use sqlx::Row;
+use tracing::info;
 use zeitrak_infrastructure::{
     config::CONFIG,
     database::{
@@ -8,10 +14,6 @@ use zeitrak_infrastructure::{
         database_uri_factory::{self, DatabaseUriType},
     },
 };
-use sea_query::{Expr, ExprTrait, PostgresQueryBuilder, Query};
-use sea_query_sqlx::SqlxBinder;
-use sqlx::Row;
-use tracing::info;
 
 use crate::{
     Error,
@@ -89,7 +91,6 @@ pub trait InitializationStrategy {
         let admin_database_uri =
             database_uri_factory::Factory::new_database_uri(&DatabaseUriType::Admin)
                 .uri(&pool.database_type().to_string(), None)?;
-
         self.check_is_initialized(pool, &admin_database_uri).await
     }
 
@@ -265,12 +266,13 @@ impl InitializationStrategy for SqliteInitializationStrategy {
     }
 }
 
+#[derive(Debug)]
 pub struct Initializer<T> {
     strategy: T,
 }
 
-impl<T: InitializationStrategy + Send + Sync> Initializer<T> {
-    pub const fn new(strategy: T) -> Self {
+impl<T: InitializationStrategy + Debug + Send + Sync> Initializer<T> {
+    pub fn new(strategy: T) -> Self {
         Self { strategy }
     }
 

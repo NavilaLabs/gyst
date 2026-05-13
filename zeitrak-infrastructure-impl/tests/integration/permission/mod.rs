@@ -175,7 +175,10 @@ pub mod tests {
         let repo = make_repository(&db).await;
         let unknown_id: sqlx::types::Uuid = "ffffffff-ffff-7fff-bfff-ffffffffffff".parse().unwrap();
 
-        let result = repo.find(zeitrak_core::shared::AggregateId(unknown_id)).await.expect("query must succeed");
+        let result = repo
+            .find(zeitrak_core::shared::AggregateId(unknown_id))
+            .await
+            .expect("query must succeed");
         assert!(result.is_none());
     }
 }

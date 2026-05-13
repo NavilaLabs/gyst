@@ -22,6 +22,9 @@ pub const TIMESHEET_CANCEL: &str = "timesheet.cancel";
 // Cross-cutting
 pub const TAG_MANAGE: &str = "tag.manage";
 
+// Member management
+pub const MEMBER_INVITE: &str = "member.invite";
+
 /// Every built-in permission that must be seeded in the database.
 /// Used by migrations and initial setup logic.
 pub const ALL: &[&str] = &[
@@ -33,6 +36,7 @@ pub const ALL: &[&str] = &[
     TIMESHEET_EXPORT,
     TIMESHEET_CANCEL,
     TAG_MANAGE,
+    MEMBER_INVITE,
 ];
 
 // ── Plugin-extensible registry ────────────────────────────────────────────────

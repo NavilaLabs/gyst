@@ -72,6 +72,10 @@ impl UserRepository {
             .try_get("date_format")
             .unwrap_or_else(|_| "%Y-%m-%d".to_string());
         let language: String = row.try_get("language").unwrap_or_else(|_| "en".to_string());
+        let is_verified: bool = row
+            .try_get::<bool, _>("is_verified")
+            .or_else(|_| row.try_get::<i64, _>("is_verified").map(|v| v != 0))
+            .unwrap_or(false);
         Ok(UserRow::new_with_settings(
             id,
             name,
@@ -79,6 +83,7 @@ impl UserRepository {
             timezone,
             date_format,
             language,
+            is_verified,
         ))
     }
 
@@ -123,6 +128,11 @@ impl RowToRoot<AnyRow, User> for UserRepository {
             .try_get("date_format")
             .unwrap_or_else(|_| "%Y-%m-%d".to_string());
         let language: String = row.try_get("language").unwrap_or_else(|_| "en".to_string());
+        let is_verified: bool = row
+            .try_get::<bool, _>("is_verified")
+            .or_else(|_| row.try_get::<i64, _>("is_verified").map(|v| v != 0))
+            .unwrap_or(false);
+        let verification_token: Option<String> = row.try_get("verification_token").unwrap_or(None);
         let user = User::apply(
             None,
             UserEvent::Created {
@@ -142,7 +152,19 @@ impl RowToRoot<AnyRow, User> for UserRepository {
             },
         )
         .expect("SettingsUpdated event on Some state is infallible");
-        Ok(Root::rehydrate_from_state(0, user)) // TODO: really get the version of the aggregte root.
+        let user = if let Some(token) = verification_token {
+            User::apply(Some(user), UserEvent::VerificationRequested { token })
+                .expect("VerificationRequested event on Some state is infallible")
+        } else {
+            user
+        };
+        let user = if is_verified {
+            User::apply(Some(user), UserEvent::Verified)
+                .expect("Verified event on Some state is infallible")
+        } else {
+            user
+        };
+        Ok(Root::rehydrate_from_state(0, user)) // TODO: really get the version of the aggregate root.
     }
 }
 
@@ -212,6 +234,43 @@ impl UserRepositoryTrait<AnyRow> for UserRepository {
 
     async fn find_view_by_id(&self, id: &str) -> Result<Option<UserRow>, crate::Error> {
         self.find_view_by_id_impl(id).await
+    }
+
+    async fn find_id_by_email(&self, email: &str) -> Result<Option<UserId>, crate::Error> {
+        let statement = sea_query::Query::select()
+            .expr(Expr::col(Alias::new("id")))
+            .from(Alias::new(TABLE))
+            .and_where(Expr::col(Alias::new("email")).eq(email))
+            .to_owned();
+        let (sql, arguments) = self.store.pool.build_query(&statement);
+        let row = sqlx::query_with(&sql, arguments)
+            .fetch_optional(self.store.pool.as_ref())
+            .await?;
+        row.map(|r| {
+            let id: String = r.try_get(0usize)?;
+            UserId::from_str(&id).map_err(Into::into)
+        })
+        .transpose()
+    }
+
+    async fn find_id_by_verification_token(
+        &self,
+        token: &str,
+    ) -> Result<Option<UserId>, crate::Error> {
+        let statement = sea_query::Query::select()
+            .expr(Expr::col(Alias::new("id")))
+            .from(Alias::new(TABLE))
+            .and_where(Expr::col(Alias::new("verification_token")).eq(token))
+            .to_owned();
+        let (sql, arguments) = self.store.pool.build_query(&statement);
+        let row = sqlx::query_with(&sql, arguments)
+            .fetch_optional(self.store.pool.as_ref())
+            .await?;
+        row.map(|r| {
+            let id: String = r.try_get(0usize)?;
+            UserId::from_str(&id).map_err(Into::into)
+        })
+        .transpose()
     }
 
     async fn find_credentials_by_email(

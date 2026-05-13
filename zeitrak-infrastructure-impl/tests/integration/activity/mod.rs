@@ -3,12 +3,12 @@ use eventually::aggregate::{
     repository::{Getter, Saver},
 };
 use eventually_projection::{Projector, RawEvent};
+use sqlx::Row;
 use zeitrak_core::tenant::activity::{Activity, ActivityEvent, ActivityId};
 use zeitrak_infrastructure_impl::tenant::activity::{
     projectors::ActivityProjector, repositories::ActivityRepository,
 };
 use zeitrak_tests::TestFixture;
-use sqlx::Row;
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 

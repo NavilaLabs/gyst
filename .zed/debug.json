@@ -1,0 +1,8 @@
+[
+  {
+    "label": "Attach to Dioxus Server",
+    "adapter": "CodeLLDB",
+    "request": "attach",
+    "stopOnEntry": false
+  }
+]

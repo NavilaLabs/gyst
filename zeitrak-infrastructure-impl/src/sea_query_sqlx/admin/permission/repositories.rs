@@ -1,14 +1,16 @@
 use std::{ops::Deref, str::FromStr};
 
 use async_trait::async_trait;
-use eventually::aggregate::{Aggregate, Root};
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
+use eventually::aggregate::{Aggregate, Root};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
-use zeitrak_core::admin::permission::{Permission, PermissionEvent, PermissionId, PermissionRepository as PermissionRepositoryTrait};
-use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 use sea_query::{Condition, Expr, ExprTrait};
 use sqlx::{Row, any::AnyRow};
+use zeitrak_core::admin::permission::{
+    Permission, PermissionEvent, PermissionId, PermissionRepository as PermissionRepositoryTrait,
+};
+use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 
 use crate::{
     ConnectedAdminPool, infrastructure::read_model::SeaQueryReadModel, snapshot::SnapshotRepository,
@@ -48,7 +50,6 @@ impl PermissionRepository {
     const fn read_model(&self) -> SeaQueryReadModel<'_> {
         SeaQueryReadModel::new(&self.store.pool, TABLE)
     }
-
 }
 
 #[async_trait]
@@ -98,7 +99,10 @@ impl ReadRepository<Permission, AnyRow> for PermissionRepository {
         row.map(|r| self.row_to_root(r)).transpose()
     }
 
-    async fn find_many(&self, ids: Vec<PermissionId>) -> Result<Vec<Root<Permission>>, crate::Error> {
+    async fn find_many(
+        &self,
+        ids: Vec<PermissionId>,
+    ) -> Result<Vec<Root<Permission>>, crate::Error> {
         if ids.is_empty() {
             return Ok(vec![]);
         }

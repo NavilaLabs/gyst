@@ -1,9 +1,0 @@
-developer-actions-database = Datenbank
-developer-actions-database-migrations = Admin-Migrationen
-    .description = Verwalten Sie Ihre Admin-Datenbank-Migrationen.
-developer-actions-database-migrations-run = Migrationen ausführen
-    .tooltip = Alle ausstehenden Admin-Migrationen anwenden.
-developer-actions-database-tenant-migrations = Mandanten-Migrationen
-    .description = Datenbank für den aktuell ausgewählten Arbeitsbereich migrieren.
-developer-actions-database-tenant-migrations-run = Mandanten-Migrationen ausführen
-    .tooltip = Alle ausstehenden Mandanten-Migrationen für den aktiven Arbeitsbereich anwenden.

@@ -6,6 +6,7 @@ pub mod components;
 pub mod form_machine;
 pub mod formatting;
 pub mod hooks;
+pub mod i18n;
 pub mod layouts;
 pub mod views;
 

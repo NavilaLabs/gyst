@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use eventually_projection::{Projector, RawEvent};
-use zeitrak_core::tenant::timesheet_tag::TimesheetTagEvent;
 use sea_query::{Condition, DynIden, Expr, ExprTrait, OnConflict, Query, TableRef};
 use sea_query_sqlx::SqlxBinder;
+use zeitrak_core::tenant::timesheet_tag::TimesheetTagEvent;
 
 use crate::{ConnectedTenantPool, DatabaseType};
 

@@ -1,8 +1,11 @@
 use dioxus::prelude::*;
-use dioxus_free_icons::icons::hi_solid_icons::HiMenu;
+use dioxus_free_icons::icons::hi_solid_icons::{HiMenu, HiOfficeBuilding};
 use dioxus_free_icons::Icon;
+use dioxus_i18n::tid;
 
 use crate::components::molecules::SettingsMenu;
+
+type AuthState = Signal<Option<Option<api::auth::UserInfo>>>;
 
 #[component]
 pub fn Header(
@@ -12,6 +15,15 @@ pub fn Header(
     title: String,
 ) -> Element {
     let mut sidebar_open: crate::SidebarOpen = use_context();
+    let auth: AuthState = use_context();
+    let navigator = use_navigator();
+
+    let has_workspace = auth
+        .read()
+        .as_ref()
+        .and_then(|o| o.as_ref())
+        .and_then(|u| u.workspace_id.as_ref())
+        .is_some();
 
     rsx! {
         document::Link { rel: "stylesheet", href: asset!("/assets/theme.css") }
@@ -33,6 +45,17 @@ pub fn Header(
                     h1 { class: "header-title", "{title}" }
                 }
                 div { class: "header-actions",
+                    if has_workspace {
+                        button {
+                            class: "header-switch-ws-btn",
+                            title: tid!("header-switch-workspace"),
+                            onclick: move |_| {
+                                navigator.push("/select-workspace");
+                            },
+                            Icon { icon: HiOfficeBuilding, width: 16, height: 16 }
+                            span { class: "header-switch-ws-label", {tid!("header-switch-workspace")} }
+                        }
+                    }
                     SettingsMenu {}
                 }
             }

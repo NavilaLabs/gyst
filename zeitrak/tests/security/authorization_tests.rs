@@ -1,3 +1,4 @@
+use sqlx::AnyPool;
 /// Integration tests for `AuthorizationService`.
 ///
 /// Each test creates its own [`TestFixture`] — a pair of freshly-migrated
@@ -22,7 +23,6 @@
 ///   - `require_permission` returns Err when permission absent    ✓
 use zeitrak::{auth::CurrentUser, authorization::AuthorizationService};
 use zeitrak_tests::TestFixture;
-use sqlx::AnyPool;
 
 // ── Fixed test identifiers ────────────────────────────────────────────────────
 // Deterministic UUIDs make tests reproducible and failure messages readable.

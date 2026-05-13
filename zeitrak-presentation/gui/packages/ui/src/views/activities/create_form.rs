@@ -5,6 +5,7 @@ use api::activity::ActivityDto;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{HiPlus, HiRefresh, HiTag};
 use dioxus_free_icons::Icon;
+use dioxus_i18n::tid;
 use zeitrak_core::{
     tenant::activity::CreateActivityInput,
     validation::{validation_summary, Validate},
@@ -58,26 +59,26 @@ pub(super) fn ActivityCreateForm(props: ActivityCreateFormProps) -> Element {
                 CardTitle {
                     div { class: "flex items-center gap-2",
                         Icon { icon: HiTag, width: 18, height: 18 }
-                        "New Activity"
+                        {tid!("activities-new")}
                     }
                 }
             }
             CardContent {
                 div { class: "grid grid-cols-1 gap-4 md:grid-cols-2",
                     div { class: "form-field",
-                        label { class: "form-label", r#for: "a-name", "Name" }
+                        label { class: "form-label", r#for: "a-name", {tid!("common-name")} }
                         Input {
                             id: "a-name",
-                            placeholder: "Development",
+                            placeholder: tid!("activities-name-placeholder"),
                             value: new_name.read().clone(),
                             oninput: move |e: FormEvent| new_name.set(e.value()),
                         }
                     }
                     div { class: "form-field md:col-span-2",
-                        label { class: "form-label", r#for: "a-comment", "Comment" }
+                        label { class: "form-label", r#for: "a-comment", {tid!("common-comment")} }
                         Input {
                             id: "a-comment",
-                            placeholder: "Optional description…",
+                            placeholder: tid!("common-optional-description"),
                             value: new_comment.read().clone(),
                             oninput: move |e: FormEvent| new_comment.set(e.value()),
                         }
@@ -95,10 +96,10 @@ pub(super) fn ActivityCreateForm(props: ActivityCreateFormProps) -> Element {
                     disabled: create_submitting,
                     if create_submitting {
                         Icon { icon: HiRefresh, width: 16, height: 16 }
-                        "Creating…"
+                        {tid!("common-creating")}
                     } else {
                         Icon { icon: HiPlus, width: 16, height: 16 }
-                        "Create"
+                        {tid!("common-create")}
                     }
                 }
             }

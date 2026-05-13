@@ -21,7 +21,11 @@ use crate::admin::{
 pub trait WorkspaceCommandTrait<R> {
     type Error: Debug + Sync + Send;
 
-    async fn create(&self, id: WorkspaceId, name: Option<String>) -> Result<Root<Workspace>, Self::Error>;
+    async fn create(
+        &self,
+        id: WorkspaceId,
+        name: Option<String>,
+    ) -> Result<Root<Workspace>, Self::Error>;
 
     async fn assign_user_role(
         &self,
@@ -88,9 +92,7 @@ where
         id: WorkspaceId,
         name: Option<String>,
     ) -> Result<Root<Workspace>, <Self as WorkspaceCommandTrait<R>>::Error> {
-        let mut root = Root::<Workspace>::record_new(
-            WorkspaceEvent::Created { id, name }.into(),
-        )?;
+        let mut root = Root::<Workspace>::record_new(WorkspaceEvent::Created { id, name }.into())?;
         self.repository
             .save(&mut root)
             .await
@@ -265,7 +267,13 @@ mod tests {
             .parse()
             .expect("valid UUID");
 
-        let result = cmd.record_that(WorkspaceEvent::UserRoleAssigned { user_id, workspace_role_id: role_id }.into());
+        let result = cmd.record_that(
+            WorkspaceEvent::UserRoleAssigned {
+                user_id,
+                workspace_role_id: role_id,
+            }
+            .into(),
+        );
         assert!(result.is_ok());
         assert_eq!(cmd.version(), 2);
     }
@@ -277,8 +285,21 @@ mod tests {
         let user_id: UserId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92".parse().unwrap();
         let role_id: WorkspaceRoleId = "019d0ce8-facb-7c90-b9d7-287ae4f17c93".parse().unwrap();
 
-        cmd.record_that(WorkspaceEvent::UserRoleAssigned { user_id: user_id.clone(), workspace_role_id: role_id.clone() }.into()).unwrap();
-        let result = cmd.record_that(WorkspaceEvent::UserRoleRevoked { user_id, workspace_role_id: role_id }.into());
+        cmd.record_that(
+            WorkspaceEvent::UserRoleAssigned {
+                user_id: user_id.clone(),
+                workspace_role_id: role_id.clone(),
+            }
+            .into(),
+        )
+        .unwrap();
+        let result = cmd.record_that(
+            WorkspaceEvent::UserRoleRevoked {
+                user_id,
+                workspace_role_id: role_id,
+            }
+            .into(),
+        );
 
         assert!(result.is_ok());
         assert_eq!(cmd.version(), 3);
@@ -291,7 +312,13 @@ mod tests {
         let user_id: UserId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92".parse().unwrap();
         let perm_id: PermissionId = "019d0ce8-facb-7c90-b9d7-287ae4f17c94".parse().unwrap();
 
-        let result = cmd.record_that(WorkspaceEvent::UserPermissionGranted { user_id, permission_id: perm_id }.into());
+        let result = cmd.record_that(
+            WorkspaceEvent::UserPermissionGranted {
+                user_id,
+                permission_id: perm_id,
+            }
+            .into(),
+        );
 
         assert!(result.is_ok());
         assert_eq!(cmd.version(), 2);
@@ -304,8 +331,21 @@ mod tests {
         let user_id: UserId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92".parse().unwrap();
         let perm_id: PermissionId = "019d0ce8-facb-7c90-b9d7-287ae4f17c94".parse().unwrap();
 
-        cmd.record_that(WorkspaceEvent::UserPermissionGranted { user_id: user_id.clone(), permission_id: perm_id.clone() }.into()).unwrap();
-        let result = cmd.record_that(WorkspaceEvent::UserPermissionRevoked { user_id, permission_id: perm_id }.into());
+        cmd.record_that(
+            WorkspaceEvent::UserPermissionGranted {
+                user_id: user_id.clone(),
+                permission_id: perm_id.clone(),
+            }
+            .into(),
+        )
+        .unwrap();
+        let result = cmd.record_that(
+            WorkspaceEvent::UserPermissionRevoked {
+                user_id,
+                permission_id: perm_id,
+            }
+            .into(),
+        );
 
         assert!(result.is_ok());
         assert_eq!(cmd.version(), 3);

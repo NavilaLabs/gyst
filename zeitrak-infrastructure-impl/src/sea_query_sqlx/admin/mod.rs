@@ -1,4 +1,5 @@
 pub mod authentication;
+pub mod invitation;
 pub mod permission;
 pub mod projectors;
 pub mod user;

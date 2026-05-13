@@ -1,7 +1,7 @@
 use anyhow::{Result, bail};
 use async_trait::async_trait;
-use zeitrak_infrastructure_impl::Pool;
 use sqlx::AnyPool;
+use zeitrak_infrastructure_impl::Pool;
 
 use crate::authentication::CurrentUser;
 

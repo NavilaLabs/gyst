@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use async_trait::async_trait;
-use eventually::aggregate::{Root};
+use eventually::aggregate::Root;
 
 use crate::admin::user::{
     application::UserRoot,
@@ -31,6 +31,10 @@ pub trait UserCommandTrait<R> {
         date_format: String,
         language: String,
     ) -> Result<(), Self::Error>;
+
+    async fn request_verification(&self, id: UserId, token: String) -> Result<(), Self::Error>;
+
+    async fn verify_email(&self, id: UserId) -> Result<(), Self::Error>;
 }
 
 #[derive(Debug)]
@@ -107,6 +111,47 @@ where
             .await
             .map_err(|e| crate::Error::WriteRepositoryError(e.into()))
     }
+
+    /// # Errors
+    ///
+    /// Returns an error if the domain event cannot be applied or the root cannot be saved.
+    async fn request_verification(
+        &self,
+        id: UserId,
+        token: String,
+    ) -> Result<(), <Self as UserCommandTrait<R>>::Error> {
+        let mut root: UserRoot = self
+            .repository
+            .get(&id)
+            .await
+            .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
+            .into();
+        root.record_that(UserEvent::VerificationRequested { token }.into())?;
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error if the domain event cannot be applied or the root cannot be saved.
+    async fn verify_email(
+        &self,
+        id: UserId,
+    ) -> Result<(), <Self as UserCommandTrait<R>>::Error> {
+        let mut root: UserRoot = self
+            .repository
+            .get(&id)
+            .await
+            .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
+            .into();
+        root.record_that(UserEvent::Verified.into())?;
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))
+    }
 }
 
 #[cfg(test)]
@@ -127,12 +172,14 @@ mod tests {
             .parse()
             .expect("valid UUID");
 
-        let result = UserCommand::new(InMemoryUserRepository::new()).create(
-            id.clone(),
-            "Alice".to_string(),
-            "alice@example.com".to_string(),
-            "$2b$12$hash".to_string(),
-        ).await;
+        let result = UserCommand::new(InMemoryUserRepository::new())
+            .create(
+                id.clone(),
+                "Alice".to_string(),
+                "alice@example.com".to_string(),
+                "$2b$12$hash".to_string(),
+            )
+            .await;
 
         assert!(result.is_ok());
         let cmd = result.unwrap();
@@ -143,14 +190,15 @@ mod tests {
     #[tokio::test]
     async fn create_propagates_aggregate_error_on_bad_event() {
         assert!(
-            UserCommand::new(InMemoryUserRepository::new()).create(
-                test_id(),
-                "Bob".to_string(),
-                "bob@example.com".to_string(),
-                "$2b$12$hash".to_string(),
-            )
-            .await
-            .is_ok()
+            UserCommand::new(InMemoryUserRepository::new())
+                .create(
+                    test_id(),
+                    "Bob".to_string(),
+                    "bob@example.com".to_string(),
+                    "$2b$12$hash".to_string(),
+                )
+                .await
+                .is_ok()
         );
     }
 }

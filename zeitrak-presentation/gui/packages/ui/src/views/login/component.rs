@@ -5,6 +5,7 @@ use crate::layouts::DefaultLayout;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{HiLogin, HiRefresh};
 use dioxus_free_icons::Icon;
+use dioxus_i18n::tid;
 
 type AuthState = Signal<Option<Option<api::auth::UserInfo>>>;
 
@@ -17,6 +18,7 @@ pub fn Login() -> Element {
 
     let navigator = use_navigator();
     let mut auth: AuthState = use_context();
+    let invite_only = use_resource(|| api::registration::is_invite_only());
 
     let on_submit = move |_| {
         let email = email.read().clone();
@@ -51,7 +53,7 @@ pub fn Login() -> Element {
                 CardContent {
                     Form {
                         FormField {
-                            Label { html_for: "email", class: "w-full", "Email" }
+                            Label { html_for: "email", class: "w-full", {tid!("common-email")} }
                             Input {
                                 id: "email",
                                 r#type: "email",
@@ -60,7 +62,7 @@ pub fn Login() -> Element {
                             }
                         }
                         FormField {
-                            Label { html_for: "password", class: "w-full", "Password" }
+                            Label { html_for: "password", class: "w-full", {tid!("common-password")} }
                             Input {
                                 id: "password",
                                 r#type: "password",
@@ -74,6 +76,13 @@ pub fn Login() -> Element {
                     }
                 }
                 CardFooter {
+                    if matches!(invite_only.value().cloned(), Some(Ok(false))) {
+                        a {
+                            href: "/register",
+                            class: "text-sm underline self-center",
+                            {tid!("login-create-account")}
+                        }
+                    }
                     Button {
                         class: "ms-auto",
                         r#type: "submit",
@@ -81,10 +90,10 @@ pub fn Login() -> Element {
                         onclick: on_submit,
                         if *submitting.read() {
                             Icon { icon: HiRefresh, width: 16, height: 16 }
-                            "Signing in…"
+                            {tid!("login-signing-in")}
                         } else {
                             Icon { icon: HiLogin, width: 16, height: 16 }
-                            "Sign in"
+                            {tid!("common-sign-in")}
                         }
                     }
                 }

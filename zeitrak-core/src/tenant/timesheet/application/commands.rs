@@ -164,20 +164,17 @@ pub trait TimesheetHandlerTrait<R> {
         description: Option<String>,
     ) -> Result<TimesheetRow, Self::Error>;
 
-    async fn stop(&self, id: TimesheetId, end_time: String, duration: i32)
-        -> Result<(), Self::Error>;
-
-    async fn update(
+    async fn stop(
         &self,
         id: TimesheetId,
-        description: Option<String>,
+        end_time: String,
+        duration: i32,
     ) -> Result<(), Self::Error>;
 
-    async fn reassign(
-        &self,
-        id: TimesheetId,
-        activity_id: ActivityId,
-    ) -> Result<(), Self::Error>;
+    async fn update(&self, id: TimesheetId, description: Option<String>)
+    -> Result<(), Self::Error>;
+
+    async fn reassign(&self, id: TimesheetId, activity_id: ActivityId) -> Result<(), Self::Error>;
 
     async fn cancel(&self, id: TimesheetId) -> Result<(), Self::Error>;
 
@@ -296,11 +293,7 @@ where
             .map_err(|e| crate::Error::WriteRepositoryError(e.into()))
     }
 
-    async fn reassign(
-        &self,
-        id: TimesheetId,
-        activity_id: ActivityId,
-    ) -> Result<(), Self::Error> {
+    async fn reassign(&self, id: TimesheetId, activity_id: ActivityId) -> Result<(), Self::Error> {
         let mut root: TimesheetCommand = self
             .repository
             .get(&id)

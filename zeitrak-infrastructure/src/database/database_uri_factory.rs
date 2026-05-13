@@ -53,10 +53,11 @@ impl CreateDatabaseUri for AdminDatabaseUri {
         _tenant_token: Option<&str>,
     ) -> Result<DatabaseUri, crate::Error> {
         let base_uri = CONFIG.database().base_uri();
+
         let admin_database_name = CONFIG.database().databases().admin().name();
         let admin_uri = Url::parse(&format!("{base_uri}/{admin_database_name}"))?;
-        let admin_uri = self.ensure_sqlite_extension(database_type, admin_uri.into())?;
 
+        let admin_uri = self.ensure_sqlite_extension(database_type, admin_uri.into())?;
         Ok(admin_uri)
     }
 }

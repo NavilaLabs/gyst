@@ -1,3 +1,5 @@
+use tracing::info;
+use url::Url;
 use zeitrak_infrastructure::{
     config::CONFIG,
     database::{
@@ -8,8 +10,6 @@ use zeitrak_infrastructure::{
 use zeitrak_infrastructure_impl::{
     Error, {Pool, ScopeAdmin, ScopeTenant, StateConnected},
 };
-use tracing::info;
-use url::Url;
 
 use super::{ConnectedDefaultPool, initialize_databases};
 

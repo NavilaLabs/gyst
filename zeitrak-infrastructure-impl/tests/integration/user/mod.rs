@@ -3,12 +3,12 @@ use eventually::aggregate::{
     repository::{Getter, Saver},
 };
 use eventually_projection::{Projector, RawEvent};
+use sqlx::Row;
 use zeitrak_core::admin::user::{User, UserEvent, UserId};
 use zeitrak_infrastructure_impl::admin::user::{
     projectors::UserProjector, repositories::UserRepository,
 };
 use zeitrak_tests::TestFixture;
-use sqlx::Row;
 
 fn test_id() -> UserId {
     "019d0ce8-facb-7c90-b9d7-287ae4f17c91"
@@ -20,6 +20,156 @@ async fn make_repository(fixture: &TestFixture) -> UserRepository {
     UserRepository::from_pool(fixture.admin.clone())
         .await
         .expect("UserRepository must be created")
+}
+
+pub mod verification_tests {
+    use zeitrak_core::admin::user::UserRepository as UserRepositoryTrait;
+    use zeitrak_infrastructure_impl::admin::user::repositories::UserRepository;
+
+    use super::*;
+
+    fn test_verification_id() -> UserId {
+        "019d0ce8-facb-7c90-b9d7-287ae4f17c92"
+            .parse()
+            .expect("valid UUID")
+    }
+
+    /// A `UserVerificationRequested` event must store the token in the projection
+    /// and make it findable via `find_id_by_verification_token`.
+    #[tokio::test]
+    async fn test_projector_stores_verification_token() {
+        let db = TestFixture::setup().await;
+        let mut projector = UserProjector::new(db.admin.clone());
+        let repo = make_repository(&db).await;
+        let id = test_verification_id();
+
+        // First project a UserCreated event so the row exists.
+        let created = UserEvent::Created {
+            id: id.clone(),
+            name: "Bob".to_string(),
+            email: "bob@example.com".to_string(),
+            password: "hash".to_string(),
+        };
+        projector
+            .handle(RawEvent {
+                stream_id: id.to_string(),
+                version: 1,
+                global_position: 1,
+                event_type: "UserCreated".to_string(),
+                payload_bytes: serde_json::to_vec(&created).unwrap(),
+                metadata: serde_json::Value::Null,
+                schema_version: 1,
+            })
+            .await
+            .expect("UserCreated must be handled");
+
+        // Now project the verification request.
+        let token = "test-token-abc";
+        let requested = UserEvent::VerificationRequested {
+            token: token.to_string(),
+        };
+        projector
+            .handle(RawEvent {
+                stream_id: id.to_string(),
+                version: 2,
+                global_position: 2,
+                event_type: "UserVerificationRequested".to_string(),
+                payload_bytes: serde_json::to_vec(&requested).unwrap(),
+                metadata: serde_json::Value::Null,
+                schema_version: 1,
+            })
+            .await
+            .expect("UserVerificationRequested must be handled");
+
+        // The token must now resolve to the user's ID.
+        let found = repo
+            .find_id_by_verification_token(token)
+            .await
+            .expect("query must succeed");
+
+        assert_eq!(
+            found.as_ref(),
+            Some(&id),
+            "verification token must map to user id"
+        );
+    }
+
+    /// A `UserVerified` event must clear the token and set `is_verified`.
+    #[tokio::test]
+    async fn test_projector_clears_token_on_verified() {
+        let db = TestFixture::setup().await;
+        let mut projector = UserProjector::new(db.admin.clone());
+        let repo = make_repository(&db).await;
+        let id = test_verification_id();
+
+        let token = "clear-me-token";
+
+        for (version, global_position, event_type, event) in [
+            (
+                1i64,
+                1i64,
+                "UserCreated",
+                UserEvent::Created {
+                    id: id.clone(),
+                    name: "Bob".to_string(),
+                    email: "bob@example.com".to_string(),
+                    password: "hash".to_string(),
+                },
+            ),
+            (
+                2,
+                2,
+                "UserVerificationRequested",
+                UserEvent::VerificationRequested {
+                    token: token.to_string(),
+                },
+            ),
+            (3, 3, "UserVerified", UserEvent::Verified),
+        ] {
+            projector
+                .handle(RawEvent {
+                    stream_id: id.to_string(),
+                    version,
+                    global_position,
+                    event_type: event_type.to_string(),
+                    payload_bytes: serde_json::to_vec(&event).unwrap(),
+                    metadata: serde_json::Value::Null,
+                    schema_version: 1,
+                })
+                .await
+                .unwrap_or_else(|e| panic!("{event_type} must be handled: {e}"));
+        }
+
+        let found = repo
+            .find_id_by_verification_token(token)
+            .await
+            .expect("query must succeed");
+        assert!(
+            found.is_none(),
+            "token must be cleared after UserVerified event"
+        );
+
+        let row = repo
+            .find_view_by_id(&id.to_string())
+            .await
+            .expect("query must succeed")
+            .expect("user row must exist");
+        assert!(row.is_verified, "is_verified must be true after UserVerified");
+    }
+
+    /// A token that was never stored must return `None`.
+    #[tokio::test]
+    async fn test_find_id_by_verification_token_returns_none_for_unknown_token() {
+        let db = TestFixture::setup().await;
+        let repo: UserRepository = UserRepository::from_pool(db.admin.clone())
+            .await
+            .expect("must create repo");
+        let found = repo
+            .find_id_by_verification_token("nonexistent-token")
+            .await
+            .expect("query must succeed");
+        assert!(found.is_none());
+    }
 }
 
 pub mod tests {

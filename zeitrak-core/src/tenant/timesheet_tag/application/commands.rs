@@ -136,7 +136,11 @@ where
         name: String,
     ) -> Result<TimesheetTagRow, Self::Error> {
         let mut root = aggregate::Root::<TimesheetTag>::record_new(
-            TimesheetTagEvent::Created { id: id.clone(), name: name.clone() }.into(),
+            TimesheetTagEvent::Created {
+                id: id.clone(),
+                name: name.clone(),
+            }
+            .into(),
         )?;
         self.repository
             .save(&mut root)

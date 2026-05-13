@@ -1,5 +1,6 @@
 application:
   environment: production
   name: Zeitrak
-  project_root: ${APP_PROJECT_ROOT}
-  authentication_secret: ${APP_AUTHENTICATION_SECRET}
+  security:
+    invite_only: true
+    invite_token_expiry_secs: 300

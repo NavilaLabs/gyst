@@ -1,7 +1,11 @@
 use std::fmt::Debug;
 
 use crate::{
-    admin::user::{self, application::rows::UserRow, domain::aggregates::User},
+    admin::user::{
+        self,
+        application::rows::UserRow,
+        domain::aggregates::{User, UserId},
+    },
     shared::repositories::{ReadRepository, Repository, WriteRepository},
 };
 use async_trait::async_trait;
@@ -36,6 +40,28 @@ pub trait UserRepository<R>: Repository<User, R> + Send + Sync {
         id: &str,
     ) -> Result<Option<UserRow>, <Self as UserRepository<R>>::Error>;
 
+    /// Returns the user ID for the given email address, or `None` if not found.
+    ///
+    /// Used to detect duplicate email registrations before creating a new user.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    async fn find_id_by_email(
+        &self,
+        email: &str,
+    ) -> Result<Option<UserId>, <Self as UserRepository<R>>::Error>;
+
+    /// Returns the user ID whose `verification_token` matches, or `None`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    async fn find_id_by_verification_token(
+        &self,
+        token: &str,
+    ) -> Result<Option<UserId>, <Self as UserRepository<R>>::Error>;
+
     /// # Errors
     ///
     /// Returns an error if the database count query fails.
@@ -53,7 +79,13 @@ pub mod in_memory_repository {
     };
 
     use super::*;
-    use crate::{admin::user::UserId, shared::{AggregateId, repositories::{ReadRepository, Repository, RowToRoot, WriteRepository}}};
+    use crate::{
+        admin::user::UserId,
+        shared::{
+            AggregateId,
+            repositories::{ReadRepository, Repository, RowToRoot, WriteRepository},
+        },
+    };
 
     impl RowToRoot<(), User> for InMemoryUserRepository {
         type Error = StubError;
@@ -69,22 +101,30 @@ pub mod in_memory_repository {
     pub struct StubError;
 
     impl From<GetError> for StubError {
-        fn from(_: GetError) -> Self { Self }
+        fn from(_: GetError) -> Self {
+            Self
+        }
     }
 
     impl From<SaveError> for StubError {
-        fn from(_: SaveError) -> Self { Self }
+        fn from(_: SaveError) -> Self {
+            Self
+        }
     }
 
     impl From<user::Error> for StubError {
-        fn from(_: user::Error) -> Self { Self }
+        fn from(_: user::Error) -> Self {
+            Self
+        }
     }
 
     #[derive(Debug)]
     pub struct InMemoryUserRepository;
 
     impl InMemoryUserRepository {
-        pub fn new() -> Self { Self }
+        pub fn new() -> Self {
+            Self
+        }
     }
 
     #[async_trait]
@@ -106,13 +146,27 @@ pub mod in_memory_repository {
         type Error = StubError;
         type Filter = ();
 
-        async fn find(&self, _id: AggregateId) -> Result<Option<Root<User>>, StubError> { Ok(None) }
-        async fn find_by(&self, _filter: ()) -> Result<Option<Root<User>>, StubError> { Ok(None) }
-        async fn find_many(&self, _ids: Vec<AggregateId>) -> Result<Vec<Root<User>>, StubError> { Ok(vec![]) }
-        async fn find_many_by(&self, _filter: ()) -> Result<Vec<Root<User>>, StubError> { Ok(vec![]) }
-        async fn all(&self) -> Result<Vec<Root<User>>, StubError> { Ok(vec![]) }
-        async fn count_by(&self, _filter: ()) -> Result<u64, StubError> { Ok(0) }
-        async fn count(&self) -> Result<u64, StubError> { Ok(0) }
+        async fn find(&self, _id: AggregateId) -> Result<Option<Root<User>>, StubError> {
+            Ok(None)
+        }
+        async fn find_by(&self, _filter: ()) -> Result<Option<Root<User>>, StubError> {
+            Ok(None)
+        }
+        async fn find_many(&self, _ids: Vec<AggregateId>) -> Result<Vec<Root<User>>, StubError> {
+            Ok(vec![])
+        }
+        async fn find_many_by(&self, _filter: ()) -> Result<Vec<Root<User>>, StubError> {
+            Ok(vec![])
+        }
+        async fn all(&self) -> Result<Vec<Root<User>>, StubError> {
+            Ok(vec![])
+        }
+        async fn count_by(&self, _filter: ()) -> Result<u64, StubError> {
+            Ok(0)
+        }
+        async fn count(&self) -> Result<u64, StubError> {
+            Ok(0)
+        }
     }
 
     #[async_trait]
@@ -135,6 +189,17 @@ pub mod in_memory_repository {
             &self,
             _id: &str,
         ) -> Result<Option<crate::admin::user::application::rows::UserRow>, StubError> {
+            Ok(None)
+        }
+
+        async fn find_id_by_email(&self, _email: &str) -> Result<Option<UserId>, StubError> {
+            Ok(None)
+        }
+
+        async fn find_id_by_verification_token(
+            &self,
+            _token: &str,
+        ) -> Result<Option<UserId>, StubError> {
             Ok(None)
         }
     }

@@ -17,6 +17,8 @@ pub struct User {
     pub timezone: String,
     pub date_format: String,
     pub language: String,
+    pub is_verified: bool,
+    pub verification_token: Option<String>,
 }
 
 impl User {
@@ -67,10 +69,11 @@ impl Aggregate for User {
                 timezone: "Europe/Berlin".to_string(),
                 date_format: "%Y-%m-%d".to_string(),
                 language: "en".to_string(),
+                is_verified: false,
+                verification_token: None,
             }),
-            (Some(_), UserEvent::Created { .. }) | (None, UserEvent::SettingsUpdated { .. }) => {
-                Err(user::Error::AlreadyExists)
-            }
+            (Some(_), UserEvent::Created { .. }) => Err(user::Error::AlreadyExists),
+            (None, _) => Err(user::Error::NotFound),
             (
                 Some(mut user),
                 UserEvent::SettingsUpdated {
@@ -82,6 +85,15 @@ impl Aggregate for User {
                 user.timezone = timezone;
                 user.date_format = date_format;
                 user.language = language;
+                Ok(user)
+            }
+            (Some(mut user), UserEvent::VerificationRequested { token }) => {
+                user.verification_token = Some(token);
+                Ok(user)
+            }
+            (Some(mut user), UserEvent::Verified) => {
+                user.is_verified = true;
+                user.verification_token = None;
                 Ok(user)
             }
         }
@@ -106,6 +118,33 @@ mod tests {
             email: "alice@example.com".to_string(),
             password: "$2b$12$hash".to_string(),
         }
+    }
+
+    #[test]
+    fn apply_verification_requested_sets_token() {
+        let id = test_id();
+        let user = User::apply(None, created_event(id, "Alice")).unwrap();
+        let result = User::apply(Some(user), UserEvent::VerificationRequested { token: "abc".to_string() });
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().verification_token, Some("abc".to_string()));
+    }
+
+    #[test]
+    fn apply_verified_sets_is_verified_and_clears_token() {
+        let id = test_id();
+        let user = User::apply(None, created_event(id, "Alice")).unwrap();
+        let user = User::apply(Some(user), UserEvent::VerificationRequested { token: "abc".to_string() }).unwrap();
+        let result = User::apply(Some(user), UserEvent::Verified);
+        assert!(result.is_ok());
+        let user = result.unwrap();
+        assert!(user.is_verified);
+        assert!(user.verification_token.is_none());
+    }
+
+    #[test]
+    fn apply_verification_on_none_state_returns_not_found() {
+        let result = User::apply(None, UserEvent::VerificationRequested { token: "abc".to_string() });
+        assert!(matches!(result, Err(user::Error::NotFound)));
     }
 
     #[test]

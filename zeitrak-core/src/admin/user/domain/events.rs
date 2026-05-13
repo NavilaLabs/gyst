@@ -16,6 +16,10 @@ pub enum UserEvent {
         date_format: String,
         language: String,
     },
+    VerificationRequested {
+        token: String,
+    },
+    Verified,
 }
 
 impl Message for UserEvent {
@@ -23,6 +27,8 @@ impl Message for UserEvent {
         match self {
             Self::Created { .. } => "UserCreated",
             Self::SettingsUpdated { .. } => "UserSettingsUpdated",
+            Self::VerificationRequested { .. } => "UserVerificationRequested",
+            Self::Verified => "UserVerified",
         }
     }
 }

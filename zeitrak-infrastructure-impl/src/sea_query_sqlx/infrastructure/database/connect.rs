@@ -1,5 +1,7 @@
 use std::{str::FromStr, time::Duration};
 
+use sqlx::any::AnyPoolOptions;
+use tracing::info;
 use zeitrak_infrastructure::{
     config::CONFIG,
     database::{
@@ -7,8 +9,6 @@ use zeitrak_infrastructure::{
         database_uri_factory::{self, DatabaseUriType},
     },
 };
-use sqlx::any::AnyPoolOptions;
-use tracing::info;
 
 use crate::{
     Error, ScopeAdmin, ScopeDefault, ScopeTenant,
@@ -21,15 +21,11 @@ impl<Scope> Pool<Scope, StateDisconnected> {
     /// Returns an error if the pool cannot connect to the database at `uri`.
     pub async fn connect(uri: &DatabaseUri) -> Result<Pool<Scope, StateConnected>, Error> {
         sqlx::any::install_default_drivers();
-
-        let mut pool = AnyPoolOptions::new();
         let pool_config = CONFIG.database().pool();
-        let max_size = pool_config.max_size();
-        pool = pool.max_connections(max_size);
-        let min_size = pool_config.min_size();
-        pool = pool.min_connections(min_size);
-        let timeout_seconds = pool_config.timeout_seconds();
-        pool = pool.idle_timeout(Duration::from_secs(timeout_seconds));
+        let pool = AnyPoolOptions::new()
+            .max_connections(pool_config.max_size())
+            .min_connections(pool_config.min_size())
+            .idle_timeout(Duration::from_secs(pool_config.timeout_seconds()));
         let database_type = match uri.scheme() {
             "postgres" => DatabaseType::Postgres,
             "sqlite" => DatabaseType::Sqlite,
@@ -92,11 +88,10 @@ impl Pool<ScopeDefault, StateDisconnected> {
     ///
     /// Panics if the hardcoded default URI fails to parse (should never happen).
     pub async fn connect_default() -> Result<Pool<ScopeDefault, StateConnected>, Error> {
-        Self::connect(
-            &url::Url::from_str("sqlite:///file:zeitrak?mode=memory&cache=shared")
-                .unwrap()
-                .into(),
-        )
-        .await
+        let uri = &url::Url::from_str("sqlite:///file:zeitrak?mode=memory&cache=shared")
+            .expect("hardcoded default URI must parse")
+            .into();
+
+        Self::connect(uri).await
     }
 }

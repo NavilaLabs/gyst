@@ -6,6 +6,7 @@ use api::activity::ActivityDto;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{HiPencil, HiRefresh, HiSave, HiTrash, HiX};
 use dioxus_free_icons::Icon;
+use dioxus_i18n::tid;
 use zeitrak_core::{
     tenant::activity::UpdateActivityInput,
     validation::{validation_summary, Validate},
@@ -103,11 +104,11 @@ pub(super) fn ActivityRow(props: ActivityRowProps) -> Element {
                     div { class: "flex gap-1",
                         Button {
                             onclick: on_delete,
-                            "Yes, delete"
+                            {tid!("common-yes-delete")}
                         }
                         Button {
                             onclick: move |_| confirm_delete.set(false),
-                            "No"
+                            {tid!("common-no")}
                         }
                     }
                 } else {
@@ -143,7 +144,7 @@ pub(super) fn ActivityRow(props: ActivityRowProps) -> Element {
             TableExpandRow { col_count: props.col_count,
                 div { class: "grid grid-cols-1 gap-4 md:grid-cols-2",
                     div { class: "form-field",
-                        label { class: "form-label", r#for: "ea-name", "Name" }
+                        label { class: "form-label", r#for: "ea-name", {tid!("common-name")} }
                         Input {
                             id: "ea-name",
                             value: edit_name.read().clone(),
@@ -151,10 +152,10 @@ pub(super) fn ActivityRow(props: ActivityRowProps) -> Element {
                         }
                     }
                     div { class: "form-field",
-                        label { class: "form-label", r#for: "ea-comment", "Comment" }
+                        label { class: "form-label", r#for: "ea-comment", {tid!("common-comment")} }
                         Input {
                             id: "ea-comment",
-                            placeholder: "Optional description…",
+                            placeholder: tid!("common-optional-description"),
                             value: edit_comment.read().clone(),
                             oninput: move |e: FormEvent| edit_comment.set(e.value()),
                         }
@@ -171,16 +172,16 @@ pub(super) fn ActivityRow(props: ActivityRowProps) -> Element {
                         disabled: edit_submitting,
                         if edit_submitting {
                             Icon { icon: HiRefresh, width: 14, height: 14 }
-                            "Saving…"
+                            {tid!("common-saving")}
                         } else {
                             Icon { icon: HiSave, width: 14, height: 14 }
-                            "Save"
+                            {tid!("common-save")}
                         }
                     }
                     Button {
                         onclick: move |_| editing_id.set(None),
                         Icon { icon: HiX, width: 14, height: 14 }
-                        "Cancel"
+                        {tid!("common-cancel")}
                     }
                 }
             }

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use zeitrak_core::tenant::activity::{
-    ActivityHandler, ActivityHandlerTrait, ActivityId, ActivityQuery, ActivityQueryTrait, ActivityRow,
-    CreateActivityInput, UpdateActivityInput,
+    ActivityHandler, ActivityHandlerTrait, ActivityId, ActivityQuery, ActivityQueryTrait,
+    ActivityRow, CreateActivityInput, UpdateActivityInput,
 };
 use zeitrak_infrastructure_impl::tenant::activity::repositories::ActivityRepository;
 

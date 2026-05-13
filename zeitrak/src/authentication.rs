@@ -1,4 +1,5 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use zeitrak_core::admin::{
     authenticator::Authenticator,
     user::{LoginQuery, LoginQueryTrait},
@@ -12,7 +13,6 @@ use zeitrak_infrastructure_impl::{
         workspace::repositories::WorkspaceRepository,
     },
 };
-use serde::{Deserialize, Serialize};
 
 /// Identity extracted from a validated JWT.  Carries no permissions —
 /// those are always checked live against the database.
@@ -49,7 +49,7 @@ pub fn validate_token(token: &str) -> Result<CurrentUser> {
         exp: usize,
     }
 
-    let secret = CONFIG.application().authentication_secret();
+    let secret = CONFIG.application().security().authentication_secret();
     let token_data = decode::<Claims>(
         token,
         &DecodingKey::from_secret(secret.as_bytes()),

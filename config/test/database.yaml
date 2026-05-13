@@ -1,12 +1,10 @@
 database:
-  base_uri: ${DATABASE_BASE_URI}
-
+  base_uri: "sqlite:///workspaces/zeitrak/.devcontainer/database"
   databases:
     admin:
       name: test_zeitrak_admin
     tenant:
       name_prefix: test_zeitrak_tenant_
-
   pool:
     max_size: 20
     min_size: 5

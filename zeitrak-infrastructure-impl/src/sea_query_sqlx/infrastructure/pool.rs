@@ -1,9 +1,9 @@
 use std::{fmt::Display, marker::PhantomData};
 
-use zeitrak_infrastructure::ImplError;
 use sea_query::{PostgresQueryBuilder, SqliteQueryBuilder};
 use sea_query_sqlx::{SqlxBinder, SqlxValues};
 use sqlx::types::Uuid;
+use zeitrak_infrastructure::ImplError;
 
 pub type ConnectedAdminPool = Pool<ScopeAdmin, StateConnected>;
 pub type ConnectedTenantPool = Pool<ScopeTenant, StateConnected>;

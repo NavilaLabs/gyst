@@ -1,12 +1,7 @@
 database:
-  base_uri: ${DATABASE_BASE_URI}
-
   databases:
-    admin:
-      name: ${ADMIN_DATABASE_NAME}
     tenant:
       name_prefix: zeitrak_tenant_
-
   pool:
     max_size: 20
     min_size: 5

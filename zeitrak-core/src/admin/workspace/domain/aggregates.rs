@@ -1,7 +1,10 @@
 use eventually::aggregate::Aggregate;
 use serde::{Deserialize, Serialize};
 
-use crate::{admin::workspace::{self, WorkspaceEvent}, shared::AggregateId};
+use crate::{
+    admin::workspace::{self, WorkspaceEvent},
+    shared::AggregateId,
+};
 
 pub type WorkspaceId = AggregateId;
 

@@ -1,5 +1,7 @@
 use anyhow::Result;
-use zeitrak_core::admin::user::{UserCommand, UserCommandTrait, UserQuery, UserQueryTrait, UserId, UserRow};
+use zeitrak_core::admin::user::{
+    UserCommand, UserCommandTrait, UserId, UserQuery, UserQueryTrait, UserRow,
+};
 use zeitrak_infrastructure_impl::{Pool, admin::user::repositories::UserRepository};
 
 /// Returns the current settings for the given user.

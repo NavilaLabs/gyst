@@ -9,6 +9,7 @@ use api::timesheet_tag::TimesheetsTagDto;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{HiPencil, HiSave, HiTag, HiTrash, HiX};
 use dioxus_free_icons::Icon;
+use dioxus_i18n::tid;
 
 #[derive(Clone, PartialEq, Props)]
 pub(super) struct EntryTableProps {
@@ -121,9 +122,9 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
         .collect();
 
     let ts_columns = vec![
-        ColumnDef::new("Activity"),
-        ColumnDef::new("Start").width("160px"),
-        ColumnDef::new("Duration").right().width("90px"),
+        ColumnDef::new(tid!("timesheets-col-activity")),
+        ColumnDef::new(tid!("timesheets-col-start")).width("160px"),
+        ColumnDef::new(tid!("timesheets-col-duration")).right().width("90px"),
         ColumnDef::new("").width("120px"),
     ];
     let col_count = ts_columns.len();
@@ -131,7 +132,7 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
     rsx! {
         div { class: "island",
             div { class: "island-header",
-                span { class: "island-title", "Recent" }
+                span { class: "island-title", {tid!("timesheets-recent-title")} }
             }
             DataTable {
                 columns: ts_columns,
@@ -262,7 +263,7 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                 TableExpandRow { col_count,
                                     div { class: "grid grid-cols-1 gap-4 md:grid-cols-2",
                                         div { class: "form-field",
-                                            label { class: "form-label", r#for: "et-start", "Start time" }
+                                            label { class: "form-label", r#for: "et-start", {tid!("common-start-time")} }
                                             input {
                                                 id: "et-start",
                                                 r#type: "datetime-local",
@@ -273,7 +274,7 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                         }
                                         if edit_end_time.read().is_some() {
                                             div { class: "form-field",
-                                                label { class: "form-label", r#for: "et-end", "End time" }
+                                                label { class: "form-label", r#for: "et-end", {tid!("common-end-time")} }
                                                 input {
                                                     id: "et-end",
                                                     r#type: "datetime-local",
@@ -287,21 +288,21 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                             }
                                         }
                                         div { class: "form-field",
-                                            label { class: "form-label", "Activity" }
+                                            label { class: "form-label", {tid!("common-activity")} }
                                             Select::<String> {
                                                 options: activities.read().iter()
                                                     .map(|a| SelectOption::new(a.id.clone(), a.name.clone()))
                                                     .collect(),
                                                 value: edit_activity_id.read().clone(),
                                                 on_change: move |id: String| edit_activity_id.set(Some(id)),
-                                                placeholder: "Select activity…".to_string(),
+                                                placeholder: tid!("common-select-activity"),
                                             }
                                         }
                                         div { class: "form-field md:col-span-2",
-                                            label { class: "form-label", r#for: "et-desc", "Description" }
+                                            label { class: "form-label", r#for: "et-desc", {tid!("common-description")} }
                                             Input {
                                                 id: "et-desc",
-                                                placeholder: "Optional notes…",
+                                                placeholder: tid!("common-optional-notes"),
                                                 value: edit_description.read().clone(),
                                                 oninput: move |e: FormEvent| edit_description.set(e.value()),
                                             }
@@ -310,12 +311,12 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                     div { class: "flex gap-2 mt-2",
                                         Button { onclick: on_save_edit,
                                             Icon { icon: HiSave, width: 14, height: 14 }
-                                            "Save"
+                                            {tid!("common-save")}
                                         }
                                         Button {
                                             onclick: move |_| editing_id.set(None),
                                             Icon { icon: HiX, width: 14, height: 14 }
-                                            "Cancel"
+                                            {tid!("common-cancel")}
                                         }
                                     }
                                 }
@@ -326,7 +327,7 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                     let tsid_tag = t.id.clone();
                                     rsx! {
                                         TableExpandRow { col_count,
-                                            p { class: "text-xs font-medium text-secondary mb-2", "Tags" }
+                                            p { class: "text-xs font-medium text-secondary mb-2", {tid!("common-tags")} }
                                             div { class: "flex flex-wrap gap-2",
                                                 for tag in all_tags.read().clone() {
                                                     {
@@ -379,7 +380,7 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                     rsx! {
                                         TableExpandRow { col_count,
                                             div { class: "flex items-center gap-3",
-                                                p { class: "text-sm text-secondary", "Delete this timesheet entry?" }
+                                                p { class: "text-sm text-secondary", {tid!("timesheets-delete-confirm")} }
                                                 Button {
                                                     onclick: move |_| {
                                                         let tsid_cancel = tsid_cancel.clone();
@@ -393,11 +394,11 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                                             toasts.push_success("Timesheet deleted");
                                                         }
                                                     },
-                                                    "Yes, delete"
+                                                    {tid!("common-yes-delete")}
                                                 }
                                                 Button {
                                                     onclick: move |_| confirm_cancel_id.set(None),
-                                                    "No"
+                                                    {tid!("common-no")}
                                                 }
                                             }
                                         }

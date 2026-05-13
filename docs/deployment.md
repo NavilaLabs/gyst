@@ -21,14 +21,14 @@ services:
     environment:
       # Required: random secret used to sign session cookies.
       # Generate with: openssl rand -hex 32
-      APP_AUTHENTICATION_SECRET: "changeme-use-a-real-secret"
+      ZK_AUTHENTICATION_SECRET: "changeme-use-a-real-secret"
 
       # SQLite database directory (must match the volume mount below).
-      DATABASE_BASE_URI: "sqlite:///data/databases"
-      ADMIN_DATABASE_NAME: "zeitrak_admin"
+      ZK_DATABASE_BASE_URI: "sqlite:///data/databases"
+      ZK_ADMIN_DATABASE_NAME: "zeitrak_admin"
 
-      APP_PROJECT_ROOT: "/app"
-      ENVIRONMENT: "production"
+      ZK_PROJECT_ROOT: "/app"
+      ZK_ENVIRONMENT: "production"
     volumes:
       # Persist SQLite database files across container restarts.
       - zeitrak_data:/data/databases
@@ -41,11 +41,11 @@ volumes:
 
 | Variable | Required | Description |
 |---|---|---|
-| `APP_AUTHENTICATION_SECRET` | Yes | Secret used to sign session tokens. Must be a long random string. |
-| `DATABASE_BASE_URI` | Yes | SQLite base URI. The directory must be writable and persistent. |
-| `ADMIN_DATABASE_NAME` | Yes | Name of the shared admin database (default: `zeitrak_admin`). |
-| `APP_PROJECT_ROOT` | Yes | Absolute path to the app root inside the container (default: `/app`). |
-| `ENVIRONMENT` | No | `production` or `development`. Selects the config profile under `config/`. |
+| `ZK_AUTHENTICATION_SECRET` | Yes | Secret used to sign session tokens. Must be a long random string. |
+| `ZK_DATABASE_BASE_URI` | Yes | SQLite base URI. The directory must be writable and persistent. |
+| `ZK_ADMIN_DATABASE_NAME` | Yes | Name of the shared admin database (default: `zeitrak_admin`). |
+| `ZK_PROJECT_ROOT` | Yes | Absolute path to the app root inside the container (default: `/app`). |
+| `ZK_ENVIRONMENT` | No | `production` or `development`. Selects the config profile under `config/`. |
 
 ### Starting
 

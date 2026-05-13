@@ -10,6 +10,7 @@ use dioxus_free_icons::icons::hi_solid_icons::{
     HiCog, HiDatabase, HiDesktopComputer, HiMoon, HiSun,
 };
 use dioxus_free_icons::Icon;
+use dioxus_i18n::tid;
 
 type AuthState = Signal<Option<Option<api::auth::UserInfo>>>;
 
@@ -53,13 +54,13 @@ pub fn SettingsMenu() -> Element {
                     Icon { icon: HiCog, width: 18, height: 18 }
                 }
                 DropdownMenuContent {
-                    div { class: "settings-section-label", "Theme" }
+                    div { class: "settings-section-label", {tid!("settings-menu-theme")} }
                     DropdownMenuItem {
                         value: Theme::Light,
                         index: 0_usize,
                         on_select: move |t: Theme| { current_theme.set(t); apply_theme(t); },
                         Icon { icon: HiSun, width: 14, height: 14 }
-                        span { class: "settings-item-label", "Light" }
+                        span { class: "settings-item-label", {tid!("settings-menu-light")} }
                         if *current_theme.read() == Theme::Light {
                             span { class: "settings-item-check", "✓" }
                         }
@@ -69,7 +70,7 @@ pub fn SettingsMenu() -> Element {
                         index: 1_usize,
                         on_select: move |t: Theme| { current_theme.set(t); apply_theme(t); },
                         Icon { icon: HiMoon, width: 14, height: 14 }
-                        span { class: "settings-item-label", "Dark" }
+                        span { class: "settings-item-label", {tid!("settings-menu-dark")} }
                         if *current_theme.read() == Theme::Dark {
                             span { class: "settings-item-check", "✓" }
                         }
@@ -79,7 +80,7 @@ pub fn SettingsMenu() -> Element {
                         index: 2_usize,
                         on_select: move |t: Theme| { current_theme.set(t); apply_theme(t); },
                         Icon { icon: HiDesktopComputer, width: 14, height: 14 }
-                        span { class: "settings-item-label", "System" }
+                        span { class: "settings-item-label", {tid!("settings-menu-system")} }
                         if *current_theme.read() == Theme::System {
                             span { class: "settings-item-check", "✓" }
                         }
@@ -93,7 +94,7 @@ pub fn SettingsMenu() -> Element {
                                 navigator().push("/developer/database");
                             },
                             Icon { icon: HiDatabase, width: 14, height: 14 }
-                            span { class: "settings-item-label", "Database" }
+                            span { class: "settings-item-label", {tid!("settings-menu-database")} }
                         }
                     }
                 }

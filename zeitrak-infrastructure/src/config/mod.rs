@@ -1,10 +1,14 @@
-use std::sync::LazyLock;
-
-use dotenvy::var;
+use figment::{
+    Figment,
+    providers::{Env, Format, Serialized, Yaml},
+};
 use serde::{Deserialize, Serialize};
 
 mod application;
 mod database;
+
+pub use application::{Application, SecurityConfig, SmtpConfig};
+pub use database::{AdminDatabase, Database, Databases, Pool, TenantDatabase};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -12,10 +16,10 @@ pub enum Error {
     BuilderMissingField { builder: String, field: String },
 }
 
-pub static CONFIG: LazyLock<Config> =
-    LazyLock::new(|| load_config().expect("Failed to load configuration"));
+pub static CONFIG: std::sync::LazyLock<Config> =
+    std::sync::LazyLock::new(|| load_config().expect("Failed to load configuration"));
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     application: application::Application,
     database: database::Database,
@@ -33,28 +37,33 @@ impl Config {
     }
 }
 
+/// Loads configuration from the layered sources in priority order (lowest → highest):
+///
+/// 1. Rust struct `Default` implementations
+/// 2. `config/{environment}/application.yaml`
+/// 3. `config/{environment}/database.yaml`
+/// 4. Environment variables prefixed with `ZK_`, using `__` as the nested key separator
+///    (e.g. `ZK_DATABASE__BASE_URI` overrides `database.base_uri`)
+///
+/// `ZK_ENVIRONMENT` selects the config directory (default: `development`).
+/// `ZK_PROJECT_ROOT` locates the workspace root (default: `.`).
+///
 /// # Errors
 ///
-/// Returns an error if required environment variables are missing, config files cannot be read,
-/// or the YAML content cannot be deserialized.
+/// Returns an error if the YAML content cannot be deserialized into [`Config`].
 pub fn load_config() -> Result<Config, crate::Error> {
-    let project_root = var("APP_PROJECT_ROOT")?;
-    let environment = var("ENVIRONMENT")?;
-    let config_path = format!("{project_root}/config/{environment}");
+    let environment = std::env::var("ZK_ENVIRONMENT")
+        .unwrap_or_else(|_| "development".to_string());
+    let project_root = std::env::var("ZK_PROJECT_ROOT")
+        .unwrap_or_else(|_| ".".to_string());
+    let config_dir = format!("{project_root}/config/{environment}");
 
-    let mut file_string = String::new();
-    let application_config_path = format!("{config_path}/application.yaml");
-    let database_config_path = format!("{config_path}/database.yaml");
-    let logging_config_path = format!("{config_path}/logging.yaml");
-    file_string.push_str(&std::fs::read_to_string(&application_config_path)?);
-    file_string.push('\n');
-    file_string.push_str(&std::fs::read_to_string(&database_config_path)?);
-    file_string.push('\n');
-    file_string.push_str(&std::fs::read_to_string(&logging_config_path)?);
-
-    let mut source = serde_vars::EnvSource::default();
-    let de = serde_yaml::Deserializer::from_str(&file_string);
-    let config: Config = serde_vars::deserialize(de, &mut source)?;
+    let config = Figment::new()
+        .merge(Serialized::defaults(Config::default()))
+        .merge(Yaml::file(format!("{config_dir}/application.yaml")))
+        .merge(Yaml::file(format!("{config_dir}/database.yaml")))
+        .merge(Env::prefixed("ZK_").split("__"))
+        .extract()?;
 
     Ok(config)
 }
@@ -63,8 +72,8 @@ pub fn load_config() -> Result<Config, crate::Error> {
 mod tests {
     use super::*;
 
-    use zeitrak_tests::test_lifecycle;
     use with_lifecycle::with_lifecycle;
+    use zeitrak_tests::test_lifecycle;
 
     #[with_lifecycle(test_lifecycle)]
     #[test]

@@ -4,6 +4,11 @@ services:
       context: ..
       dockerfile: ./.devcontainer/Dockerfile
     command: sleep infinity
+    privileged: true
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
     ports:
       - "8080:8080"
     networks:
@@ -22,6 +27,15 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql
     restart: unless-stopped
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    restart: always
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    networks:
+      - local
 
 volumes:
   postgres-data:

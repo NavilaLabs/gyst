@@ -1,6 +1,8 @@
 use api::auth::UserInfo;
 use api::settings::{UserSettingsDto, WorkspaceSettingsDto};
 use dioxus::prelude::*;
+use dioxus_i18n::{prelude::*, tid};
+use unic_langid::langid;
 use dioxus_motion::prelude::*;
 use easer::functions::Easing;
 use ui::{
@@ -9,8 +11,8 @@ use ui::{
         organisms::{Header, Sidebar},
     },
     views::{
-        setup::Setup, Activities, Dashboard, Database, Login, SelectWorkspace, Settings, Tags,
-        Timesheets,
+        setup::Setup, Activities, Dashboard, Database, InvitationAccept, Login, Register,
+        SelectWorkspace, Settings, Tags, Timesheets, VerifyEmailConfirm, VerifyEmailPending,
     },
     ActivitiesCache, GlobalStyles, RunningElapsed, RunningTimer, SidebarOpen, TagsCache,
     TimesheetsCache, UserSettings, WorkspaceSettings, FAVICON,
@@ -45,6 +47,14 @@ enum Route {
         #[layout(RequireSetupComplete)]
             #[route("/login")]
             Login {},
+            #[route("/register")]
+            Register {},
+            #[route("/invitations/accept/:token")]
+            InvitationAccept { token: String },
+            #[route("/verify-email/pending")]
+            VerifyEmailPending {},
+            #[route("/verify-email/:token")]
+            VerifyEmailConfirm { token: String },
 
             #[layout(RequireAuth)]
                 // Workspace selection — accessible to any authenticated user.
@@ -120,12 +130,17 @@ async fn main() {
 fn App() -> Element {
     // Global auth state — available to every component in the tree.
     use_context_provider(|| Signal::new(None::<Option<UserInfo>>));
+    use_init_i18n(ui::i18n::i18n_config);
 
     let resolver: TransitionVariantResolver<Route> = std::rc::Rc::new(|from, to| {
         fn idx(route: &Route) -> i32 {
             match route {
                 Route::Login { .. } => 0,
                 Route::Setup { .. } => 1,
+                Route::Register { .. } => 1,
+                Route::InvitationAccept { .. } => 1,
+                Route::VerifyEmailPending { .. } => 1,
+                Route::VerifyEmailConfirm { .. } => 1,
                 Route::SelectWorkspace { .. } => 2,
                 Route::Dashboard { .. } => 3,
                 Route::Activities { .. } => 4,
@@ -187,6 +202,7 @@ fn App() -> Element {
 #[component]
 fn Layout() -> Element {
     let mut auth: AuthState = use_context();
+    let mut i18n = i18n();
 
     // Provide toast context for all descendant views.
     use_context_provider(|| Signal::new(Vec::<ToastMessage>::new()));
@@ -276,6 +292,11 @@ fn Layout() -> Element {
             running.set(r);
         }
         if let Ok(s) = api::settings::get_user_settings().await {
+            let lang_id = match s.language.as_str() {
+                "de" => langid!("de-DE"),
+                _ => langid!("en-US"),
+            };
+            i18n.set_language(lang_id);
             user_settings.set(s);
         }
         if let Ok(s) = api::settings::get_workspace_settings().await {
@@ -295,15 +316,20 @@ fn Layout() -> Element {
 
     let route: Route = use_route();
     let view_title = match &route {
-        Route::Dashboard {} => "Dashboard",
-        Route::Activities {} => "Activities",
-        Route::Timesheets {} => "Timesheets",
-        Route::Tags {} => "Tags",
-        Route::Settings {} => "Settings",
-        Route::Database {} => "Developer",
-        Route::SelectWorkspace {} => "Workspaces",
-        Route::Login {} | Route::Setup {} => "",
-        Route::NotFound { .. } => "Not Found",
+        Route::Dashboard {} => tid!("layout-title-dashboard"),
+        Route::Activities {} => tid!("layout-title-activities"),
+        Route::Timesheets {} => tid!("layout-title-timesheets"),
+        Route::Tags {} => tid!("layout-title-tags"),
+        Route::Settings {} => tid!("layout-title-settings"),
+        Route::Database {} => tid!("layout-title-developer"),
+        Route::SelectWorkspace {} => tid!("layout-title-workspaces"),
+        Route::Login {} => tid!("layout-title-login"),
+        Route::Setup {} => tid!("layout-title-setup"),
+        Route::Register {} => tid!("layout-title-register"),
+        Route::InvitationAccept { .. } => tid!("layout-title-accept-invitation"),
+        Route::VerifyEmailPending {} => tid!("layout-title-verify-email"),
+        Route::VerifyEmailConfirm { .. } => tid!("layout-title-verify-email"),
+        Route::NotFound { .. } => tid!("layout-title-not-found"),
     };
 
     // Build "Workspace / View" title; show only the view name while on non-workspace routes.
@@ -311,11 +337,18 @@ fn Layout() -> Element {
         let ws_name = workspace_settings.read().name.clone();
         let skip_prefix = matches!(
             &route,
-            Route::Login {} | Route::Setup {} | Route::SelectWorkspace {} | Route::NotFound { .. }
+            Route::Login {}
+                | Route::Setup {}
+                | Route::Register {}
+                | Route::InvitationAccept { .. }
+                | Route::VerifyEmailPending {}
+                | Route::VerifyEmailConfirm { .. }
+                | Route::SelectWorkspace {}
+                | Route::NotFound { .. }
         );
-        match (ws_name.filter(|_| !skip_prefix), view_title) {
-            (Some(ws), vt) if !vt.is_empty() => format!("{ws} / {vt}"),
-            _ => view_title.to_string(),
+        match ws_name.filter(|_| !skip_prefix) {
+            Some(ws) if !view_title.is_empty() => format!("{ws} / {view_title}"),
+            _ => view_title,
         }
     };
 

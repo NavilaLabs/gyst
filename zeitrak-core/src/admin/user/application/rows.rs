@@ -8,6 +8,7 @@ pub struct UserRow {
     pub timezone: String,
     pub date_format: String,
     pub language: String,
+    pub is_verified: bool,
 }
 
 impl UserRow {
@@ -20,6 +21,7 @@ impl UserRow {
             timezone: "Europe/Berlin".to_string(),
             date_format: "%Y-%m-%d".to_string(),
             language: "en".to_string(),
+            is_verified: false,
         }
     }
 
@@ -31,6 +33,7 @@ impl UserRow {
         timezone: String,
         date_format: String,
         language: String,
+        is_verified: bool,
     ) -> Self {
         Self {
             id,
@@ -39,6 +42,7 @@ impl UserRow {
             timezone,
             date_format,
             language,
+            is_verified,
         }
     }
 

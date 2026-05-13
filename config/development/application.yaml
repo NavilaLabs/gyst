@@ -1,5 +1,13 @@
 application:
-  environment: develop
+  environment: development
   name: Zeitrak
-  project_root: ${APP_PROJECT_ROOT}
-  authentication_secret: ${APP_AUTHENTICATION_SECRET}
+  project_root: /workspaces/zeitrak
+  base_url: "http://localhost:8080"
+  security:
+    invite_only: false
+    invite_token_expiry_secs: 300
+  smtp:
+    host: mailhog
+    port: 1025
+    from_address: noreply@zeitrak.app
+    use_tls: false

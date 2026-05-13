@@ -5,6 +5,7 @@ use crate::views::activities::create_form::ActivityCreateForm;
 use crate::ActivitiesCache;
 use api::activity::ActivityDto;
 use dioxus::prelude::*;
+use dioxus_i18n::tid;
 
 const PAGE_SIZE: usize = 15;
 
@@ -35,7 +36,7 @@ pub fn Activities() -> Element {
         .cloned()
         .collect();
 
-    let columns = vec![ColumnDef::new("Name"), ColumnDef::new("").width("80px")];
+    let columns = vec![ColumnDef::new(tid!("common-name")), ColumnDef::new("").width("80px")];
     let col_count = columns.len();
 
     rsx! {
@@ -47,7 +48,7 @@ pub fn Activities() -> Element {
 
                 div { class: "island",
                     div { class: "island-header",
-                        span { class: "island-title", "Activities" }
+                        span { class: "island-title", {tid!("activities-title")} }
                     }
                     DataTable {
                         columns,

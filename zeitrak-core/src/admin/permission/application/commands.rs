@@ -3,19 +3,18 @@ use std::fmt::Debug;
 use async_trait::async_trait;
 use eventually::aggregate::Root;
 
-use crate::admin::permission::{
-    domain::{
-        aggregates::{Permission, PermissionId},
-        events::PermissionEvent,
-        interfaces::PermissionRepository,
-    },
+use crate::admin::permission::domain::{
+    aggregates::{Permission, PermissionId},
+    events::PermissionEvent,
+    interfaces::PermissionRepository,
 };
 
 #[async_trait]
 pub trait PermissionCommandTrait<R> {
     type Error: Debug + Sync + Send;
 
-    async fn create(&self, id: PermissionId, name: String) -> Result<Root<Permission>, Self::Error>;
+    async fn create(&self, id: PermissionId, name: String)
+    -> Result<Root<Permission>, Self::Error>;
 }
 
 #[derive(Debug)]
@@ -45,9 +44,8 @@ where
         id: PermissionId,
         name: String,
     ) -> Result<Root<Permission>, <Self as PermissionCommandTrait<R>>::Error> {
-        let mut root = Root::<Permission>::record_new(
-            PermissionEvent::Created { id, name }.into(),
-        )?;
+        let mut root =
+            Root::<Permission>::record_new(PermissionEvent::Created { id, name }.into())?;
         self.repository
             .save(&mut root)
             .await

@@ -1,7 +1,7 @@
 use async_trait::async_trait;
+use tracing::debug;
 use zeitrak_admin_migrations::MigratorTrait;
 use zeitrak_infrastructure::database::Migrate;
-use tracing::debug;
 
 use crate::{
     Error,

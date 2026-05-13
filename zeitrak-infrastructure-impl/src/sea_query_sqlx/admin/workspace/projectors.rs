@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use eventually_projection::{Projector, RawEvent};
-use zeitrak_core::admin::workspace::WorkspaceEvent;
 use sea_query::{
     Condition, DynIden, Expr, ExprTrait, OnConflict, PostgresQueryBuilder, Query,
     SqliteQueryBuilder, TableRef,
 };
 use sea_query_sqlx::SqlxBinder;
+use zeitrak_core::admin::workspace::WorkspaceEvent;
 
 use crate::{DatabaseType, Pool, ScopeAdmin, StateConnected};
 

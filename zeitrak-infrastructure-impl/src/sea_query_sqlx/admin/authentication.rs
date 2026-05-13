@@ -9,9 +9,9 @@ pub mod jwt {
     use bcrypt::verify;
     use chrono::Utc;
     use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
+    use serde::{Deserialize, Serialize};
     use zeitrak_core::admin::authenticator::{AuthenticationStrategy, Credentials};
     use zeitrak_infrastructure::config::CONFIG;
-    use serde::{Deserialize, Serialize};
 
     use crate::Error;
 
@@ -54,7 +54,9 @@ pub mod jwt {
                 exp: now + JWT_LIFETIME_SECS,
             };
 
-            let secret = CONFIG.application().authentication_secret();
+            let secret = CONFIG.application().security().authentication_secret();
+            assert_ne!(secret, String::new());
+
             encode(
                 &Header::new(Algorithm::HS256),
                 &claims,

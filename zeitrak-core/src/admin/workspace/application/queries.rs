@@ -19,10 +19,7 @@ pub trait WorkspaceQueryTrait<R> {
         &self,
         user_id: &str,
     ) -> Result<Vec<(String, Option<String>)>, Self::Error>;
-    async fn find_workspace_for_user(
-        &self,
-        user_id: &str,
-    ) -> Result<Option<String>, Self::Error>;
+    async fn find_workspace_for_user(&self, user_id: &str) -> Result<Option<String>, Self::Error>;
     async fn find_view_by_id(&self, id: &str) -> Result<Option<WorkspaceRow>, Self::Error>;
 }
 
@@ -59,10 +56,7 @@ where
         self.repository.find_workspaces_for_user(user_id).await
     }
 
-    async fn find_workspace_for_user(
-        &self,
-        user_id: &str,
-    ) -> Result<Option<String>, Self::Error> {
+    async fn find_workspace_for_user(&self, user_id: &str) -> Result<Option<String>, Self::Error> {
         self.repository.find_workspace_for_user(user_id).await
     }
 

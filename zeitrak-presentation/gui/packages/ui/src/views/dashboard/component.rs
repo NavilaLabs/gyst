@@ -8,6 +8,7 @@ use dioxus::prelude::*;
 use dioxus_charts::BarChart;
 use dioxus_free_icons::icons::hi_solid_icons::{HiLightningBolt, HiPlay, HiStop};
 use dioxus_free_icons::Icon;
+use dioxus_i18n::tid;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -166,7 +167,7 @@ pub fn Dashboard() -> Element {
                     Some(ts) => {
                         let act_name = ts.activity_id.as_ref()
                             .and_then(|aid| activities.read().iter().find(|a| &a.id == aid).map(|a| a.name.clone()))
-                            .unwrap_or_else(|| "Unassigned".to_string());
+                            .unwrap_or_else(|| tid!("dashboard-unassigned"));
                         let e = *elapsed_secs.read();
                         rsx! {
                             Card { data_size: "md",
@@ -175,13 +176,13 @@ pub fn Dashboard() -> Element {
                                         div { class: "dashboard-timer-header",
                                             div { class: "dashboard-timer-status",
                                                 span { class: "timer-dot" }
-                                                span { class: "dashboard-timer-status-label", "Timer Running" }
+                                                span { class: "dashboard-timer-status-label", {tid!("dashboard-timer-running")} }
                                             }
                                             Button {
                                                 variant: ButtonVariant::Ghost,
                                                 onclick: on_stop,
                                                 Icon { icon: HiStop, width: 14, height: 14 }
-                                                "Stop"
+                                                {tid!("common-stop")}
                                             }
                                         }
                                         div { class: "dashboard-timer-time",
@@ -205,7 +206,7 @@ pub fn Dashboard() -> Element {
                             CardContent {
                                 div { class: "qs-card",
                                     div { class: "qs-header",
-                                        span { class: "qs-label", "Quick Start" }
+                                        span { class: "qs-label", {tid!("dashboard-quick-start")} }
                                         Icon { icon: HiLightningBolt, width: 14, height: 14 }
                                     }
                                     Select::<String> {
@@ -214,13 +215,13 @@ pub fn Dashboard() -> Element {
                                             .collect(),
                                         value: selected_activity_id.read().clone(),
                                         on_change: move |id: String| selected_activity_id.set(Some(id)),
-                                        placeholder: "Select activity…".to_string(),
+                                        placeholder: tid!("common-select-activity"),
                                     }
                                     Button {
                                         onclick: on_start,
                                         class: "qs-start-btn",
                                         Icon { icon: HiPlay, width: 16, height: 16 }
-                                        "Start Session"
+                                        {tid!("dashboard-start-session")}
                                     }
                                 }
                             }
@@ -231,14 +232,14 @@ pub fn Dashboard() -> Element {
                 // ── KPI Cards ────────────────────────────────────────────────
                 div { class: "dash-kpi-grid",
                     div { class: "dash-kpi-card",
-                        span { class: "dash-kpi-label", "Today" }
+                        span { class: "dash-kpi-label", {tid!("dashboard-today")} }
                         span { class: "dash-kpi-value", "{fmt_hours(stats.today_hours)}" }
-                        span { class: "dash-kpi-sub", "tracked" }
+                        span { class: "dash-kpi-sub", {tid!("dashboard-tracked")} }
                     }
                     div { class: "dash-kpi-card",
-                        span { class: "dash-kpi-label", "This Week" }
+                        span { class: "dash-kpi-label", {tid!("dashboard-this-week")} }
                         span { class: "dash-kpi-value", "{fmt_hours(stats.week_hours)}" }
-                        span { class: "dash-kpi-sub", "tracked" }
+                        span { class: "dash-kpi-sub", {tid!("dashboard-tracked")} }
                     }
                 }
 
@@ -249,8 +250,8 @@ pub fn Dashboard() -> Element {
                         // Hours per day — bar chart
                         div { class: "island dash-chart-island",
                             div { class: "island-header",
-                                span { class: "island-title", "Hours per Day" }
-                                span { class: "island-subtitle", "last 7 days" }
+                                span { class: "island-title", {tid!("dashboard-hours-per-day")} }
+                                span { class: "island-subtitle", {tid!("dashboard-last-7-days")} }
                             }
                             div { class: "dash-chart-area",
                                 BarChart {
@@ -288,7 +289,7 @@ pub fn Dashboard() -> Element {
                 if !recent.read().is_empty() {
                     div { class: "island",
                         div { class: "island-header",
-                            span { class: "island-title", "Recent Entries" }
+                            span { class: "island-title", {tid!("dashboard-recent-entries")} }
                         }
                         div { class: "flex flex-col gap-2",
                             for ts in recent.read().iter().take(5) {
