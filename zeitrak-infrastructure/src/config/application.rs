@@ -66,8 +66,6 @@ impl Application {
 pub struct SecurityConfig {
     authentication_secret: String,
     invite_only: bool,
-    /// How long an invitation token stays valid, in seconds.
-    invite_token_expiry_secs: i64,
 }
 
 impl Default for SecurityConfig {
@@ -75,7 +73,6 @@ impl Default for SecurityConfig {
         Self {
             authentication_secret: String::new(),
             invite_only: true,
-            invite_token_expiry_secs: 300,
         }
     }
 }
@@ -91,12 +88,6 @@ impl SecurityConfig {
     #[must_use]
     pub const fn invite_only(&self) -> bool {
         self.invite_only
-    }
-
-    /// How long an invitation token stays valid.
-    #[must_use]
-    pub const fn invite_token_expiry(&self) -> chrono::Duration {
-        chrono::Duration::seconds(self.invite_token_expiry_secs)
     }
 }
 

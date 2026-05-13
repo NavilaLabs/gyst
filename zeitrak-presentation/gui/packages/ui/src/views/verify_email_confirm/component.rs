@@ -4,9 +4,9 @@ use dioxus::prelude::*;
 
 #[component]
 pub fn VerifyEmailConfirm(token: String) -> Element {
-    let result = use_resource(move || api::registration::verify_email(token.clone()));
+    let result = use_server_future(move || api::registration::verify_email(token.clone()))?;
 
-    match result.value().cloned() {
+    match result() {
         None => rsx! {},
         Some(Ok(())) => rsx! {
             DefaultLayout {

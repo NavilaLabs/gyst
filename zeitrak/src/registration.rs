@@ -55,14 +55,38 @@ pub async fn register_user_on(
     })?;
 
     let repo = UserRepository::from_pool(pool.clone()).await?;
+    let query = UserQuery::new(repo);
 
-    if UserQuery::new(repo)
+    if let Some(existing_id) = query
         .find_id_by_email(&email)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?
-        .is_some()
     {
-        anyhow::bail!("email already registered");
+        // Allow re-registration only when the account has not been verified yet.
+        // This lets users who never clicked (or whose link expired) get a fresh token
+        // by filling in the registration form again.
+        let view = query
+            .find_view_by_id(&existing_id.to_string())
+            .await
+            .map_err(|e| anyhow::anyhow!("{e}"))?
+            .ok_or_else(|| anyhow::anyhow!("user projection missing for {existing_id}"))?;
+
+        if view.is_verified {
+            anyhow::bail!("email already registered");
+        }
+
+        let token = Uuid::now_v7().to_string();
+        UserCommand::new(UserRepository::from_pool(pool).await?)
+            .request_verification(existing_id.clone(), token.clone())
+            .await
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+        let link = format!("{base_url}/verify-email/{token}");
+        if let Err(e) = email_sender.send_verification_email(&email, &link).await {
+            tracing::warn!(error = %e, "failed to resend verification email to {email}");
+        }
+
+        return Ok(existing_id);
     }
 
     let hashed = hash_password(&password)?;

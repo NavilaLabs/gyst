@@ -36,9 +36,60 @@ async fn register_user_sends_verification_email() {
     );
 }
 
-/// Registering the same email twice must fail before sending any email.
+/// Re-registering an unverified email must resend a fresh verification email
+/// rather than returning an error, and must return the same user id.
 #[tokio::test]
-async fn register_user_duplicate_email_sends_no_email() {
+async fn register_user_unverified_duplicate_resends_verification_email() {
+    let db = TestFixture::setup().await;
+    let sender = RecordingEmailSender::new();
+
+    let first_id = register_user_on(
+        db.admin.clone(),
+        "Alice".to_string(),
+        "alice@example.com".to_string(),
+        "Password1!".to_string(),
+        &sender,
+        "http://localhost:8080",
+    )
+    .await
+    .expect("first registration must succeed");
+
+    // Flush so the projection table reflects the unverified account.
+    flush_user_projector(&db.admin).await;
+
+    let sender2 = RecordingEmailSender::new();
+    let second_id = register_user_on(
+        db.admin.clone(),
+        "Alice".to_string(),
+        "alice@example.com".to_string(),
+        "Password1!".to_string(),
+        &sender2,
+        "http://localhost:8080",
+    )
+    .await
+    .expect("re-registration of an unverified account must succeed");
+
+    assert_eq!(
+        second_id, first_id,
+        "re-registration must return the same user id"
+    );
+
+    let sent = sender2.sent();
+    assert_eq!(sent.len(), 1, "exactly one new verification email must be sent");
+    assert_eq!(sent[0].to, "alice@example.com");
+
+    let SentEmailKind::Verification { verification_link } = &sent[0].kind else {
+        panic!("expected a Verification email, got {:?}", sent[0].kind);
+    };
+    assert!(
+        verification_link.starts_with("http://localhost:8080/verify-email/"),
+        "fresh link must start with base_url/verify-email/: {verification_link}"
+    );
+}
+
+/// Re-registering an already-verified email must fail without sending any email.
+#[tokio::test]
+async fn register_user_verified_duplicate_sends_no_email() {
     let db = TestFixture::setup().await;
     let sender = RecordingEmailSender::new();
 
@@ -53,8 +104,24 @@ async fn register_user_duplicate_email_sends_no_email() {
     .await
     .expect("first registration must succeed");
 
-    // The duplicate check reads from the projection table, so we must flush
-    // the projector before the second registration attempt.
+    flush_user_projector(&db.admin).await;
+
+    let token = {
+        let sent = sender.sent();
+        let SentEmailKind::Verification { verification_link } = &sent[0].kind else {
+            panic!("expected Verification email");
+        };
+        verification_link
+            .rsplit('/')
+            .next()
+            .expect("link must contain a token segment")
+            .to_string()
+    };
+
+    zeitrak::registration::verify_email_by_token_on(db.admin.clone(), &token)
+        .await
+        .expect("verification must succeed");
+
     flush_user_projector(&db.admin).await;
 
     let sender2 = RecordingEmailSender::new();
@@ -68,8 +135,8 @@ async fn register_user_duplicate_email_sends_no_email() {
     )
     .await;
 
-    assert!(result.is_err(), "duplicate registration must fail");
-    assert_eq!(sender2.sent().len(), 0, "no email must be sent on duplicate");
+    assert!(result.is_err(), "re-registration of a verified account must fail");
+    assert_eq!(sender2.sent().len(), 0, "no email must be sent on verified duplicate");
 }
 
 /// Full registration flow: register → receive verification email → click the
