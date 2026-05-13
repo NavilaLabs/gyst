@@ -18,10 +18,10 @@
     gap: 0.75rem;
     padding: 0.875rem 1rem;
     border-radius: var(--radius-md);
-    background-color: var(--color-surface-raised);
-    border: 1px solid var(--color-border);
+    background-color: var(--surface-3);
+    border: 1px solid var(--border);
     border-left-width: 3px;
-    box-shadow: var(--shadow-raised);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.6);
     pointer-events: auto;
     overflow: hidden;
     animation: toast-slide-in 200ms ease-out;
@@ -62,15 +62,15 @@
 
 
 .toast[data-variant="success"] {
-    border-left-color: var(--color-primary);
+    border-left-color: var(--accent-2);
 }
 
 .toast[data-variant="error"] {
-    border-left-color: var(--color-btn-destructive-bg);
+    border-left-color: var(--danger);
 }
 
 .toast[data-variant="info"] {
-    border-left-color: var(--color-tertiary);
+    border-left-color: var(--info);
 }
 
 .toast[data-variant="warning"] {

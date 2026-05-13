@@ -1,275 +1,379 @@
-/* ── Quick Start card ─────────────────────────────────────────────────────── */
+/* ── Quick-start card ──────────────────────────────────────────────────── */
 
 .qs-card {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .qs-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-3);
 }
 
 .qs-label {
-    font-size: 0.625rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
 }
 
 .qs-start-btn {
-    width: 100%;
-    justify-content: center;
+  width: 100%;
+  justify-content: center;
+  background: var(--accent) !important;
+  color: white !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 1px 2px rgba(0,0,0,0.3);
 }
 
-/* ── Running Timer display ───────────────────────────────────────────────── */
+.qs-start-btn:hover:not(:disabled) {
+  background: var(--accent-2) !important;
+}
+
+/* ── Running timer display ─────────────────────────────────────────────── */
 
 .dashboard-timer {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .dashboard-timer-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .dashboard-timer-status {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .dashboard-timer-status-label {
-    font-size: 0.625rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
 }
 
 .dashboard-timer-time {
-    display: flex;
-    justify-content: center;
-    padding: 0.75rem 0 0.5rem;
+  display: flex;
+  justify-content: center;
+  padding: 12px 0 8px;
 }
 
 .dashboard-timer-elapsed {
-    font-size: 2.75rem;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.02em;
-    color: var(--color-workspace-accent);
-    font-family: var(--font-mono, ui-monospace, "Courier New", monospace);
-    line-height: 1;
+  font-family: var(--font-mono);
+  font-size: 56px;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .dashboard-timer-meta {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.2rem;
-    padding-bottom: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding-bottom: 4px;
 }
 
-/* ── KPI stat cards ───────────────────────────────────────────────────────── */
+/* ── KPI stat cards (4 columns) ───────────────────────────────────────── */
 
 .dash-kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 
 @media (min-width: 640px) {
-    .dash-kpi-grid {
-        grid-template-columns: repeat(4, 1fr);
-    }
+  .dash-kpi-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 .dash-kpi-card {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    padding: 1rem 1.125rem;
-    background-color: var(--color-surface-raised);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-raised);
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+  overflow: hidden;
 }
 
 .dash-kpi-label {
-    font-size: 0.625rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--color-text-secondary);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  font-weight: 600;
 }
 
 .dash-kpi-value {
-    font-size: 1.75rem;
-    font-weight: 700;
-    line-height: 1.1;
-    color: var(--color-text-primary);
-    font-variant-numeric: tabular-nums;
-}
-
-.dash-kpi-value--accent {
-    color: var(--color-primary);
-}
-
-.dash-kpi-value--muted {
-    color: var(--color-text-secondary);
+  font-family: var(--font-display);
+  font-size: 38px;
+  letter-spacing: -0.015em;
+  line-height: 1;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 
 .dash-kpi-sub {
-    font-size: 0.7rem;
-    color: var(--color-text-secondary);
+  font-size: 12px;
+  color: var(--text-3);
 }
 
-/* ── Chart layout ─────────────────────────────────────────────────────────── */
+/* ── Chart layout ─────────────────────────────────────────────────────── */
 
 .dash-charts-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
 }
 
-@media (min-width: 768px) {
-    .dash-charts-grid {
-        grid-template-columns: 2fr 1fr;
-    }
+@media (min-width: 900px) {
+  .dash-charts-grid {
+    grid-template-columns: 1.6fr 1fr;
+  }
 }
 
 .dash-chart-island {
-    overflow: hidden;
+  overflow: hidden;
 }
 
 .island-subtitle {
-    font-size: 0.7rem;
-    color: var(--color-text-secondary);
-    margin-left: auto;
+  font-size: 11px;
+  color: var(--text-3);
+  margin-left: auto;
 }
 
 .dash-chart-area {
-    width: 100%;
-    height: 240px;
+  width: 100%;
+  height: 240px;
 }
 
-/* ── Donut wrapper ────────────────────────────────────────────────────────── */
-
-.dash-donut-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-    padding-bottom: 0.75rem;
+.dash-chart-area--donut {
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 0;
 }
 
-.dash-donut-legend {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-    width: 100%;
-    padding: 0 1rem;
+/* ── Period tabs ──────────────────────────────────────────────────────── */
+
+.dash-period-tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 3px;
 }
 
-.dash-legend-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+.dash-period-tab {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: calc(var(--radius-sm) - 2px);
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+  white-space: nowrap;
 }
 
-.dash-legend-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
+.dash-period-tab:hover {
+  color: var(--text-2);
+  background: var(--surface-3);
 }
 
-.dash-legend-dot--primary {
-    background-color: var(--color-primary);
+.dash-period-tab--active {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
-.dash-legend-dot--muted {
-    background-color: var(--color-text-secondary);
-    opacity: 0.4;
-}
+/* ── Bar chart overrides ──────────────────────────────────────────────── */
 
-.dash-legend-text {
-    font-size: 0.8125rem;
-    color: var(--color-text-primary);
-}
-
-.dash-legend-val {
-    color: var(--color-text-secondary);
-    font-size: 0.75rem;
-}
-
-/* ── dioxus-charts SVG styling ────────────────────────────────────────────── */
-
-/* Bar chart wrapper */
 .dx-chart-bar {
-    overflow: visible;
+  overflow: visible;
 }
 
-/*
- * Bars are <line> elements — color is set via `stroke`, not `fill`.
- * The library inlines `stroke="rgb(...)"` as an SVG presentation attribute;
- * a CSS class rule has higher specificity and overrides it.
- */
 .dx-bar {
-    stroke: var(--color-primary);
-    opacity: 0.82;
-    transition: opacity 150ms ease;
+  fill: var(--accent);
+  stroke: var(--accent);
+  opacity: 0.85;
+  transition: opacity 150ms ease;
 }
 
 .dx-bar:hover {
-    opacity: 1;
+  opacity: 1;
 }
 
-/* X-axis labels rendered inside <foreignObject><span> */
+.dx-bar-group:hover .dx-bar {
+  opacity: 1;
+}
+
 .dx-bar-label,
 .dx-grid-label {
-    color: var(--color-text-secondary);
-    font-size: 10px;
-    font-family: var(--font-sans, Inter, sans-serif);
+  fill: var(--text-3);
+  font-size: 10px;
+  font-family: var(--font-mono);
 }
 
-/* Y-axis SVG text labels */
-.dx-grid-label[dx] {
-    fill: var(--color-text-secondary);
-    font-size: 10px;
-    font-family: var(--font-sans, Inter, sans-serif);
+.dx-grid {
+  overflow: visible;
 }
 
-/* Grid lines — library sets stroke inline; CSS overrides it */
 .dx-grid-line {
-    stroke: var(--color-border) !important;
-    stroke-width: 1 !important;
-    stroke-dasharray: none !important;
+  stroke: var(--border-soft);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
 }
 
-/*
- * Donut slices — each slice path sits inside its own <g class="dx-series dx-series-N">.
- * Since every path is the only child of its <g>, :nth-child(N) matches all of them.
- * Target by series index instead.
- */
-.dx-series-0 .dx-slice {
-    fill: var(--color-primary);
+/* ── Donut chart ──────────────────────────────────────────────────────── */
+
+.dash-donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
-.dx-series-1 .dx-slice {
-    fill: var(--color-text-secondary);
-    opacity: 0.2;
+.dash-donut-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
 }
 
-.dx-label {
-    fill: var(--color-text-primary);
-    font-size: 11px;
-    font-family: var(--font-sans, Inter, sans-serif);
+.dash-donut-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dash-donut-legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dash-donut-legend-name {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-2);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.dash-donut-legend-time {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.dash-donut-legend-pct {
+  font-size: 11px;
+  color: var(--text-3);
+  flex-shrink: 0;
+  width: 34px;
+  text-align: right;
+}
+
+/* ── Recent entries ───────────────────────────────────────────────────── */
+
+.dash-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.dash-entry:last-child {
+  border-bottom: none;
+}
+
+.dash-entry-color {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.dash-entry-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dash-entry-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-entry-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.dash-entry-sep {
+  color: var(--text-4);
+}
+
+.dash-entry-time {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+/* ── Tag pills ────────────────────────────────────────────────────────── */
+
+.dash-tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-3);
+  border: 1px solid var(--border-soft);
+  white-space: nowrap;
 }

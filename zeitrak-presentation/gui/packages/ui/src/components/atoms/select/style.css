@@ -18,10 +18,10 @@
     gap: 0.5rem;
     background-color: var(--color-input-bg);
     border: 1px solid var(--color-input-border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     color: var(--color-input-text);
-    padding: 8px 12px;
-    font-size: 0.875rem;
+    padding: 9px 12px;
+    font-size: 13px;
     line-height: 1.5;
     text-align: left;
     cursor: pointer;

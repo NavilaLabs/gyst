@@ -1,178 +1,164 @@
-/* ── DataTable ──────────────────────────────────────────────────────────────── */
+/* ── DataTable ── */
 
 .dt-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    overflow: hidden;
-    border-radius: var(--radius-md);
-    border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
-    background-color: var(--color-surface-raised);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-soft);
+  background-color: var(--surface);
 }
 
 .dt-scroll {
-    overflow-x: auto;
-    width: 100%;
+  overflow-x: auto;
+  width: 100%;
 }
 
 .dt-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.8125rem;
-    line-height: 1.5;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
-/* ── Column headers ────────────────────────────────────────────────────────── */
-
+/* ── Column headers ── */
 .dt-th {
-    padding: 0.5rem 0.875rem;
-    font-size: 0.6875rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--color-text-secondary);
-    background-color: color-mix(in srgb, var(--color-surface) 60%, transparent);
-    border-bottom: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
-    white-space: nowrap;
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border-soft);
+  white-space: nowrap;
+  text-align: left;
 }
 
-/* ── Body rows ─────────────────────────────────────────────────────────────── */
-
+/* ── Body rows ── */
 .dt-row {
-    border-bottom: 1px solid color-mix(in srgb, var(--color-border) 30%, transparent);
-    transition: background-color 0.1s ease;
+  border-bottom: 1px solid var(--border-soft);
+  transition: background-color 0.08s ease;
 }
-
 .dt-row:last-child {
-    border-bottom: none;
+  border-bottom: none;
 }
-
 .dt-row:hover {
-    background-color: color-mix(in srgb, var(--color-primary) 4%, transparent);
+  background-color: var(--surface-2);
 }
-
 .dt-row--muted {
-    opacity: 0.55;
+  opacity: 0.55;
 }
-
 .dt-row--expanded {
-    background-color: color-mix(in srgb, var(--color-surface) 80%, transparent);
+  background-color: var(--surface-2);
 }
 
-/* ── Cells ─────────────────────────────────────────────────────────────────── */
-
+/* ── Cells ── */
 .dt-td {
-    padding: 0.625rem 0.875rem;
-    vertical-align: middle;
-    color: var(--color-text-primary);
+  padding: 12px 16px;
+  vertical-align: middle;
+  color: var(--text);
+  height: var(--row-h);
 }
 
 .dt-empty {
-    text-align: center;
-    color: var(--color-text-secondary);
-    padding: 2rem 1rem;
-    font-style: italic;
-    font-size: 0.8125rem;
+  text-align: center;
+  color: var(--text-2);
+  padding: 3rem 1rem;
+  font-size: 13px;
 }
 
-/* ── Expand row ────────────────────────────────────────────────────────────── */
-
+/* ── Expand row ── */
 .dt-expand-row {
-    background-color: color-mix(in srgb, var(--color-surface) 70%, transparent);
-    border-bottom: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
+  background-color: var(--surface-2);
+  border-bottom: 1px solid var(--border-soft);
 }
-
 .dt-expand-cell {
-    padding: 1rem 1rem;
+  padding: 1rem;
 }
 
-/* ── Skeleton loading rows ─────────────────────────────────────────────────── */
-
+/* ── Skeleton loading rows ── */
 .dt-skeleton {
-    height: 0.875rem;
-    border-radius: 4px;
-    background: linear-gradient(
-        90deg,
-        color-mix(in srgb, var(--color-border) 40%, transparent) 25%,
-        color-mix(in srgb, var(--color-border) 20%, transparent) 50%,
-        color-mix(in srgb, var(--color-border) 40%, transparent) 75%
-    );
-    background-size: 200% 100%;
-    animation: dt-shimmer 1.4s infinite;
-    width: 60%;
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--surface-3) 25%,
+    var(--surface-2) 50%,
+    var(--surface-3) 75%
+  );
+  background-size: 200% 100%;
+  animation: dt-shimmer 1.4s infinite;
+  width: 60%;
 }
 
 @keyframes dt-shimmer {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
-/* ── Pagination footer ─────────────────────────────────────────────────────── */
-
+/* ── Pagination footer ── */
 .dt-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.5rem 0.875rem;
-    border-top: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
-    background-color: color-mix(in srgb, var(--color-surface) 50%, transparent);
-    gap: 0.75rem;
-    flex-wrap: wrap;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border-soft);
+  background-color: var(--surface);
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .dt-count {
-    font-size: 0.75rem;
-    color: var(--color-text-secondary);
+  font-size: 12px;
+  color: var(--text-3);
 }
 
 .dt-pager {
-    display: flex;
-    align-items: center;
-    gap: 0.125rem;
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .dt-page-btn {
-    min-width: 2rem;
-    height: 2rem;
-    padding: 0 0.375rem;
-    border-radius: var(--radius-sm);
-    border: 1px solid transparent;
-    background: transparent;
-    color: var(--color-text-primary);
-    font-size: 0.8125rem;
-    cursor: pointer;
-    transition: background-color 0.1s ease, color 0.1s ease;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background-color 0.1s ease, color 0.1s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
-
 .dt-page-btn:hover:not(:disabled) {
-    background-color: color-mix(in srgb, var(--color-primary) 12%, transparent);
-    color: var(--color-primary);
+  background-color: var(--surface-2);
+  color: var(--accent-2);
 }
-
 .dt-page-btn--active {
-    background-color: var(--color-primary);
-    color: white;
-    border-color: var(--color-primary);
-    font-weight: 600;
+  background-color: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  font-weight: 600;
 }
-
 .dt-page-btn--active:hover {
-    background-color: var(--color-primary) !important;
-    color: white !important;
+  background-color: var(--accent) !important;
+  color: white !important;
 }
-
 .dt-page-btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .dt-page-ellipsis {
-    min-width: 1.5rem;
-    text-align: center;
-    color: var(--color-text-secondary);
-    font-size: 0.8125rem;
-    user-select: none;
+  min-width: 1.5rem;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 12.5px;
+  user-select: none;
 }

@@ -10,6 +10,25 @@ use dioxus_free_icons::icons::hi_solid_icons::{HiLightningBolt, HiPlay, HiStop};
 use dioxus_free_icons::Icon;
 use dioxus_i18n::tid;
 
+// ── Palette ───────────────────────────────────────────────────────────────────
+
+const PALETTE: &[&str] = &[
+    "#22c55e", "#3b82f6", "#a855f7", "#f59e0b", "#06b6d4", "#ef4444", "#ec4899", "#84cc16",
+];
+
+fn palette_color(idx: usize) -> &'static str {
+    PALETTE[idx % PALETTE.len()]
+}
+
+// ── Chart period ──────────────────────────────────────────────────────────────
+
+#[derive(Clone, PartialEq)]
+enum ChartPeriod {
+    Week,
+    Month,
+    Year,
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn parse_date(s: &str) -> Option<chrono::NaiveDate> {
@@ -42,15 +61,27 @@ fn fmt_hours_axis(v: f32) -> String {
     format!("{:.0}h", v)
 }
 
+// ── Stats ─────────────────────────────────────────────────────────────────────
+
+#[derive(Clone, PartialEq)]
+struct ActivityMixItem {
+    name: String,
+    color: String,
+    hours: f32,
+}
+
 struct DashStats {
     today_hours: f32,
     week_hours: f32,
-    hours_by_day: Vec<f32>,
-    day_labels: Vec<String>,
-    has_week_data: bool,
+    billable_hours: f32,
+    streak: u32,
+    activity_mix: Vec<ActivityMixItem>,
 }
 
-fn compute_stats(timesheets: &[api::timesheet::TimesheetDto]) -> DashStats {
+fn compute_stats(
+    timesheets: &[api::timesheet::TimesheetDto],
+    activities: &[api::activity::ActivityDto],
+) -> DashStats {
     let today = Utc::now().date_naive();
     let days_from_monday = today.weekday().num_days_from_monday() as i64;
     let week_start = today - Duration::days(days_from_monday);
@@ -72,32 +103,266 @@ fn compute_stats(timesheets: &[api::timesheet::TimesheetDto]) -> DashStats {
         .map(|ts| ts.duration.unwrap_or(0) as f32 / 3600.0)
         .sum();
 
-    let hours_by_day: Vec<f32> = (0..7)
-        .map(|i| {
-            let day = today - Duration::days(6 - i as i64);
-            timesheets
+    let billable_hours: f32 = timesheets
+        .iter()
+        .filter(|ts| {
+            ts.duration.is_some()
+                && ts
+                    .tags
+                    .iter()
+                    .any(|t| t.name.eq_ignore_ascii_case("billable"))
+        })
+        .map(|ts| ts.duration.unwrap_or(0) as f32 / 3600.0)
+        .sum();
+
+    // Streak: consecutive days with at least one completed timesheet, counting back from today
+    let mut streak = 0u32;
+    let mut check = today;
+    loop {
+        let has_entry = timesheets
+            .iter()
+            .any(|ts| ts.duration.is_some() && parse_date(&ts.start_time) == Some(check));
+        if has_entry {
+            streak += 1;
+            check -= Duration::days(1);
+        } else {
+            break;
+        }
+    }
+
+    // Activity mix
+    let mut mix_map: std::collections::HashMap<String, f32> = std::collections::HashMap::new();
+    for ts in timesheets {
+        if let (Some(aid), Some(dur)) = (&ts.activity_id, ts.duration) {
+            if dur > 0 {
+                *mix_map.entry(aid.clone()).or_insert(0.0) += dur as f32 / 3600.0;
+            }
+        }
+    }
+    let mut activity_mix: Vec<ActivityMixItem> = mix_map
+        .into_iter()
+        .enumerate()
+        .map(|(i, (aid, hours))| {
+            let name = activities
                 .iter()
-                .filter(|ts| ts.duration.is_some() && parse_date(&ts.start_time) == Some(day))
-                .map(|ts| ts.duration.unwrap_or(0) as f32 / 3600.0)
-                .sum::<f32>()
+                .find(|a| a.id == aid)
+                .map(|a| a.name.clone())
+                .unwrap_or_else(|| "—".to_string());
+            ActivityMixItem {
+                name,
+                color: palette_color(i).to_string(),
+                hours,
+            }
         })
         .collect();
-
-    let day_labels: Vec<String> = (0..7)
-        .map(|i| {
-            let day = today - Duration::days(6 - i as i64);
-            day.format("%a").to_string()
-        })
-        .collect();
-
-    let has_week_data = week_hours > 0.0;
+    // Sort activities in mix by hours descending so the biggest slice comes first
+    activity_mix.sort_by(|a, b| b.hours.partial_cmp(&a.hours).unwrap_or(std::cmp::Ordering::Equal));
+    // Re-assign palette colors after sorting so order is stable
+    for (i, item) in activity_mix.iter_mut().enumerate() {
+        item.color = palette_color(i).to_string();
+    }
 
     DashStats {
         today_hours,
         week_hours,
-        hours_by_day,
-        day_labels,
-        has_week_data,
+        billable_hours,
+        streak,
+        activity_mix,
+    }
+}
+
+fn compute_chart_data(
+    timesheets: &[api::timesheet::TimesheetDto],
+    period: &ChartPeriod,
+) -> (Vec<f32>, Vec<String>) {
+    let today = Utc::now().date_naive();
+
+    match period {
+        ChartPeriod::Week => {
+            let bars: Vec<f32> = (0..7)
+                .map(|i| {
+                    let day = today - Duration::days(6 - i as i64);
+                    timesheets
+                        .iter()
+                        .filter(|ts| {
+                            ts.duration.is_some() && parse_date(&ts.start_time) == Some(day)
+                        })
+                        .map(|ts| ts.duration.unwrap_or(0) as f32 / 3600.0)
+                        .sum::<f32>()
+                })
+                .collect();
+            let labels: Vec<String> = (0..7)
+                .map(|i| {
+                    let day = today - Duration::days(6 - i as i64);
+                    day.format("%a").to_string()
+                })
+                .collect();
+            (bars, labels)
+        }
+        ChartPeriod::Month => {
+            // 4 weekly buckets covering the last 28 days
+            let bars: Vec<f32> = (0..4)
+                .map(|w| {
+                    let week_end = today - Duration::days((3 - w as i64) * 7);
+                    let week_start = week_end - Duration::days(6);
+                    timesheets
+                        .iter()
+                        .filter(|ts| {
+                            ts.duration.is_some()
+                                && parse_date(&ts.start_time)
+                                    .map(|d| d >= week_start && d <= week_end)
+                                    .unwrap_or(false)
+                        })
+                        .map(|ts| ts.duration.unwrap_or(0) as f32 / 3600.0)
+                        .sum::<f32>()
+                })
+                .collect();
+            let labels: Vec<String> = (0..4)
+                .map(|w| {
+                    let week_end = today - Duration::days((3 - w as i64) * 7);
+                    let week_start = week_end - Duration::days(6);
+                    format!("{}", week_start.format("%-d.%-m"))
+                })
+                .collect();
+            (bars, labels)
+        }
+        ChartPeriod::Year => {
+            // 12 monthly bars
+            let bars: Vec<f32> = (0..12)
+                .map(|m| {
+                    let month_offset = 11 - m;
+                    let target_year = today.year()
+                        - (month_offset + 12 - today.month() as i32).max(0) / 12;
+                    let target_month = ((today.month() as i32 - month_offset - 1).rem_euclid(12)
+                        + 1) as u32;
+                    timesheets
+                        .iter()
+                        .filter(|ts| {
+                            ts.duration.is_some()
+                                && parse_date(&ts.start_time)
+                                    .map(|d| d.year() == target_year && d.month() == target_month)
+                                    .unwrap_or(false)
+                        })
+                        .map(|ts| ts.duration.unwrap_or(0) as f32 / 3600.0)
+                        .sum::<f32>()
+                })
+                .collect();
+            let labels: Vec<String> = (0..12)
+                .map(|m| {
+                    let month_offset = 11 - m;
+                    let target_month = ((today.month() as i32 - month_offset - 1).rem_euclid(12)
+                        + 1) as u32;
+                    let date =
+                        chrono::NaiveDate::from_ymd_opt(today.year(), target_month, 1).unwrap();
+                    date.format("%b").to_string()
+                })
+                .collect();
+            (bars, labels)
+        }
+    }
+}
+
+// ── Donut SVG ─────────────────────────────────────────────────────────────────
+
+#[component]
+fn DonutChart(mix: Vec<ActivityMixItem>) -> Element {
+    let total: f32 = mix.iter().map(|a| a.hours).sum();
+    if total <= 0.0 {
+        return rsx! {};
+    }
+
+    let r = 50.0f32;
+    let cx = 60.0f32;
+    let cy = 60.0f32;
+    let sw = 14.0f32;
+
+    // Build arc paths
+    let mut acc = 0.0f32;
+    let arcs: Vec<(String, String)> = mix
+        .iter()
+        .map(|item| {
+            let start_frac = acc / total;
+            acc += item.hours;
+            let end_frac = acc / total;
+
+            let start_angle = start_frac * std::f32::consts::TAU - std::f32::consts::FRAC_PI_2;
+            let end_angle = end_frac * std::f32::consts::TAU - std::f32::consts::FRAC_PI_2;
+
+            let x1 = cx + r * start_angle.cos();
+            let y1 = cy + r * start_angle.sin();
+            let x2 = cx + r * end_angle.cos();
+            let y2 = cy + r * end_angle.sin();
+            let large_arc = if end_frac - start_frac > 0.5 { 1 } else { 0 };
+
+            let d = format!(
+                "M {x1:.2} {y1:.2} A {r:.0} {r:.0} 0 {large_arc} 1 {x2:.2} {y2:.2}"
+            );
+            (d, item.color.clone())
+        })
+        .collect();
+
+    let total_str = fmt_hours(total);
+
+    rsx! {
+        div { class: "dash-donut-wrap",
+            svg {
+                view_box: "0 0 120 120",
+                width: "140",
+                height: "140",
+                // Track ring
+                circle {
+                    cx: "{cx}",
+                    cy: "{cy}",
+                    r: "{r}",
+                    fill: "none",
+                    stroke: "var(--surface-2)",
+                    stroke_width: "{sw}",
+                }
+                for (d, color) in arcs.iter() {
+                    path {
+                        d: "{d}",
+                        stroke: "{color}",
+                        stroke_width: "{sw}",
+                        fill: "none",
+                        stroke_linecap: "butt",
+                    }
+                }
+                text {
+                    x: "{cx}",
+                    y: "{cy - 6.0}",
+                    text_anchor: "middle",
+                    font_size: "9",
+                    fill: "var(--text-3)",
+                    letter_spacing: "1.5",
+                    "TOTAL"
+                }
+                text {
+                    x: "{cx}",
+                    y: "{cy + 11.0}",
+                    text_anchor: "middle",
+                    font_size: "15",
+                    fill: "var(--text)",
+                    font_family: "var(--font-mono)",
+                    font_weight: "600",
+                    "{total_str}"
+                }
+            }
+            div { class: "dash-donut-legend",
+                for item in mix.iter() {
+                    div { class: "dash-donut-legend-row",
+                        span {
+                            class: "dash-donut-legend-dot",
+                            style: "background:{item.color}",
+                        }
+                        span { class: "dash-donut-legend-name", "{item.name}" }
+                        span { class: "dash-donut-legend-time", "{fmt_hours(item.hours)}" }
+                        span { class: "dash-donut-legend-pct",
+                            { format!("{:.0}%", item.hours / total * 100.0) }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -117,6 +382,7 @@ pub fn Dashboard() -> Element {
 
     let mut selected_activity_id = use_signal(|| Option::<String>::None);
     let elapsed_secs: crate::RunningElapsed = use_context();
+    let mut chart_period = use_signal(|| ChartPeriod::Week);
 
     use_resource(move || async move {
         if let Ok(list) = api::activity::list_activities().await {
@@ -153,8 +419,17 @@ pub fn Dashboard() -> Element {
         }
     };
 
-    // Compute all stats before entering rsx! (drops the borrow immediately).
-    let stats = compute_stats(&recent.read());
+    let stats = compute_stats(&recent.read(), &activities.read());
+    let (chart_bars, chart_labels) = compute_chart_data(&recent.read(), &chart_period.read());
+    let has_data = chart_bars.iter().any(|&v| v > 0.0);
+
+    // Build activity index → color lookup for recent entries
+    let activity_colors: std::collections::HashMap<String, String> = activities
+        .read()
+        .iter()
+        .enumerate()
+        .map(|(i, a)| (a.id.clone(), palette_color(i).to_string()))
+        .collect();
 
     rsx! {
         document::Link { rel: "stylesheet", href: asset!("./style.css") }
@@ -229,7 +504,7 @@ pub fn Dashboard() -> Element {
                     },
                 }
 
-                // ── KPI Cards ────────────────────────────────────────────────
+                // ── KPI Cards (4) ─────────────────────────────────────────────
                 div { class: "dash-kpi-grid",
                     div { class: "dash-kpi-card",
                         span { class: "dash-kpi-label", {tid!("dashboard-today")} }
@@ -241,22 +516,48 @@ pub fn Dashboard() -> Element {
                         span { class: "dash-kpi-value", "{fmt_hours(stats.week_hours)}" }
                         span { class: "dash-kpi-sub", {tid!("dashboard-tracked")} }
                     }
+                    div { class: "dash-kpi-card",
+                        span { class: "dash-kpi-label", {tid!("dashboard-billable")} }
+                        span { class: "dash-kpi-value", "{fmt_hours(stats.billable_hours)}" }
+                        span { class: "dash-kpi-sub", {tid!("dashboard-tracked")} }
+                    }
+                    div { class: "dash-kpi-card",
+                        span { class: "dash-kpi-label", {tid!("dashboard-streak")} }
+                        span { class: "dash-kpi-value", "{stats.streak}" }
+                        span { class: "dash-kpi-sub", {tid!("dashboard-streak-unit")} }
+                    }
                 }
 
                 // ── Charts ───────────────────────────────────────────────────
-                if stats.has_week_data {
+                if has_data {
                     div { class: "dash-charts-grid",
 
-                        // Hours per day — bar chart
+                        // Hours per day — bar chart with period toggle
                         div { class: "island dash-chart-island",
                             div { class: "island-header",
                                 span { class: "island-title", {tid!("dashboard-hours-per-day")} }
-                                span { class: "island-subtitle", {tid!("dashboard-last-7-days")} }
+                                div { class: "dash-period-tabs",
+                                    button {
+                                        class: if *chart_period.read() == ChartPeriod::Week { "dash-period-tab dash-period-tab--active" } else { "dash-period-tab" },
+                                        onclick: move |_| chart_period.set(ChartPeriod::Week),
+                                        {tid!("dashboard-chart-week")}
+                                    }
+                                    button {
+                                        class: if *chart_period.read() == ChartPeriod::Month { "dash-period-tab dash-period-tab--active" } else { "dash-period-tab" },
+                                        onclick: move |_| chart_period.set(ChartPeriod::Month),
+                                        {tid!("dashboard-chart-month")}
+                                    }
+                                    button {
+                                        class: if *chart_period.read() == ChartPeriod::Year { "dash-period-tab dash-period-tab--active" } else { "dash-period-tab" },
+                                        onclick: move |_| chart_period.set(ChartPeriod::Year),
+                                        {tid!("dashboard-chart-year")}
+                                    }
+                                }
                             }
                             div { class: "dash-chart-area",
                                 BarChart {
-                                    series: vec![stats.hours_by_day],
-                                    labels: Some(stats.day_labels),
+                                    series: vec![chart_bars],
+                                    labels: Some(chart_labels),
                                     padding_top: 20,
                                     padding_bottom: 36,
                                     padding_left: 50,
@@ -282,6 +583,18 @@ pub fn Dashboard() -> Element {
                                 }
                             }
                         }
+
+                        // Activity mix — donut chart
+                        if !stats.activity_mix.is_empty() {
+                            div { class: "island dash-chart-island",
+                                div { class: "island-header",
+                                    span { class: "island-title", {tid!("dashboard-activity-mix")} }
+                                }
+                                div { class: "dash-chart-area dash-chart-area--donut",
+                                    DonutChart { mix: stats.activity_mix }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -291,12 +604,16 @@ pub fn Dashboard() -> Element {
                         div { class: "island-header",
                             span { class: "island-title", {tid!("dashboard-recent-entries")} }
                         }
-                        div { class: "flex flex-col gap-2",
-                            for ts in recent.read().iter().take(5) {
+                        div { class: "flex flex-col",
+                            for ts in recent.read().iter().take(6) {
                                 {
+                                    let ts = ts.clone();
                                     let act_name = ts.activity_id.as_ref()
                                         .and_then(|aid| activities.read().iter().find(|a| &a.id == aid).map(|a| a.name.clone()))
                                         .unwrap_or_else(|| "—".to_string());
+                                    let act_color = ts.activity_id.as_ref()
+                                        .and_then(|aid| activity_colors.get(aid).cloned())
+                                        .unwrap_or_else(|| "var(--accent)".to_string());
                                     let duration_str = ts.duration.map(|d| {
                                         let h = d / 3600;
                                         let m = (d % 3600) / 60;
@@ -307,27 +624,33 @@ pub fn Dashboard() -> Element {
                                         formatting::format_datetime(&ts.start_time, &s.timezone, &s.date_format)
                                     };
                                     rsx! {
-                                        Card { key: "{ts.id}",
-                                            CardContent {
-                                                div { class: "flex items-center justify-between",
-                                                    div { class: "flex flex-col gap-1",
-                                                        span { class: "font-medium text-sm",
-                                                            if let Some(ref desc) = ts.description {
-                                                                "{desc}"
-                                                            } else {
-                                                                "{act_name}"
-                                                            }
-                                                        }
-                                                        span { class: "text-xs text-secondary",
-                                                            "{act_name}"
-                                                        }
-                                                        span { class: "text-xs text-secondary", "{date_str}" }
+                                        div {
+                                            key: "{ts.id}",
+                                            class: "dash-entry",
+                                            div {
+                                                class: "dash-entry-color",
+                                                style: "background:{act_color}",
+                                            }
+                                            div { class: "dash-entry-main",
+                                                div { class: "dash-entry-name",
+                                                    if let Some(ref desc) = ts.description {
+                                                        "{desc}"
+                                                    } else {
+                                                        "{act_name}"
                                                     }
-                                                    div { class: "flex flex-col items-end gap-1",
-                                                        if let Some(ref d) = duration_str {
-                                                            span { class: "text-sm font-medium", "{d}" }
-                                                        }
+                                                }
+                                                div { class: "dash-entry-meta",
+                                                    span { "{act_name}" }
+                                                    span { class: "dash-entry-sep", "·" }
+                                                    span { "{date_str}" }
+                                                    for tag in ts.tags.iter() {
+                                                        span { class: "dash-tag-pill", "#{tag.name}" }
                                                     }
+                                                }
+                                            }
+                                            div { class: "dash-entry-time",
+                                                if let Some(ref d) = duration_str {
+                                                    "{d}"
                                                 }
                                             }
                                         }

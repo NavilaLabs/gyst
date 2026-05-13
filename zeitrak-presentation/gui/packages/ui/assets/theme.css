@@ -1,440 +1,281 @@
-/* ============================================================
-   DESIGN TOKENS — Light & Dark
-   Syntax: var(--dark, #dark-value) var(--light, #light-value)
-   Usage:  Set --dark: initial and --light: ; on :root for dark mode
-           Set --dark: ;   and --light: initial on :root for light mode
-   ============================================================ */
+/* =============================================
+   Zeitrak — Design System Tokens
+   Dark-first. All surfaces, text, accent and
+   status colours defined as CSS custom properties.
+   ============================================= */
 
 :root {
-    /* Default: Light mode */
-    --light: initial;
-    --dark: ;
+  /* ── Core surfaces ── */
+  --bg: #0b0b0c;
+  --surface: #131316;
+  --surface-2: #1a1a1f;
+  --surface-3: #21212a;
+  --border: #26262d;
+  --border-soft: #1d1d24;
+  --border-strong: #34343d;
+
+  /* ── Text ── */
+  --text: #ededee;
+  --text-2: #a4a4ae;
+  --text-3: #6c6c76;
+  --text-4: #50505a;
+
+  /* ── Accent — green (default) ── */
+  --accent: #16a34a;
+  --accent-2: #22c55e;
+  --accent-soft: rgba(34, 197, 94, 0.10);
+  --accent-soft-2: rgba(34, 197, 94, 0.18);
+  --accent-fg: #ecfdf5;
+  --accent-ring: rgba(34, 197, 94, 0.35);
+
+  /* ── Status ── */
+  --danger: #ef4444;
+  --danger-soft: rgba(239, 68, 68, 0.12);
+  --warn: #f59e0b;
+  --info: #3b82f6;
+
+  /* ── Typography ── */
+  --font-display: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
+  --font-body: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Courier New', monospace;
+
+  /* ── Density ── */
+  --row-h: 44px;
+  --pad-card: 22px;
+  --pad-page: 36px;
+
+  /* ── Radius ── */
+  --radius: 10px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+  --radius-circle: 50%;
+
+  /* ── Sidebar ── */
+  --sidebar-w: 248px;
+
+  /* ── Shadows ── */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-raised: 0 4px 16px rgba(0, 0, 0, 0.6);
+
+  /* ── Transitions ── */
+  --transition-fast: 100ms ease-out;
+  --transition-normal: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 300ms cubic-bezier(0.87, 0, 0.13, 1);
+
+  /* ===========================================
+     Backward-compatible aliases
+     Keep all --color-* tokens so existing
+     component CSS continues to resolve.
+     =========================================== */
+
+  /* Workspace accent */
+  --color-workspace-accent: var(--accent);
+  --color-focus-ring: var(--accent);
+
+  /* Surfaces */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-2);
+  --color-surface-tonal: var(--surface-3);
+  --color-surface-overlay: rgba(0, 0, 0, 0.6);
+
+  /* Borders */
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-soft);
+  --color-border-strong: var(--border-strong);
+
+  /* Text */
+  --color-text-primary: var(--text);
+  --color-text-secondary: var(--text-2);
+  --color-text-disabled: var(--text-3);
+  --color-text-on-primary: white;
+
+  /* Buttons — primary (accent-driven) */
+  --color-btn-primary-bg: var(--accent);
+  --color-btn-primary-text: white;
+  --color-btn-primary-hover: var(--accent-2);
+
+  /* Buttons — secondary */
+  --color-btn-secondary-bg: var(--surface-2);
+  --color-btn-secondary-text: var(--text);
+  --color-btn-secondary-border: var(--border-soft);
+
+  /* Buttons — inverted */
+  --color-btn-inverted-bg: var(--text);
+  --color-btn-inverted-text: var(--bg);
+
+  /* Buttons — outlined */
+  --color-btn-outlined-bg: transparent;
+  --color-btn-outlined-text: var(--text);
+  --color-btn-outlined-border: var(--border);
+
+  /* Buttons — ghost */
+  --color-btn-ghost-text: var(--text-2);
+  --color-btn-ghost-hover-bg: var(--surface-2);
+
+  /* Buttons — destructive */
+  --color-btn-destructive-bg: var(--danger-soft);
+  --color-btn-destructive-text: var(--danger);
+  --color-btn-destructive-hover: var(--danger);
+
+  /* Buttons — disabled */
+  --color-btn-disabled-bg: var(--surface-2);
+  --color-btn-disabled-text: var(--text-3);
+
+  /* Buttons — FAB / label */
+  --color-btn-fab-bg: var(--accent);
+  --color-btn-fab-text: white;
+  --color-btn-label-bg: var(--accent);
+  --color-btn-label-text: white;
+  --color-icon-btn-text: white;
+
+  /* Inputs */
+  --color-input-bg: var(--surface-2);
+  --color-input-border: var(--border-soft);
+  --color-input-text: var(--text);
+  --color-input-placeholder: var(--text-4);
+  --color-input-icon: var(--text-3);
+  --color-input-disabled: var(--surface);
+  --color-input-text-disabled: var(--text-3);
+  --color-input-ring: var(--accent-ring);
+
+  /* Navbar (topbar dropdowns) */
+  --color-navbar-bg: var(--surface);
+  --color-navbar-trigger-text: var(--text-2);
+  --color-navbar-trigger-active-bg: var(--surface-2);
+  --color-navbar-trigger-active-text: var(--text);
+  --color-navbar-content-bg: var(--surface-2);
+  --color-navbar-content-border: var(--border);
+  --color-navbar-item-text: var(--text-2);
+  --color-navbar-item-hover-bg: var(--surface-3);
+  --color-navbar-item-hover-text: var(--text);
+
+  /* Nav icon states */
+  --color-nav-icon-active-bg: var(--accent);
+  --color-nav-icon-active-text: white;
+  --color-nav-icon-inactive: var(--text-3);
+
+  /* Tabs */
+  --color-tabs-list-bg: var(--surface-2);
+  --color-tabs-trigger-text: var(--text-3);
+  --color-tabs-trigger-hover-text: var(--text);
+  --color-tabs-trigger-active-bg: var(--surface-3);
+  --color-tabs-trigger-active-text: var(--text);
+  --color-tabs-content-bg: var(--surface);
+  --color-tabs-content-border: var(--border);
+
+  /* Brand primary (used in table pagination, chart bars, etc.) */
+  --color-primary: var(--accent);
+  --color-primary-500: var(--accent-2);
+
+  /* Progress bars */
+  --color-progress-primary: var(--accent);
+  --color-progress-track: var(--surface-3);
 }
 
-@media (prefers-color-scheme: dark) {
-    :root {
-        --light: ;
-        --dark: initial;
-    }
-}
-
-[data-theme="light"] {
-    --light: initial;
-    --dark: ;
-}
-
-[data-theme="dark"] {
-    --light: ;
-    --dark: initial;
-}
-
-:root {
-    /* ============================================================
-    WORKSPACE ACCENT
-    Default = brand green. Overridden per workspace via inline style
-    on the WorkspaceLayout root element:
-      style="--color-workspace-accent: #6366f1"
-    All tokens below that encode workspace identity derive from this
-    single value, so switching workspaces requires only one change.
-    ============================================================ */
-
-    --color-workspace-accent: var(--dark, #388e3c) var(--light, #2e7d32);
-
-    /* ============================================================
-    BRAND — Primary (Green)
-    Dark mode: one step lighter for better contrast on dark surfaces
-    ============================================================ */
-
-    --color-primary: var(--dark, #388e3c) var(--light, #2e7d32);
-
-    /* Tonal scale */
-    --color-primary-950: var(--dark, #0a1f0b) var(--light, #0a1f0b);
-    --color-primary-900: var(--dark, #1b4d1e) var(--light, #1b4d1e);
-    --color-primary-800: var(--dark, #245c27) var(--light, #245c27);
-    --color-primary-700: var(--dark, #2e7d32) var(--light, #2e7d32);
-    --color-primary-600: var(--dark, #388e3c) var(--light, #388e3c); /* dark base */
-    --color-primary-500: var(--dark, #4caf50) var(--light, #4caf50);
-    --color-primary-400: var(--dark, #66bb6a) var(--light, #66bb6a);
-    --color-primary-300: var(--dark, #81c784) var(--light, #81c784);
-    --color-primary-200: var(--dark, #a5d6a7) var(--light, #a5d6a7);
-    --color-primary-100: var(--dark, #c8e6c9) var(--light, #c8e6c9);
-    --color-primary-50: var(--dark, #e8f5e9) var(--light, #e8f5e9);
-
-    /* ============================================================
-    BRAND — Secondary (Slate/Blue-Grey)
-    ============================================================ */
-
-    --color-secondary: var(--dark, #546e7a) var(--light, #455a64);
-
-    --color-secondary-950: var(--dark, #0d1517) var(--light, #0d1517);
-    --color-secondary-900: var(--dark, #1c2b31) var(--light, #1c2b31);
-    --color-secondary-800: var(--dark, #263238) var(--light, #263238);
-    --color-secondary-700: var(--dark, #37474f) var(--light, #37474f);
-    --color-secondary-600: var(--dark, #455a64) var(--light, #455a64);
-    --color-secondary-500: var(--dark, #546e7a) var(--light, #546e7a); /* dark base */
-    --color-secondary-400: var(--dark, #78909c) var(--light, #78909c);
-    --color-secondary-300: var(--dark, #90a4ae) var(--light, #90a4ae);
-    --color-secondary-200: var(--dark, #b0bec5) var(--light, #b0bec5);
-    --color-secondary-100: var(--dark, #cfd8dc) var(--light, #cfd8dc);
-    --color-secondary-50: var(--dark, #eceff1) var(--light, #eceff1);
-
-    /* ============================================================
-    BRAND — Tertiary (Blue)
-    ============================================================ */
-
-    --color-tertiary: var(--dark, #0288d1) var(--light, #0277bd);
-
-    --color-tertiary-950: var(--dark, #011627) var(--light, #011627);
-    --color-tertiary-900: var(--dark, #013a6b) var(--light, #013a6b);
-    --color-tertiary-800: var(--dark, #01579b) var(--light, #01579b);
-    --color-tertiary-700: var(--dark, #0277bd) var(--light, #0277bd);
-    --color-tertiary-600: var(--dark, #0288d1) var(--light, #0288d1); /* dark base */
-    --color-tertiary-500: var(--dark, #039be5) var(--light, #039be5);
-    --color-tertiary-400: var(--dark, #29b6f6) var(--light, #29b6f6);
-    --color-tertiary-300: var(--dark, #4fc3f7) var(--light, #4fc3f7);
-    --color-tertiary-200: var(--dark, #81d4fa) var(--light, #81d4fa);
-    --color-tertiary-100: var(--dark, #b3e5fc) var(--light, #b3e5fc);
-    --color-tertiary-50: var(--dark, #e1f5fe) var(--light, #e1f5fe);
-
-    /* ============================================================
-    NEUTRAL
-    ============================================================ */
-
-    --color-neutral: var(--dark, #f5f5f0) var(--light, #f5f5f0);
-
-    --color-neutral-950: var(--dark, #141414) var(--light, #1a1a1a);
-    --color-neutral-900: var(--dark, #1e1e1e) var(--light, #212121);
-    --color-neutral-800: var(--dark, #2a2a2a) var(--light, #2e2e2e);
-    --color-neutral-700: var(--dark, #3a3a3a) var(--light, #424242);
-    --color-neutral-600: var(--dark, #4f4f4f) var(--light, #5a5a5a);
-    --color-neutral-500: var(--dark, #717171) var(--light, #757575);
-    --color-neutral-400: var(--dark, #9e9e9e) var(--light, #9e9e9e);
-    --color-neutral-300: var(--dark, #bdbdbd) var(--light, #bdbdbd);
-    --color-neutral-200: var(--dark, #d4d4cc) var(--light, #d4d4cc);
-    --color-neutral-100: var(--dark, #e8e8e3) var(--light, #e8e8e3);
-    --color-neutral-50: var(--dark, #f5f5f0) var(--light, #f5f5f0);
-
-    /* ============================================================
-    SURFACES & BACKGROUNDS
-    ============================================================ */
-
-    --color-bg: var(--dark, #1a1a1a) var(--light, #fafaf5);
-    --color-surface: var(--dark, #242424) var(--light, #f4f4ef);
-    --color-surface-raised: var(--dark, #2c2c2c) var(--light, #ffffff);
-    --color-surface-tonal: var(--dark, #333333) var(--light, #eeeee9);
-    --color-surface-overlay: var(--dark, rgba(0, 0, 0, 0.6))
-        var(--light, rgba(0, 0, 0, 0.4));
-
-    /* ============================================================
-    BORDERS & DIVIDERS
-    ============================================================ */
-
-    --color-border: var(--dark, #3a3a3a) var(--light, #dcdcd4);
-    --color-border-subtle: var(--dark, #2e2e2e) var(--light, #ebebe5);
-    --color-border-strong: var(--dark, #555555) var(--light, #707a6c);
-
-    /* ============================================================
-    TEXT
-    ============================================================ */
-
-    --color-text-primary: var(--dark, #e8e8e0) var(--light, #1a1c19);
-    --color-text-secondary: var(--dark, #a0a09a) var(--light, #40493d);
-    --color-text-disabled: var(--dark, #606060) var(--light, #9e9e98);
-    --color-text-on-primary: var(--dark, #ffffff) var(--light, #ffffff);
-
-    /* ============================================================
-    INTERACTIVE — FOCUS
-    Derives from the workspace accent so the focus ring always
-    matches the current workspace colour.
-    ============================================================ */
-
-    --color-focus-ring: var(--color-workspace-accent);
-
-    /* ============================================================
-    INTERACTIVE — BUTTONS
-    Primary button and label chip derive from the workspace accent.
-    Secondary, ghost, outline, destructive are accent-independent.
-    ============================================================ */
-
-    /* Primary — workspace-accent driven */
-    --color-btn-primary-bg: var(--color-workspace-accent);
-    --color-btn-primary-text: var(--dark, #ffffff) var(--light, #ffffff);
-    --color-btn-primary-hover: var(--dark, #4caf50) var(--light, #245c27);
-
-    --color-btn-secondary-bg: var(--dark, #2c2c2c) var(--light, #eeeee9);
-    --color-btn-secondary-text: var(--dark, #e8e8e0) var(--light, #1a1a1a);
-    --color-btn-secondary-border: var(--dark, #3a3a3a) var(--light, #c8c8c0);
-
-    --color-btn-inverted-bg: var(--dark, #e8e8e0) var(--light, #1e1e1e);
-    --color-btn-inverted-text: var(--dark, #1a1a1a) var(--light, #f5f5f0);
-
-    --color-btn-outlined-bg: var(--dark, transparent) var(--light, transparent);
-    --color-btn-outlined-text: var(--dark, #e8e8e0) var(--light, #1a1a1a);
-    --color-btn-outlined-border: var(--dark, #555555) var(--light, #9e9e98);
-
-    --color-btn-fab-bg: var(--dark, #0288d1) var(--light, #0277bd);
-    --color-btn-fab-text: var(--dark, #ffffff) var(--light, #ffffff);
-
-    /* Label chip — workspace-accent driven */
-    --color-btn-label-bg: var(--color-workspace-accent);
-    --color-btn-label-text: var(--dark, #ffffff) var(--light, #ffffff);
-
-    --color-btn-ghost-text: var(--dark, #a0a09a) var(--light, #455a64);
-    --color-btn-ghost-hover-bg: var(--dark, #2c2c2c) var(--light, #e4e4de);
-
-    --color-btn-destructive-bg: var(--dark, #b71c1c) var(--light, #d32f2f);
-    --color-btn-destructive-text: var(--dark, #ffffff) var(--light, #ffffff);
-    --color-btn-destructive-hover: var(--dark, #c62828) var(--light, #b71c1c);
-
-    --color-btn-disabled-bg: var(--dark, #2a2a2a) var(--light, #e4e4de);
-    --color-btn-disabled-text: var(--dark, #606060) var(--light, #b0b0a8);
-
-    /* ============================================================
-    ICON BUTTONS
-    ============================================================ */
-
-    --color-icon-btn-green-bg: var(--dark, #388e3c) var(--light, #2e7d32);
-    --color-icon-btn-slate-bg: var(--dark, #546e7a) var(--light, #455a64);
-    --color-icon-btn-blue-bg: var(--dark, #0288d1) var(--light, #0277bd);
-    --color-icon-btn-red-bg: var(--dark, #c62828) var(--light, #d32f2f);
-    --color-icon-btn-text: var(--dark, #ffffff) var(--light, #ffffff);
-
-    /* ============================================================
-    PROGRESS / DIVIDER BARS
-    ============================================================ */
-
-    --color-progress-primary: var(--dark, #388e3c) var(--light, #2e7d32);
-    --color-progress-secondary: var(--dark, #546e7a) var(--light, #455a64);
-    --color-progress-tertiary: var(--dark, #0288d1) var(--light, #0277bd);
-    --color-progress-track: var(--dark, #333333) var(--light, #d8d8d0);
-
-    /* ============================================================
-    NAVIGATION ICONS
-    Active state derives from the workspace accent.
-    ============================================================ */
-
-    --color-nav-icon-active-bg: var(--color-workspace-accent);
-    --color-nav-icon-active-text: var(--dark, #ffffff) var(--light, #ffffff);
-    --color-nav-icon-inactive: var(--dark, #a0a09a) var(--light, #455a64);
-
-    /* ============================================================
-    NAVBAR
-    Active item colour derives from the workspace accent.
-    ============================================================ */
-
-    --color-navbar-bg: var(--dark, #242424) var(--light, #f0f0ea);
-    --color-navbar-trigger-text: var(--dark, #a0a09a) var(--light, #455a64);
-    --color-navbar-trigger-active-bg: var(--dark, #2c2c2c) var(--light, #e4e4de);
-    --color-navbar-trigger-active-text: var(--dark, #e8e8e0)
-        var(--light, #1a1a1a);
-    --color-navbar-content-bg: var(--dark, #2c2c2c) var(--light, #f7f7f2);
-    --color-navbar-content-border: var(--dark, #3a3a3a) var(--light, #d0d0c8);
-    --color-navbar-item-text: var(--dark, #a0a09a) var(--light, #455a64);
-    --color-navbar-item-hover-bg: var(--dark, #333333) var(--light, #e4e4de);
-    --color-navbar-item-hover-text: var(--dark, #e8e8e0) var(--light, #1a1a1a);
-
-    /* ============================================================
-    TABS
-    Active trigger derives from the workspace accent.
-    ============================================================ */
-
-    --color-tabs-list-bg: var(--dark, #2c2c2c) var(--light, #e4e4de);
-    --color-tabs-trigger-text: var(--dark, #a0a09a) var(--light, #455a64);
-    --color-tabs-trigger-hover-text: var(--dark, #c0c0b8) var(--light, #2e2e2e);
-    --color-tabs-trigger-active-bg: var(--color-workspace-accent);
-    --color-tabs-trigger-active-text: var(--dark, #ffffff) var(--light, #ffffff);
-    --color-tabs-content-bg: var(--dark, #242424) var(--light, #f0f0ea);
-    --color-tabs-content-border: var(--dark, #3a3a3a) var(--light, #d0d0c8);
-
-    /* ============================================================
-    INPUT
-    Focus ring derives from workspace accent via --color-focus-ring.
-    ============================================================ */
-
-    --color-input-bg: var(--dark, #2c2c2c) var(--light, #f4f4ef);
-    --color-input-border: var(--dark, #3a3a3a) var(--light, #d0d0c8);
-    --color-input-text: var(--dark, #e8e8e0) var(--light, #1a1a1a);
-    --color-input-placeholder: var(--dark, #707068) var(--light, #9e9e98);
-    --color-input-icon: var(--dark, #a0a09a) var(--light, #455a64);
-    --color-input-disabled: var(--dark, #1e1e1e) var(--light, #e4e4de);
-    --color-input-text-disabled: var(--dark, #606060) var(--light, #b0b0a8);
-    --color-input-ring: var(--color-focus-ring);
-
-    /* ============================================================
-    TYPOGRAPHY
-    --font-display: Noto Serif for editorial/display headings.
-    --font-body:    Inter for all functional UI text.
-    ============================================================ */
-
-    --font-display: "Noto Serif", Georgia, serif;
-    --font-body: Inter, system-ui, sans-serif;
-
-    /* ============================================================
-    TRANSITIONS
-    ============================================================ */
-
-    --transition-fast: 100ms ease-out;
-    --transition-normal: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-slow: 300ms cubic-bezier(0.87, 0, 0.13, 1);
-
-    /* ============================================================
-    SHADOWS
-    ============================================================ */
-
-    --shadow-card: var(--dark, 0 1px 3px rgba(0, 0, 0, 0.5))
-        var(--light, 0 4px 20px -2px rgba(26, 28, 25, 0.06));
-    --shadow-raised: var(--dark, 0 4px 16px rgba(0, 0, 0, 0.6))
-        var(--light, 0 8px 24px -4px rgba(26, 28, 25, 0.08));
-
-    /* ============================================================
-    RADIUS
-    ============================================================ */
-
-    --radius-sm: 6px;
-    --radius-md: 12px;
-    --radius-lg: 18px;
-    --radius-pill: 999px;
-    --radius-circle: 50%;
-}
-
-/* Modern browsers with `scrollbar-*` support */
+/* ── Scrollbar ── */
 @supports (scrollbar-width: auto) {
-    :not(:hover) {
-        scrollbar-color: rgb(0 0 0 / 0%) rgb(0 0 0 / 0%);
-    }
-
-    :hover {
-        scrollbar-color: var(--color-border-strong) rgb(0 0 0 / 0%);
-    }
+  :not(:hover) {
+    scrollbar-color: rgb(0 0 0 / 0%) rgb(0 0 0 / 0%);
+  }
+  :hover {
+    scrollbar-color: var(--border-strong) rgb(0 0 0 / 0%);
+  }
 }
 
-/* Legacy browsers with `::-webkit-scrollbar-*` support */
-@supports selector(::-webkit-scrollbar) {
-    :root::-webkit-scrollbar-track {
-        background: transparent;
-    }
-}
-
-/* ── Island ──────────────────────────────────────────────────────────────────
-   A tonal container that groups related content.  Cards (#fff / dark-raised)
-   inside an island visually "float" against the warm tonal background,
-   creating depth without making the entire page grey.
-   ─────────────────────────────────────────────────────────────────────────── */
+/* ── Island — tonal section container ── */
 .island {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    /* surface (#f4f4ef light / #242424 dark) — one step darker than the white main bg,
-       clearly visible without being heavy. Cards inside remain surface-raised (#fff). */
-    background-color: var(--color-surface);
-    border-radius: var(--radius-lg);
-    padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background-color: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
 }
 
 .island-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .island-title {
-    font-size: 0.6875rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--color-text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
 }
 
-/* ── Border colour helpers ───────────────────────────────────────────────── */
-.border-surface-tonal {
-    border-color: var(--color-surface-tonal);
-}
+/* ── Helpers ── */
+.border-surface-tonal { border-color: var(--surface-3); }
+.text-secondary { color: var(--text-2); }
+.text-success { color: var(--accent-2); }
+.text-warning { color: var(--warn); }
 
-/* ── Semantic text colour helpers ─────────────────────────────────────────── */
-.text-secondary {
-    color: var(--color-text-secondary);
-}
-
-.text-success {
-    color: oklch(52% 0.17 145);
-}
-
-.text-warning {
-    color: oklch(70% 0.17 60);
-}
-
-/* ── Tag pills ────────────────────────────────────────────────────────────── */
+/* ── Tag pills ── */
 .tag-pill {
-    display: inline-flex;
-    align-items: center;
-    padding: 2px 10px;
-    border-radius: var(--radius-pill);
-    font-size: 0.75rem;
-    background-color: var(--color-surface-tonal);
-    color: var(--color-text-secondary);
-    border: 1px solid transparent;
-    cursor: pointer;
-    transition:
-        background-color 120ms ease,
-        border-color 120ms ease;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  background-color: var(--surface-3);
+  color: var(--text-2);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
 }
-
 .tag-pill:hover {
-    background-color: var(--color-surface-raised);
-    border-color: var(--color-border);
+  background-color: var(--surface-2);
+  border-color: var(--border);
 }
-
 .tag-pill--active {
-    background-color: var(--color-workspace-accent);
-    color: #fff;
-    border-color: transparent;
+  background-color: var(--accent-soft);
+  color: var(--accent-2);
+  border-color: var(--accent-soft-2);
 }
 
-/* ── Mode toggle tabs (e.g. "Timer / Manual" in the timesheet card) ─────────── */
+/* ── Mode toggle tab pills ── */
 .tab-pill {
-    display: inline-flex;
-    align-items: center;
-    padding: 2px 10px;
-    border-radius: var(--radius-pill);
-    font-size: 0.75rem;
-    background-color: transparent;
-    color: var(--color-text-secondary);
-    border: 1px solid transparent;
-    cursor: pointer;
-    transition:
-        background-color 120ms ease,
-        border-color 120ms ease;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  background-color: transparent;
+  color: var(--text-2);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
 }
-
 .tab-pill:hover {
-    background-color: var(--color-surface-tonal);
-    border-color: var(--color-border);
+  background-color: var(--surface-3);
+  border-color: var(--border);
 }
-
 .tab-pill--active {
-    background-color: var(--color-surface-tonal);
-    color: var(--color-text);
-    border-color: var(--color-border);
-    font-weight: 500;
+  background-color: var(--surface-3);
+  color: var(--text);
+  border-color: var(--border);
+  font-weight: 500;
 }
 
-/* Running timer indicator dot used on the Dashboard */
+/* ── Running timer indicator dot ── */
 .timer-dot {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background-color: var(--color-workspace-accent);
-    flex-shrink: 0;
-    animation: timer-pulse 1.6s ease-in-out infinite;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--accent-2);
+  flex-shrink: 0;
+  position: relative;
+  animation: timer-pulse 1.6s ease-in-out infinite;
 }
 
 @keyframes timer-pulse {
-    0%,
-    100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.3;
-    }
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
 }

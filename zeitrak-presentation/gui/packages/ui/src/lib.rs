@@ -38,7 +38,9 @@ const CSS_SETTINGS_MENU: Asset = asset!("./components/molecules/settings_menu/st
 const CSS_THEME_SWITCHER: Asset = asset!("./components/molecules/theme_switcher/style.css");
 const CSS_DEFAULT_LAYOUT: Asset = asset!("./layouts/default/style.css");
 const CSS_DASHBOARD: Asset = asset!("./views/dashboard/style.css");
+const CSS_SETTINGS: Asset = asset!("./views/settings/style.css");
 const CSS_SELECT_WORKSPACE: Asset = asset!("./views/select_workspace/style.css");
+const CSS_LOGIN: Asset = asset!("./views/login/style.css");
 
 /// Inject all component stylesheets into the document head.
 ///
@@ -71,7 +73,9 @@ pub fn GlobalStyles() -> Element {
         document::Link { rel: "stylesheet", href: CSS_THEME_SWITCHER }
         document::Link { rel: "stylesheet", href: CSS_DEFAULT_LAYOUT }
         document::Link { rel: "stylesheet", href: CSS_DASHBOARD }
+        document::Link { rel: "stylesheet", href: CSS_SETTINGS }
         document::Link { rel: "stylesheet", href: CSS_SELECT_WORKSPACE }
+        document::Link { rel: "stylesheet", href: CSS_LOGIN }
     }
 }
 
