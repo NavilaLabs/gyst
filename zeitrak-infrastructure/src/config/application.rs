@@ -100,7 +100,7 @@ pub struct SmtpConfig {
     password: String,
     from_address: String,
     /// When `false`, connect over plain SMTP with no TLS (suitable for
-    /// local dev tools such as MailHog).  Defaults to `true`.
+    /// local dev tools such as `MailHog`).  Defaults to `true`.
     #[serde(default = "SmtpConfig::default_use_tls")]
     use_tls: bool,
 }
@@ -119,7 +119,7 @@ impl Default for SmtpConfig {
 }
 
 impl SmtpConfig {
-    fn default_use_tls() -> bool {
+    const fn default_use_tls() -> bool {
         true
     }
 

@@ -5,7 +5,7 @@ use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::aggregate::{Aggregate, Root};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
-use sea_query::{Condition, Expr, ExprTrait};
+use sea_query::{Alias, Condition, Expr, ExprTrait, JoinType, Order};
 use sqlx::{Row, any::AnyRow};
 use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 use zeitrak_core::tenant::timesheet_tag::{
@@ -19,6 +19,7 @@ use crate::{
 };
 
 const TABLE: &str = "projections__timesheet_tags";
+const JOIN_TABLE: &str = "projections__timesheet_has_tags";
 
 pub struct TimesheetTagRepository {
     store: SnapshotRepository<TimesheetTag, ConnectedTenantPool>,
@@ -57,9 +58,12 @@ impl TimesheetTagRepository {
     ///
     /// Returns an error if the database query fails.
     pub async fn all(&self) -> Result<Vec<TimesheetTagRow>, crate::Error> {
-        let rows = sqlx::query("SELECT id, name FROM projections__timesheet_tags ORDER BY name")
-            .fetch_all(self.store.pool.as_ref())
-            .await?;
+        let rm = self.read_model();
+        let stmt = rm
+            .select()
+            .order_by(Alias::new("name"), Order::Asc)
+            .to_owned();
+        let rows = rm.fetch_all_rows(&stmt).await?;
         rows.into_iter().map(|r| Self::map_row(&r)).collect()
     }
 
@@ -70,16 +74,24 @@ impl TimesheetTagRepository {
         &self,
         timesheet_id: &str,
     ) -> Result<Vec<TimesheetTagRow>, crate::Error> {
-        let rows = sqlx::query(
-            "SELECT t.id, t.name \
-             FROM projections__timesheet_tags t \
-             JOIN projections__timesheet_has_tags tht ON tht.timesheet_tag_id = t.id \
-             WHERE tht.timesheet_id = ? \
-             ORDER BY t.name",
-        )
-        .bind(timesheet_id)
-        .fetch_all(self.store.pool.as_ref())
-        .await?;
+        let stmt = sea_query::Query::select()
+            .column((Alias::new("t"), Alias::new("id")))
+            .column((Alias::new("t"), Alias::new("name")))
+            .from_as(Alias::new(TABLE), Alias::new("t"))
+            .join_as(
+                JoinType::InnerJoin,
+                Alias::new(JOIN_TABLE),
+                Alias::new("tht"),
+                Expr::col((Alias::new("tht"), Alias::new("timesheet_tag_id")))
+                    .equals((Alias::new("t"), Alias::new("id"))),
+            )
+            .and_where(Expr::col((Alias::new("tht"), Alias::new("timesheet_id"))).eq(timesheet_id))
+            .order_by((Alias::new("t"), Alias::new("name")), Order::Asc)
+            .to_owned();
+        let (sql, values) = self.store.pool.build_query(&stmt);
+        let rows = sqlx::query_with(&sql, values)
+            .fetch_all(self.store.pool.as_ref())
+            .await?;
         rows.into_iter().map(|r| Self::map_row(&r)).collect()
     }
 
@@ -95,19 +107,26 @@ impl TimesheetTagRepository {
         if timesheet_ids.is_empty() {
             return Ok(HashMap::new());
         }
-        let placeholders = vec!["?"; timesheet_ids.len()].join(", ");
-        let sql = format!(
-            "SELECT tht.timesheet_id, t.id, t.name \
-             FROM projections__timesheet_has_tags tht \
-             JOIN projections__timesheet_tags t ON t.id = tht.timesheet_tag_id \
-             WHERE tht.timesheet_id IN ({placeholders}) \
-             ORDER BY t.name"
-        );
-        let mut q = sqlx::query(&sql);
-        for id in timesheet_ids {
-            q = q.bind(*id);
-        }
-        let rows = q.fetch_all(self.store.pool.as_ref()).await?;
+        let ids: Vec<String> = timesheet_ids.iter().map(|s| (*s).to_string()).collect();
+        let stmt = sea_query::Query::select()
+            .column((Alias::new("tht"), Alias::new("timesheet_id")))
+            .column((Alias::new("t"), Alias::new("id")))
+            .column((Alias::new("t"), Alias::new("name")))
+            .from_as(Alias::new(JOIN_TABLE), Alias::new("tht"))
+            .join_as(
+                JoinType::InnerJoin,
+                Alias::new(TABLE),
+                Alias::new("t"),
+                Expr::col((Alias::new("t"), Alias::new("id")))
+                    .equals((Alias::new("tht"), Alias::new("timesheet_tag_id"))),
+            )
+            .and_where(Expr::col((Alias::new("tht"), Alias::new("timesheet_id"))).is_in(ids))
+            .order_by((Alias::new("t"), Alias::new("name")), Order::Asc)
+            .to_owned();
+        let (sql, values) = self.store.pool.build_query(&stmt);
+        let rows = sqlx::query_with(&sql, values)
+            .fetch_all(self.store.pool.as_ref())
+            .await?;
         let mut result: HashMap<String, Vec<TimesheetTagRow>> = HashMap::new();
         for row in rows {
             let ts_id: String = row.try_get("timesheet_id")?;

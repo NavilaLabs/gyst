@@ -28,6 +28,7 @@ fn raw_created(id: &ActivityId, name: &str) -> RawEvent {
     let event = ActivityEvent::Created {
         id: id.clone(),
         name: name.to_string(),
+        color: "#3B82F6".to_string(),
         comment: None,
     };
     RawEvent {
@@ -57,6 +58,7 @@ pub mod tests {
             ActivityEvent::Created {
                 id: id.clone(),
                 name: "Stand-up".to_string(),
+                color: "#3B82F6".to_string(),
                 comment: Some("daily sync".to_string()),
             }
             .into(),
@@ -80,6 +82,7 @@ pub mod tests {
             ActivityEvent::Created {
                 id: id.clone(),
                 name: "First".to_string(),
+                color: "#3B82F6".to_string(),
                 comment: None,
             },
         )
@@ -89,6 +92,7 @@ pub mod tests {
             ActivityEvent::Created {
                 id,
                 name: "Second".to_string(),
+                color: "#3B82F6".to_string(),
                 comment: None,
             },
         );
@@ -132,6 +136,7 @@ pub mod tests {
 
         let updated = ActivityEvent::Updated {
             name: "New Name".to_string(),
+            color: "#EF4444".to_string(),
             comment: Some("now with a comment".to_string()),
         };
         projector

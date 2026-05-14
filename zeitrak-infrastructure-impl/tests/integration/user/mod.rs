@@ -154,7 +154,10 @@ pub mod verification_tests {
             .await
             .expect("query must succeed")
             .expect("user row must exist");
-        assert!(row.is_verified, "is_verified must be true after UserVerified");
+        assert!(
+            row.is_verified,
+            "is_verified must be true after UserVerified"
+        );
     }
 
     /// A token that was never stored must return `None`.

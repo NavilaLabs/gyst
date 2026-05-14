@@ -11,7 +11,12 @@ pub struct ActivityRow {
 impl ActivityRow {
     #[must_use]
     pub const fn new(id: ActivityId, name: String, color: String, comment: Option<String>) -> Self {
-        Self { id, name, color, comment }
+        Self {
+            id,
+            name,
+            color,
+            comment,
+        }
     }
 
     #[must_use]

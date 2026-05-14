@@ -52,9 +52,35 @@ use zeitrak_infrastructure::{
     email::EmailSender,
 };
 use zeitrak_infrastructure_impl::{
-    Error, Pool, ScopeAdmin, ScopeTenant, StateConnected,
+    Pool, ScopeAdmin, ScopeTenant, StateConnected,
     admin::user::{projectors::UserProjector, repositories::UserRepository},
 };
+
+// ── shared Postgres container (one per test binary) ───────────────────────────
+
+#[cfg(feature = "postgres")]
+static PG_BASE_URL: tokio::sync::OnceCell<String> = tokio::sync::OnceCell::const_new();
+
+#[cfg(feature = "postgres")]
+async fn pg_base_url() -> &'static str {
+    PG_BASE_URL
+        .get_or_init(|| async {
+            use testcontainers::runners::AsyncRunner as _;
+            let container = testcontainers_modules::postgres::Postgres::default()
+                .start()
+                .await
+                .expect("Postgres container must start");
+            let port = container
+                .get_host_port_ipv4(5432)
+                .await
+                .expect("must get Postgres port");
+            // Leak the container so it lives for the entire test binary run.
+            // testcontainers removes the Docker container when the process exits.
+            Box::leak(Box::new(container));
+            format!("postgres://postgres:postgres@127.0.0.1:{port}")
+        })
+        .await
+}
 
 // ── unique fixture counter ────────────────────────────────────────────────────
 
@@ -66,41 +92,46 @@ fn next_fixture_id() -> u64 {
 
 // ── TestFixture ───────────────────────────────────────────────────────────────
 
-/// A pair of fully-migrated, isolated `SQLite` databases in a temp directory.
+/// A pair of fully-migrated, isolated databases for tests.
 ///
-/// Each call to [`TestFixture::setup`] creates a fresh temporary directory and
-/// opens two `SQLite` files inside it (`admin.db` and `tenant.db`), running all
-/// migrations on each.  Because each fixture has its own directory, tests can
-/// run concurrently without any shared state.
+/// With the `sqlite` feature (default for tests), each fixture creates two
+/// `SQLite` files in a temporary directory.  With the `postgres` feature, each
+/// fixture creates two freshly-named databases in a shared `Postgres` container
+/// started via testcontainers.
 ///
-/// The temporary directory is automatically deleted when the fixture is dropped.
+/// Tests can run fully in parallel — each fixture has its own isolated schema.
 pub struct TestFixture {
     /// Admin database — schema matches `zeitrak-admin-migrations`.
     pub admin: Pool<ScopeAdmin, StateConnected>,
     /// Tenant database — schema matches `zeitrak-tenant-migrations`.
     pub tenant: Pool<ScopeTenant, StateConnected>,
-    // Keeps the temp dir alive for the lifetime of the fixture.
-    _dir: TempDir,
+    // Keeps the SQLite temp dir alive. None when using Postgres.
+    _dir: Option<TempDir>,
 }
 
 impl TestFixture {
     /// Creates a fresh, isolated `TestFixture`.
     ///
-    /// Loads `.env.test` (safe to call from multiple parallel tests — all
-    /// tests load the same values), installs `SQLx` any-DB drivers, creates
-    /// a temporary directory with two `SQLite` databases, and runs all
-    /// migrations on them.
+    /// With `sqlite` feature: creates a temp directory with two `SQLite` files
+    /// and runs all migrations.  With `postgres` feature: creates two Postgres
+    /// databases in a shared testcontainer and runs all migrations.
     ///
     /// # Panics
     ///
-    /// Panics if the temp directory cannot be created, if a database cannot
-    /// be opened, or if migrations fail.  In a test context this always
-    /// indicates a programming error.
+    /// Panics if the database cannot be opened or migrations fail.
     pub async fn setup() -> Self {
-        // Load the test environment so CONFIG is initialised correctly.
         dotenvy::from_filename_override(".env.test").ok();
         sqlx::any::install_default_drivers();
 
+        #[cfg(feature = "postgres")]
+        return Self::setup_postgres().await;
+
+        #[cfg(not(feature = "postgres"))]
+        Self::setup_sqlite().await
+    }
+
+    #[cfg(not(feature = "postgres"))]
+    async fn setup_sqlite() -> Self {
         let id = next_fixture_id();
         let dir = tempfile::Builder::new()
             .prefix(&format!("zeitrak_test_{id}_"))
@@ -110,8 +141,7 @@ impl TestFixture {
         let admin_path = dir.path().join("admin.db");
         let tenant_path = dir.path().join("tenant.db");
 
-        // sqlx-sqlite defaults to create_if_missing=false, so we must create
-        // the files before opening the pool connections.
+        // sqlx-sqlite defaults to create_if_missing=false.
         std::fs::File::create(&admin_path).expect("must create admin.db");
         std::fs::File::create(&tenant_path).expect("must create tenant.db");
 
@@ -122,7 +152,7 @@ impl TestFixture {
 
         let admin = Pool::connect(&DatabaseUri::from(admin_url))
             .await
-            .unwrap_or_else(|e: Error| panic!("could not open admin test DB: {e}"));
+            .unwrap_or_else(|e| panic!("could not open admin test DB: {e}"));
         admin
             .migrate_database()
             .await
@@ -130,7 +160,7 @@ impl TestFixture {
 
         let tenant = Pool::connect(&DatabaseUri::from(tenant_url))
             .await
-            .unwrap_or_else(|e: Error| panic!("could not open tenant test DB: {e}"));
+            .unwrap_or_else(|e| panic!("could not open tenant test DB: {e}"));
         tenant
             .migrate_database()
             .await
@@ -139,7 +169,58 @@ impl TestFixture {
         Self {
             admin,
             tenant,
-            _dir: dir,
+            _dir: Some(dir),
+        }
+    }
+
+    #[cfg(feature = "postgres")]
+    async fn setup_postgres() -> Self {
+        let base = pg_base_url().await;
+        let id = next_fixture_id();
+        let admin_db = format!("zeitrak_test_{id}_admin");
+        let tenant_db = format!("zeitrak_test_{id}_tenant");
+
+        // Connect to the default `postgres` database to issue CREATE DATABASE.
+        let bootstrap = sqlx::AnyPool::connect(&format!("{base}/postgres"))
+            .await
+            .expect("must connect to default postgres database");
+
+        // Postgres does not support parameters in CREATE DATABASE, so raw DDL
+        // with escaped identifiers is the correct approach here.
+        sqlx::query(&format!("CREATE DATABASE \"{admin_db}\""))
+            .execute(&bootstrap)
+            .await
+            .unwrap_or_else(|e| panic!("must create admin test DB {admin_db}: {e}"));
+        sqlx::query(&format!("CREATE DATABASE \"{tenant_db}\""))
+            .execute(&bootstrap)
+            .await
+            .unwrap_or_else(|e| panic!("must create tenant test DB {tenant_db}: {e}"));
+
+        let admin_url = Url::parse(&format!("{base}/{admin_db}")).expect("admin URL must parse");
+        let tenant_url = Url::parse(&format!("{base}/{tenant_db}")).expect("tenant URL must parse");
+
+        let admin: Pool<ScopeAdmin, StateConnected> = Pool::connect(&DatabaseUri::from(admin_url))
+            .await
+            .unwrap_or_else(|e| panic!("could not open admin test DB: {e}"));
+        admin
+            .migrate_database()
+            .await
+            .expect("admin migrations must succeed in TestFixture::setup");
+
+        let tenant: Pool<ScopeTenant, StateConnected> =
+            Pool::connect(&DatabaseUri::from(tenant_url))
+                .await
+                .unwrap_or_else(|e| panic!("could not open tenant test DB: {e}"));
+        tenant
+            .migrate_database()
+            .await
+            .expect("tenant migrations must succeed in TestFixture::setup");
+
+        // Databases are dropped automatically when the Postgres container exits.
+        Self {
+            admin,
+            tenant,
+            _dir: None,
         }
     }
 }
@@ -220,7 +301,7 @@ pub async fn flush_user_projector(pool: &Pool<ScopeAdmin, StateConnected>) {
             .unwrap_or(serde_json::Value::Null);
         let schema_version: i64 = row.get("schema_version");
 
-        #[allow(clippy::cast_sign_loss)]
+        #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
         projector
             .handle(RawEvent {
                 stream_id,
@@ -247,7 +328,10 @@ pub async fn flush_user_projector(pool: &Pool<ScopeAdmin, StateConnected>) {
 ///
 /// Panics if the repository cannot be created, the query fails, or no user row
 /// exists for `user_id`.
-pub async fn is_user_email_verified(pool: &Pool<ScopeAdmin, StateConnected>, user_id: &str) -> bool {
+pub async fn is_user_email_verified(
+    pool: &Pool<ScopeAdmin, StateConnected>,
+    user_id: &str,
+) -> bool {
     let repo = UserRepository::from_pool(pool.clone())
         .await
         .expect("must create UserRepository");
@@ -304,8 +388,16 @@ impl RecordingEmailSender {
     }
 
     /// Returns a snapshot of all emails sent so far.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal mutex is poisoned.
+    #[must_use]
     pub fn sent(&self) -> Vec<SentEmail> {
-        self.sent.lock().expect("mutex must not be poisoned").clone()
+        self.sent
+            .lock()
+            .expect("mutex must not be poisoned")
+            .clone()
     }
 }
 

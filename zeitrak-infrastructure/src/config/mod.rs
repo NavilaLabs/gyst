@@ -52,10 +52,8 @@ impl Config {
 ///
 /// Returns an error if the YAML content cannot be deserialized into [`Config`].
 pub fn load_config() -> Result<Config, crate::Error> {
-    let environment = std::env::var("ZK_ENVIRONMENT")
-        .unwrap_or_else(|_| "development".to_string());
-    let project_root = std::env::var("ZK_PROJECT_ROOT")
-        .unwrap_or_else(|_| ".".to_string());
+    let environment = std::env::var("ZK_ENVIRONMENT").unwrap_or_else(|_| "development".to_string());
+    let project_root = std::env::var("ZK_PROJECT_ROOT").unwrap_or_else(|_| ".".to_string());
     let config_dir = format!("{project_root}/config/{environment}");
 
     let config = Figment::new()

@@ -23,6 +23,7 @@ impl UserProjector {
 impl Projector for UserProjector {
     type Error = crate::Error;
 
+    #[allow(clippy::too_many_lines)]
     async fn handle(&mut self, event: RawEvent) -> Result<(), Self::Error> {
         match event.event_type.as_str() {
             "UserCreated" => {
@@ -140,7 +141,10 @@ impl Projector for UserProjector {
                     .table(TableRef::from(Self::TABLE))
                     .values([
                         (DynIden::from("is_verified"), true.into()),
-                        (DynIden::from("verification_token"), Value::String(None).into()),
+                        (
+                            DynIden::from("verification_token"),
+                            Value::String(None).into(),
+                        ),
                     ])
                     .cond_where(
                         Condition::all()

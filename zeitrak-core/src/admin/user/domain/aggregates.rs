@@ -124,7 +124,12 @@ mod tests {
     fn apply_verification_requested_sets_token() {
         let id = test_id();
         let user = User::apply(None, created_event(id, "Alice")).unwrap();
-        let result = User::apply(Some(user), UserEvent::VerificationRequested { token: "abc".to_string() });
+        let result = User::apply(
+            Some(user),
+            UserEvent::VerificationRequested {
+                token: "abc".to_string(),
+            },
+        );
         assert!(result.is_ok());
         assert_eq!(result.unwrap().verification_token, Some("abc".to_string()));
     }
@@ -133,7 +138,13 @@ mod tests {
     fn apply_verified_sets_is_verified_and_clears_token() {
         let id = test_id();
         let user = User::apply(None, created_event(id, "Alice")).unwrap();
-        let user = User::apply(Some(user), UserEvent::VerificationRequested { token: "abc".to_string() }).unwrap();
+        let user = User::apply(
+            Some(user),
+            UserEvent::VerificationRequested {
+                token: "abc".to_string(),
+            },
+        )
+        .unwrap();
         let result = User::apply(Some(user), UserEvent::Verified);
         assert!(result.is_ok());
         let user = result.unwrap();
@@ -143,7 +154,12 @@ mod tests {
 
     #[test]
     fn apply_verification_on_none_state_returns_not_found() {
-        let result = User::apply(None, UserEvent::VerificationRequested { token: "abc".to_string() });
+        let result = User::apply(
+            None,
+            UserEvent::VerificationRequested {
+                token: "abc".to_string(),
+            },
+        );
         assert!(matches!(result, Err(user::Error::NotFound)));
     }
 
