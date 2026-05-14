@@ -11,7 +11,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: var(--text-3);
+  color: var(--color-subtle-foreground);
 }
 
 .qs-label {
@@ -19,19 +19,19 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--text-3);
+  color: var(--color-subtle-foreground);
 }
 
 .qs-start-btn {
   width: 100%;
   justify-content: center;
-  background: var(--accent) !important;
+  background: var(--color-accent) !important;
   color: white !important;
   box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 1px 2px rgba(0,0,0,0.3);
 }
 
 .qs-start-btn:hover:not(:disabled) {
-  background: var(--accent-2) !important;
+  background: var(--color-accent-hover) !important;
 }
 
 /* ── Running timer display ─────────────────────────────────────────────── */
@@ -59,7 +59,7 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--text-3);
+  color: var(--color-subtle-foreground);
 }
 
 .dashboard-timer-time {
@@ -73,7 +73,7 @@
   font-size: 56px;
   font-weight: 300;
   letter-spacing: -0.02em;
-  color: var(--text);
+  color: var(--color-foreground);
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
@@ -101,8 +101,8 @@
 }
 
 .dash-kpi-card {
-  background: var(--surface);
-  border: 1px solid var(--border-soft);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-lg);
   padding: 18px 22px;
   display: flex;
@@ -116,7 +116,7 @@
   font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--text-3);
+  color: var(--color-subtle-foreground);
   font-weight: 600;
 }
 
@@ -125,13 +125,13 @@
   font-size: 38px;
   letter-spacing: -0.015em;
   line-height: 1;
-  color: var(--text);
+  color: var(--color-foreground);
   font-variant-numeric: tabular-nums;
 }
 
 .dash-kpi-sub {
   font-size: 12px;
-  color: var(--text-3);
+  color: var(--color-subtle-foreground);
 }
 
 /* ── Chart layout ─────────────────────────────────────────────────────── */
@@ -154,7 +154,7 @@
 
 .island-subtitle {
   font-size: 11px;
-  color: var(--text-3);
+  color: var(--color-subtle-foreground);
   margin-left: auto;
 }
 
@@ -176,7 +176,7 @@
 .dash-period-tabs {
   display: flex;
   gap: 2px;
-  background: var(--surface-2);
+  background: var(--color-surface-raised);
   border-radius: var(--radius-sm);
   padding: 3px;
 }
@@ -188,20 +188,20 @@
   border-radius: calc(var(--radius-sm) - 2px);
   border: none;
   background: transparent;
-  color: var(--text-3);
+  color: var(--color-subtle-foreground);
   cursor: pointer;
   transition: background-color var(--transition-fast), color var(--transition-fast);
   white-space: nowrap;
 }
 
 .dash-period-tab:hover {
-  color: var(--text-2);
-  background: var(--surface-3);
+  color: var(--color-muted-foreground);
+  background: var(--color-surface-tonal);
 }
 
 .dash-period-tab--active {
-  background: var(--surface) !important;
-  color: var(--text) !important;
+  background: var(--color-surface) !important;
+  color: var(--color-foreground) !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
@@ -212,13 +212,13 @@
 }
 
 .dx-bar {
-  fill: var(--accent);
+  fill: var(--color-accent);
   transition: opacity 150ms ease;
 }
 
 .dx-bar-label,
 .dx-grid-label {
-  fill: var(--text-3);
+  fill: var(--color-subtle-foreground);
   font-size: 10px;
   font-family: var(--font-mono);
 }
@@ -228,7 +228,7 @@
 }
 
 .dx-grid-line {
-  stroke: var(--border-soft);
+  stroke: var(--color-border-soft);
   stroke-width: 1;
   stroke-dasharray: 2 4;
 }
@@ -236,21 +236,21 @@
 /* ── Bar chart tooltip ────────────────────────────────────────────────── */
 
 .dx-tooltip-bg {
-  fill: var(--surface);
-  stroke: var(--border-soft);
+  fill: var(--color-surface);
+  stroke: var(--color-border-soft);
   stroke-width: 1;
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.25));
 }
 
 .dx-tooltip-label {
-  fill: var(--text-3);
+  fill: var(--color-subtle-foreground);
   font-size: 9px;
   font-family: var(--font-mono);
   letter-spacing: 0.05em;
 }
 
 .dx-tooltip-value {
-  fill: var(--text);
+  fill: var(--color-foreground);
   font-size: 13px;
   font-family: var(--font-mono);
   font-weight: 600;
@@ -292,7 +292,7 @@
 .dash-donut-legend-name {
   font-size: 12.5px;
   font-weight: 500;
-  color: var(--text-2);
+  color: var(--color-muted-foreground);
   flex: 1;
   white-space: nowrap;
   overflow: hidden;
@@ -303,14 +303,14 @@
 .dash-donut-legend-time {
   font-size: 12px;
   font-family: var(--font-mono);
-  color: var(--text);
+  color: var(--color-foreground);
   font-weight: 600;
   flex-shrink: 0;
 }
 
 .dash-donut-legend-pct {
   font-size: 11px;
-  color: var(--text-3);
+  color: var(--color-subtle-foreground);
   flex-shrink: 0;
   width: 34px;
   text-align: right;
@@ -323,7 +323,7 @@
   align-items: center;
   gap: 12px;
   padding: 10px 16px;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--color-border-soft);
 }
 
 .dash-entry:last-child {
@@ -348,7 +348,7 @@
 .dash-entry-name {
   font-size: 13px;
   font-weight: 500;
-  color: var(--text);
+  color: var(--color-foreground);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -360,18 +360,18 @@
   gap: 6px;
   flex-wrap: wrap;
   font-size: 11.5px;
-  color: var(--text-3);
+  color: var(--color-subtle-foreground);
 }
 
 .dash-entry-sep {
-  color: var(--text-4);
+  color: var(--color-faint-foreground);
 }
 
 .dash-entry-time {
   font-family: var(--font-mono);
   font-size: 12.5px;
   font-weight: 600;
-  color: var(--text);
+  color: var(--color-foreground);
   flex-shrink: 0;
 }
 
@@ -384,9 +384,9 @@
   font-size: 10.5px;
   font-weight: 600;
   padding: 2px 7px;
-  border-radius: var(--radius-pill);
-  background: var(--surface-2);
-  color: var(--text-3);
-  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-raised);
+  color: var(--color-subtle-foreground);
+  border: 1px solid var(--color-border-soft);
   white-space: nowrap;
 }

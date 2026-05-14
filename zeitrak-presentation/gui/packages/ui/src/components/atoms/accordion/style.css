@@ -23,7 +23,7 @@
     padding: 1rem 0;
     border: none;
     background-color: transparent;
-    color: var(--color-text-primary);
+    color: var(--color-foreground);
     outline: none;
     text-align: left;
     cursor: pointer;
@@ -36,7 +36,7 @@
 .accordion-trigger:focus-visible {
     outline: none;
     box-shadow: inset 0 0 0 3px
-        color-mix(in srgb, var(--color-focus-ring) 35%, transparent);
+        color-mix(in srgb, var(--color-accent) 35%, transparent);
 }
 
 .accordion-expand-icon {

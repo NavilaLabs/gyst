@@ -27,11 +27,13 @@ pub fn Input(
     attributes: Vec<Attribute>,
     children: Element,
 ) -> Element {
-    let base = attributes!(input { class: "input" });
+    let base = attributes!(input {
+        class: "input relative flex w-full items-center justify-between gap-1 box-border px-3 py-[9px] text-[13px] leading-relaxed rounded-sm border border-border-soft bg-surface-raised text-foreground cursor-text",
+    });
     let merged = merge_attributes(vec![base, attributes]);
 
     rsx! {
-        document::Link { rel: "stylesheet", href: asset!("/src/components/atoms/input/style.css") }
+        document::Link { rel: "stylesheet", href: asset!("./style.css") }
         input {
             oninput: move |e| _ = oninput.map(|callback| callback(e)),
             onchange: move |e| _ = onchange.map(|callback| callback(e)),

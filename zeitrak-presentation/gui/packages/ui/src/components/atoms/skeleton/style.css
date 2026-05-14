@@ -8,9 +8,9 @@
 .skeleton {
     background: linear-gradient(
         90deg,
-        var(--surface-3) 25%,
-        var(--surface-2) 50%,
-        var(--surface-3) 75%
+        var(--color-surface-tonal) 25%,
+        var(--color-surface-raised) 50%,
+        var(--color-surface-tonal) 75%
     );
     background-size: 200% 100%;
     animation: skeleton-shimmer 1.5s ease-in-out infinite;
@@ -31,7 +31,7 @@
     flex-direction: column;
     gap: 0.55rem;
     padding: 1.25rem 1.5rem;
-    border: 1px solid var(--border-soft);
+    border: 1px solid var(--color-border-soft);
     border-radius: var(--radius-lg);
-    background-color: var(--surface);
+    background-color: var(--color-surface);
 }

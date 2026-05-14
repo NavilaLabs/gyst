@@ -1,14 +1,5 @@
-/* ── Card ── */
-.card {
-  display: flex;
-  flex-direction: column;
-  background-color: var(--surface);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  color: var(--text);
-  height: fit-content;
-}
+/* Structural card layout is expressed as Tailwind utilities in the RSX class
+   string. This file only defines size variants and sub-element layouts. */
 
 /* Size variants — max-width caps only */
 .card[data-size="sm"] {
@@ -28,11 +19,11 @@
 .card-header {
   display: grid;
   align-items: start;
-  padding: 16px var(--pad-card) 14px;
+  padding: 16px var(--spacing-card) 14px;
   gap: 0.5rem;
   grid-auto-rows: min-content;
   grid-template-rows: auto auto;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--color-border-soft);
 }
 .card-header:has([data-slot="card-action"]) {
   grid-template-columns: 1fr auto;
@@ -45,14 +36,14 @@
   gap: 9px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--text);
+  color: var(--color-foreground);
   letter-spacing: 0.005em;
 }
 
 /* ── Description ── */
 .card-description {
   font-size: 12px;
-  color: var(--text-2);
+  color: var(--color-muted-foreground);
 }
 
 /* ── Action slot ── */
@@ -64,14 +55,14 @@
 
 /* ── Content ── */
 .card-content {
-  padding: var(--pad-card);
+  padding: var(--spacing-card);
 }
 
 /* ── Footer ── */
 .card-footer {
   display: flex;
   align-items: center;
-  padding: 12px var(--pad-card);
-  border-top: 1px solid var(--border-soft);
+  padding: 12px var(--spacing-card);
+  border-top: 1px solid var(--color-border-soft);
   gap: 8px;
 }

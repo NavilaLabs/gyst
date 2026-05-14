@@ -8,7 +8,10 @@ pub fn Card(
     children: Element,
     #[props(into, default)] data_size: Option<String>,
 ) -> Element {
-    let base = attributes!(div { class: "card", "data-slot": "card" });
+    let base = attributes!(div {
+        class: "card flex flex-col bg-surface border border-border-soft rounded-lg overflow-hidden text-foreground h-fit",
+        "data-slot": "card",
+    });
     let merged = merge_attributes(vec![base, attributes]);
 
     rsx! {

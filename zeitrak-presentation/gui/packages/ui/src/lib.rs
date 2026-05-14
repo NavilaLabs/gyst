@@ -12,6 +12,11 @@ pub mod views;
 
 pub const FAVICON: Asset = asset!("/assets/favicon.svg");
 
+// Global base sheets — loaded first so CSS custom properties from @theme are
+// available to every component stylesheet that follows.
+const CSS_TAILWIND: Asset = asset!("/assets/tailwind.css");
+const CSS_THEME: Asset = asset!("/assets/theme.css");
+
 // Preload all component stylesheets as compile-time assets so `GlobalStyles`
 // can inject them from the root `App`. This avoids a CSR race condition where
 // `document::Link` inside a component inserts a `<link>` tag *after* the
@@ -20,10 +25,7 @@ const CSS_ACCORDION: Asset = asset!("./components/atoms/accordion/style.css");
 const CSS_BUTTON: Asset = asset!("./components/atoms/button/style.css");
 const CSS_CARD: Asset = asset!("./components/atoms/card/style.css");
 const CSS_DROPDOWN_MENU: Asset = asset!("./components/atoms/dropdown_menu/style.css");
-const CSS_HEADLINE: Asset = asset!("./components/atoms/headline/style.css");
-const CSS_IMAGE: Asset = asset!("./components/atoms/image/style.css");
 const CSS_INPUT: Asset = asset!("./components/atoms/input/style.css");
-const CSS_LABEL: Asset = asset!("./components/atoms/label/style.css");
 const CSS_NAVBAR: Asset = asset!("./components/atoms/navbar/style.css");
 const CSS_SEARCHABLE_SELECT: Asset = asset!("./components/atoms/searchable_select/style.css");
 const CSS_SELECT: Asset = asset!("./components/atoms/select/style.css");
@@ -42,23 +44,27 @@ const CSS_SETTINGS: Asset = asset!("./views/settings/style.css");
 const CSS_SELECT_WORKSPACE: Asset = asset!("./views/select_workspace/style.css");
 const CSS_LOGIN: Asset = asset!("./views/login/style.css");
 
-/// Inject all component stylesheets into the document head.
+/// Inject all stylesheets into the document head in dependency order.
 ///
 /// Render this once at the top of `App` so every stylesheet is present before
 /// any route renders. This prevents the CSR flash-of-unstyled-content that
 /// occurs when `document::Link` inside a component inserts a `<link>` tag
 /// after the component has already painted.
+///
+/// Load order:
+/// 1. `tailwind.css` — Tailwind base + `@theme` colour/radius/font tokens as `:root` CSS variables
+/// 2. `theme.css` — spacing, shadows, transitions, and shared utility classes
+/// 3. Component stylesheets — may use any `var(--color-*)` token from steps 1–2
 #[component]
 pub fn GlobalStyles() -> Element {
     rsx! {
+        document::Link { rel: "stylesheet", href: CSS_TAILWIND }
+        document::Link { rel: "stylesheet", href: CSS_THEME }
         document::Link { rel: "stylesheet", href: CSS_ACCORDION }
         document::Link { rel: "stylesheet", href: CSS_BUTTON }
         document::Link { rel: "stylesheet", href: CSS_CARD }
         document::Link { rel: "stylesheet", href: CSS_DROPDOWN_MENU }
-        document::Link { rel: "stylesheet", href: CSS_HEADLINE }
-        document::Link { rel: "stylesheet", href: CSS_IMAGE }
         document::Link { rel: "stylesheet", href: CSS_INPUT }
-        document::Link { rel: "stylesheet", href: CSS_LABEL }
         document::Link { rel: "stylesheet", href: CSS_NAVBAR }
         document::Link { rel: "stylesheet", href: CSS_SEARCHABLE_SELECT }
         document::Link { rel: "stylesheet", href: CSS_SELECT }

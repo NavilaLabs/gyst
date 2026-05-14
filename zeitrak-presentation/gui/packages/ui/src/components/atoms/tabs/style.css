@@ -1,14 +1,10 @@
-.tabs {
-  display: flex;
-  width: 100%;
-  flex-direction: column;
-  gap: 0.5rem;
-}
+/* Structural tabs wrapper layout is expressed as Tailwind utilities in the RSX.
+   This file defines the list/trigger/content styles that require CSS selectors. */
 
 .tabs-list {
   display: flex;
   gap: 2px;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--color-border-soft);
   margin-bottom: 24px;
   padding: 0;
   background: none;
@@ -20,7 +16,7 @@
   border: none;
   border-radius: 0;
   background: none;
-  color: var(--text-3);
+  color: var(--color-subtle-foreground);
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
@@ -33,15 +29,15 @@
   transition: color var(--transition-fast);
 }
 .tabs-trigger:hover {
-  color: var(--text);
+  color: var(--color-foreground);
 }
 .tabs-trigger[data-state="active"] {
-  color: var(--text);
-  border-bottom-color: var(--accent);
+  color: var(--color-foreground);
+  border-bottom-color: var(--color-accent);
   box-shadow: none;
 }
 .tabs-trigger[data-disabled="true"] {
-  color: var(--text-4);
+  color: var(--color-faint-foreground);
   cursor: not-allowed;
 }
 .tabs-trigger:hover:not([data-disabled="true"]):not([data-state="active"]),
@@ -55,10 +51,10 @@
   padding: 0;
 }
 .tabs-content-themed {
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-lg);
-  background-color: var(--surface);
-  padding: var(--pad-card);
+  background-color: var(--color-surface);
+  padding: var(--spacing-card);
 }
 .tabs-content[data-state="inactive"] {
   display: none;

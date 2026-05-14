@@ -37,7 +37,7 @@ pub fn Button(
     children: Element,
 ) -> Element {
     let base = attributes!(button {
-        class: "button",
+        class: "button inline-flex items-center gap-[7px] px-[14px] py-2 border border-transparent rounded-sm cursor-pointer text-[13px] font-semibold whitespace-nowrap",
         "data-style": variant.class(),
     });
     let merged = merge_attributes(vec![base, attributes]);

@@ -18,8 +18,8 @@
     gap: 0.75rem;
     padding: 0.875rem 1rem;
     border-radius: var(--radius-md);
-    background-color: var(--surface-3);
-    border: 1px solid var(--border);
+    background-color: var(--color-surface-tonal);
+    border: 1px solid var(--color-border);
     border-left-width: 3px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.6);
     pointer-events: auto;
@@ -62,15 +62,15 @@
 
 
 .toast[data-variant="success"] {
-    border-left-color: var(--accent-2);
+    border-left-color: var(--color-accent-hover);
 }
 
 .toast[data-variant="error"] {
-    border-left-color: var(--danger);
+    border-left-color: var(--color-danger);
 }
 
 .toast[data-variant="info"] {
-    border-left-color: var(--info);
+    border-left-color: var(--color-info);
 }
 
 .toast[data-variant="warning"] {
@@ -80,7 +80,7 @@
 .toast-message {
     flex: 1;
     font-size: 0.875rem;
-    color: var(--color-text-primary);
+    color: var(--color-foreground);
     margin: 0;
     line-height: 1.4;
 }
@@ -90,7 +90,7 @@
     border: none;
     padding: 0;
     cursor: pointer;
-    color: var(--color-text-secondary);
+    color: var(--color-muted-foreground);
     font-size: 1.125rem;
     line-height: 1;
     flex-shrink: 0;
@@ -98,5 +98,5 @@
 }
 
 .toast-dismiss:hover {
-    color: var(--color-text-primary);
+    color: var(--color-foreground);
 }

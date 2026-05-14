@@ -492,7 +492,7 @@ fn DonutChart(mix: Vec<ActivityMixItem>) -> Element {
                     y: "{cy + 11.0}",
                     text_anchor: "middle",
                     font_size: "15",
-                    fill: "var(--text)",
+                    fill: "var(--color-foreground)",
                     font_family: "var(--font-mono)",
                     font_weight: "600",
                     "{total_str}"
@@ -732,7 +732,7 @@ pub fn Dashboard() -> Element {
                                         .unwrap_or_else(|| "—".to_string());
                                     let act_color = ts.activity_id.as_ref()
                                         .and_then(|aid| activity_colors.get(aid).cloned())
-                                        .unwrap_or_else(|| "var(--accent)".to_string());
+                                        .unwrap_or_else(|| "var(--color-accent)".to_string());
                                     let duration_str = ts.duration.map(|d| {
                                         let h = d / 3600;
                                         let m = (d % 3600) / 60;

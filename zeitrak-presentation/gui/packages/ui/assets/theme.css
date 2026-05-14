@@ -1,311 +1,177 @@
 /* =============================================
-   Zeitrak — Design System Tokens
-   Dark-first. All surfaces, text, accent and
-   status colours defined as CSS custom properties.
+   Zeitrak — Non-colour design tokens and
+   shared utility classes.
+
+   Colour tokens live in input.css (@theme) and
+   are compiled into tailwind.css by the Tailwind
+   CLI. This file keeps everything that is NOT a
+   colour: spacing, sizing, shadows, transitions,
+   and reusable utility classes.
    ============================================= */
 
 :root {
-  /* ── Core surfaces ── */
-  --bg: #0b0b0c;
-  --surface: #131316;
-  --surface-2: #1a1a1f;
-  --surface-3: #21212a;
-  --border: #26262d;
-  --border-soft: #1d1d24;
-  --border-strong: #34343d;
+    /* ── Density / spacing ── */
+    --height-row: 44px;
+    --spacing-card: 22px;
+    --spacing-page: 36px;
 
-  /* ── Text ── */
-  --text: #ededee;
-  --text-2: #a4a4ae;
-  --text-3: #6c6c76;
-  --text-4: #50505a;
+    /* ── Sidebar ── */
+    --width-sidebar: 248px;
 
-  /* ── Accent — green (default) ── */
-  --accent: #16a34a;
-  --accent-2: #22c55e;
-  --accent-soft: rgba(34, 197, 94, 0.10);
-  --accent-soft-2: rgba(34, 197, 94, 0.18);
-  --accent-fg: #ecfdf5;
-  --accent-ring: rgba(34, 197, 94, 0.35);
+    /* ── Shadows ── */
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.5);
+    --shadow-raised: 0 4px 16px rgba(0, 0, 0, 0.6);
 
-  /* ── Status ── */
-  --danger: #ef4444;
-  --danger-soft: rgba(239, 68, 68, 0.12);
-  --warn: #f59e0b;
-  --info: #3b82f6;
+    /* ── Transitions ── */
+    --transition-fast: 100ms ease-out;
+    --transition-normal: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 300ms cubic-bezier(0.87, 0, 0.13, 1);
 
-  /* ── Typography ── */
-  --font-display: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
-  --font-body: 'Manrope', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'Courier New', monospace;
-
-  /* ── Density ── */
-  --row-h: 44px;
-  --pad-card: 22px;
-  --pad-page: 36px;
-
-  /* ── Radius ── */
-  --radius: 10px;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-pill: 999px;
-  --radius-circle: 50%;
-
-  /* ── Sidebar ── */
-  --sidebar-w: 248px;
-
-  /* ── Shadows ── */
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.5);
-  --shadow-raised: 0 4px 16px rgba(0, 0, 0, 0.6);
-
-  /* ── Transitions ── */
-  --transition-fast: 100ms ease-out;
-  --transition-normal: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 300ms cubic-bezier(0.87, 0, 0.13, 1);
-
-  /* ===========================================
-     Backward-compatible aliases
-     Keep all --color-* tokens so existing
-     component CSS continues to resolve.
-     =========================================== */
-
-  /* Workspace accent */
-  --color-workspace-accent: var(--accent);
-  --color-focus-ring: var(--accent);
-
-  /* Surfaces */
-  --color-bg: var(--bg);
-  --color-surface: var(--surface);
-  --color-surface-raised: var(--surface-2);
-  --color-surface-tonal: var(--surface-3);
-  --color-surface-overlay: rgba(0, 0, 0, 0.6);
-
-  /* Borders */
-  --color-border: var(--border);
-  --color-border-subtle: var(--border-soft);
-  --color-border-strong: var(--border-strong);
-
-  /* Text */
-  --color-text-primary: var(--text);
-  --color-text-secondary: var(--text-2);
-  --color-text-disabled: var(--text-3);
-  --color-text-on-primary: white;
-
-  /* Buttons — primary (accent-driven) */
-  --color-btn-primary-bg: var(--accent);
-  --color-btn-primary-text: white;
-  --color-btn-primary-hover: var(--accent-2);
-
-  /* Buttons — secondary */
-  --color-btn-secondary-bg: var(--surface-2);
-  --color-btn-secondary-text: var(--text);
-  --color-btn-secondary-border: var(--border-soft);
-
-  /* Buttons — inverted */
-  --color-btn-inverted-bg: var(--text);
-  --color-btn-inverted-text: var(--bg);
-
-  /* Buttons — outlined */
-  --color-btn-outlined-bg: transparent;
-  --color-btn-outlined-text: var(--text);
-  --color-btn-outlined-border: var(--border);
-
-  /* Buttons — ghost */
-  --color-btn-ghost-text: var(--text-2);
-  --color-btn-ghost-hover-bg: var(--surface-2);
-
-  /* Buttons — destructive */
-  --color-btn-destructive-bg: var(--danger-soft);
-  --color-btn-destructive-text: var(--danger);
-  --color-btn-destructive-hover: var(--danger);
-
-  /* Buttons — disabled */
-  --color-btn-disabled-bg: var(--surface-2);
-  --color-btn-disabled-text: var(--text-3);
-
-  /* Buttons — FAB / label */
-  --color-btn-fab-bg: var(--accent);
-  --color-btn-fab-text: white;
-  --color-btn-label-bg: var(--accent);
-  --color-btn-label-text: white;
-  --color-icon-btn-text: white;
-
-  /* Inputs */
-  --color-input-bg: var(--surface-2);
-  --color-input-border: var(--border-soft);
-  --color-input-text: var(--text);
-  --color-input-placeholder: var(--text-4);
-  --color-input-icon: var(--text-3);
-  --color-input-disabled: var(--surface);
-  --color-input-text-disabled: var(--text-3);
-  --color-input-ring: var(--accent-ring);
-
-  /* Navbar (topbar dropdowns) */
-  --color-navbar-bg: var(--surface);
-  --color-navbar-trigger-text: var(--text-2);
-  --color-navbar-trigger-active-bg: var(--surface-2);
-  --color-navbar-trigger-active-text: var(--text);
-  --color-navbar-content-bg: var(--surface-2);
-  --color-navbar-content-border: var(--border);
-  --color-navbar-item-text: var(--text-2);
-  --color-navbar-item-hover-bg: var(--surface-3);
-  --color-navbar-item-hover-text: var(--text);
-
-  /* Nav icon states */
-  --color-nav-icon-active-bg: var(--accent);
-  --color-nav-icon-active-text: white;
-  --color-nav-icon-inactive: var(--text-3);
-
-  /* Tabs */
-  --color-tabs-list-bg: var(--surface-2);
-  --color-tabs-trigger-text: var(--text-3);
-  --color-tabs-trigger-hover-text: var(--text);
-  --color-tabs-trigger-active-bg: var(--surface-3);
-  --color-tabs-trigger-active-text: var(--text);
-  --color-tabs-content-bg: var(--surface);
-  --color-tabs-content-border: var(--border);
-
-  /* Brand primary (used in table pagination, chart bars, etc.) */
-  --color-primary: var(--accent);
-  --color-primary-500: var(--accent-2);
-
-  /* Progress bars */
-  --color-progress-primary: var(--accent);
-  --color-progress-track: var(--surface-3);
+    /* ── Per-workspace accent override ── */
+    /* Set this CSS variable at runtime to tint the UI with a workspace colour. */
+    --color-workspace-accent: var(--color-accent);
 }
 
 /* ── Scrollbar ── */
 @supports (scrollbar-width: auto) {
-  :not(:hover) {
-    scrollbar-color: rgb(0 0 0 / 0%) rgb(0 0 0 / 0%);
-  }
-  :hover {
-    scrollbar-color: var(--border-strong) rgb(0 0 0 / 0%);
-  }
+    :not(:hover) {
+        scrollbar-color: rgb(0 0 0 / 0%) rgb(0 0 0 / 0%);
+    }
+    :hover {
+        scrollbar-color: var(--color-border-strong) rgb(0 0 0 / 0%);
+    }
 }
 
 /* ── Island — tonal section container ── */
 .island {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  background-color: var(--surface);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-lg);
-  padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border-soft);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
 }
 
 .island-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .island-title {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-3);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-subtle-foreground);
 }
-
-/* ── Helpers ── */
-.border-surface-tonal { border-color: var(--surface-3); }
-.text-secondary { color: var(--text-2); }
-.text-success { color: var(--accent-2); }
-.text-warning { color: var(--warn); }
 
 /* ── Tag pills ── */
 .tag-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 10px;
-  border-radius: var(--radius-pill);
-  font-size: 0.75rem;
-  background-color: var(--surface-3);
-  color: var(--text-2);
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    background-color: var(--color-surface-tonal);
+    color: var(--color-muted-foreground);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease;
 }
 .tag-pill:hover {
-  background-color: var(--surface-2);
-  border-color: var(--border);
+    background-color: var(--color-surface-raised);
+    border-color: var(--color-border);
 }
 .tag-pill--active {
-  background-color: var(--accent-soft);
-  color: var(--accent-2);
-  border-color: var(--accent-soft-2);
+    background-color: var(--color-accent-tint);
+    color: var(--color-accent-hover);
+    border-color: var(--color-accent-tint-strong);
 }
 
 /* ── Mode toggle tab pills ── */
 .tab-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 10px;
-  border-radius: var(--radius-pill);
-  font-size: 0.75rem;
-  background-color: transparent;
-  color: var(--text-2);
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    background-color: transparent;
+    color: var(--color-muted-foreground);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease;
 }
 .tab-pill:hover {
-  background-color: var(--surface-3);
-  border-color: var(--border);
+    background-color: var(--color-surface-tonal);
+    border-color: var(--color-border);
 }
 .tab-pill--active {
-  background-color: var(--surface-3);
-  color: var(--text);
-  border-color: var(--border);
-  font-weight: 500;
+    background-color: var(--color-surface-tonal);
+    color: var(--color-foreground);
+    border-color: var(--color-border);
+    font-weight: 500;
 }
 
 /* ── Running timer indicator dot ── */
 .timer-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: var(--accent-2);
-  flex-shrink: 0;
-  position: relative;
-  animation: timer-pulse 1.6s ease-in-out infinite;
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--color-accent-hover);
+    flex-shrink: 0;
+    position: relative;
+    animation: timer-pulse 1.6s ease-in-out infinite;
 }
 
 @keyframes timer-pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.35; }
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.35;
+    }
 }
 
 /* ── Activity color swatch picker ── */
 .zk-color-swatch {
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: transform 100ms ease, border-color 100ms ease;
-  flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition:
+        transform 100ms ease,
+        border-color 100ms ease;
+    flex-shrink: 0;
 }
-.zk-color-swatch:hover { transform: scale(1.12); }
-.zk-color-swatch[data-selected="true"] { border-color: var(--text); }
+.zk-color-swatch:hover {
+    transform: scale(1.12);
+}
+.zk-color-swatch[data-selected="true"] {
+    border-color: var(--color-foreground);
+}
 
 /* ── Small colored dot next to an activity name ── */
 .zk-activity-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 3px;
-  flex-shrink: 0;
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
 }
 
 /* ── Left-edge color stripe on timesheet entry rows ── */
 .zk-entry-color {
-  width: 3px;
-  align-self: stretch;
-  border-radius: 2px;
-  flex-shrink: 0;
+    width: 3px;
+    align-self: stretch;
+    border-radius: 2px;
+    flex-shrink: 0;
 }

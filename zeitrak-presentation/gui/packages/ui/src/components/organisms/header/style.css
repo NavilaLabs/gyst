@@ -5,7 +5,7 @@
   flex-direction: row;
   height: 100vh;
   overflow: hidden;
-  background-color: var(--bg);
+  background-color: var(--color-background);
 }
 
 .app-right {
@@ -40,11 +40,11 @@
 
 /* ── Top header / breadcrumb bar ── */
 .header {
-  background-color: var(--bg);
-  border-bottom: 1px solid var(--border-soft);
+  background-color: var(--color-background);
+  border-bottom: 1px solid var(--color-border-soft);
   height: 57px;
   flex-shrink: 0;
-  padding: 0 var(--pad-page);
+  padding: 0 var(--spacing-page);
   display: flex;
   align-items: center;
   position: sticky;
@@ -64,7 +64,7 @@
 .header-title {
   font-size: 13px;
   font-weight: 500;
-  color: var(--text);
+  color: var(--color-foreground);
   letter-spacing: 0.005em;
 }
 
@@ -85,14 +85,14 @@
   border-radius: var(--radius-sm);
   border: 1px solid transparent;
   background: transparent;
-  color: var(--text-2);
+  color: var(--color-muted-foreground);
   cursor: pointer;
   flex-shrink: 0;
   transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 .header-menu-btn:hover {
-  background-color: var(--surface-2);
-  color: var(--text);
+  background-color: var(--color-surface-raised);
+  color: var(--color-foreground);
 }
 
 /* ── Workspace switcher button in header ── */
@@ -102,9 +102,9 @@
   gap: 6px;
   padding: 4px 10px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--color-border-soft);
   background: transparent;
-  color: var(--text-2);
+  color: var(--color-muted-foreground);
   font-size: 12px;
   cursor: pointer;
   transition:
@@ -113,9 +113,9 @@
     border-color var(--transition-fast);
 }
 .header-switch-ws-btn:hover {
-  background-color: var(--surface-2);
-  color: var(--text);
-  border-color: var(--border);
+  background-color: var(--color-surface-raised);
+  color: var(--color-foreground);
+  border-color: var(--color-border);
 }
 
 .header-switch-ws-label {

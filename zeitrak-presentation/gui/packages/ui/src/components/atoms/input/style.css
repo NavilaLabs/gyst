@@ -1,3 +1,7 @@
+/* Structural input layout is in the RSX class string as Tailwind utilities.
+   This file defines: state styles (hover, focus, disabled, placeholder)
+   and the form-field/form-label wrappers used by the FormField component. */
+
 /* ── Form field wrapper ── */
 .form-field {
   display: flex;
@@ -8,57 +12,38 @@
 .form-label {
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-2);
+  color: var(--color-muted-foreground);
   letter-spacing: 0.005em;
 }
 
-/* ── Input ── */
+/* ── Input state styles ── */
 .input {
-  position: relative;
-  display: flex;
-  box-sizing: border-box;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.25rem;
-
-  padding: 9px 12px;
-  font-size: 13px;
-  line-height: 1.5;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-soft);
-  background-color: var(--surface-2);
-  color: var(--text);
-  font-family: inherit;
-
-  cursor: text;
   transition:
     background-color var(--transition-fast),
     border-color var(--transition-fast),
     box-shadow var(--transition-fast);
-  width: 100%;
 }
 
 .input::placeholder {
-  color: var(--text-4);
+  color: var(--color-faint-foreground);
 }
 
 .input:disabled {
-  background-color: var(--surface);
-  color: var(--text-3);
+  background-color: var(--color-surface);
+  color: var(--color-subtle-foreground);
   cursor: not-allowed;
 }
 
 .input:hover:not(:disabled) {
-  border-color: var(--border);
+  border-color: var(--color-border);
 }
 
 .input:focus,
 .input:focus-visible {
   outline: none;
-  border-color: var(--accent);
-  background-color: var(--surface);
-  box-shadow: 0 0 0 3px var(--accent-ring);
+  border-color: var(--color-accent);
+  background-color: var(--color-surface);
+  box-shadow: 0 0 0 3px var(--color-accent-ring);
 }
 
 /* ── Checkbox ── */
@@ -66,6 +51,6 @@
   width: 1rem;
   height: 1rem;
   flex-shrink: 0;
-  accent-color: var(--accent);
+  accent-color: var(--color-accent);
   cursor: pointer;
 }
