@@ -50,24 +50,6 @@ fn language_options() -> Vec<SelectOption<String>> {
         .collect()
 }
 
-/// ISO 4217 currency codes with names.
-pub fn currency_options() -> Vec<SelectOption<String>> {
-    [
-        ("AUD", "AUD — Australian Dollar"),
-        ("CAD", "CAD — Canadian Dollar"),
-        ("CHF", "CHF — Swiss Franc"),
-        ("EUR", "EUR — Euro"),
-        ("GBP", "GBP — British Pound"),
-        ("JPY", "JPY — Japanese Yen"),
-        ("NOK", "NOK — Norwegian Krone"),
-        ("SEK", "SEK — Swedish Krona"),
-        ("USD", "USD — US Dollar"),
-    ]
-    .into_iter()
-    .map(|(val, label)| SelectOption::new(val.to_string(), label))
-    .collect()
-}
-
 fn week_start_options() -> Vec<SelectOption<String>> {
     [
         ("monday", "Monday"),
@@ -84,17 +66,6 @@ fn ttl_options() -> Vec<SelectOption<u32>> {
         .into_iter()
         .map(|(val, label)| SelectOption::new(val, label))
         .collect()
-}
-
-fn rounding_options() -> Vec<SelectOption<String>> {
-    [
-        ("none", "None"),
-        ("5min", "Nearest 5 min"),
-        ("15min", "Nearest 15 min"),
-    ]
-    .into_iter()
-    .map(|(val, label)| SelectOption::new(val.to_string(), label))
-    .collect()
 }
 
 /// Extract up-to-two uppercase initials from an email address.
@@ -195,10 +166,6 @@ pub fn Settings() -> Element {
     };
     let mut ws_saving = use_signal(|| false);
     let mut ws_loaded = use_signal(|| false);
-
-    // Billing & rates (local only, no backend yet)
-    let mut billing_hourly_rate = use_signal(String::new);
-    let mut billing_rounding = use_signal(|| "none".to_string());
 
     // ── Members state ─────────────────────────────────────────────────────────
     let mut roles = use_signal(Vec::<WorkspaceRoleDto>::new);
@@ -428,13 +395,15 @@ pub fn Settings() -> Element {
                             }
                         }
 
-                        // Notifications card
+                        // Notifications card — not yet implemented
+                        div { class: "settings-card-disabled",
                         Card { data_size: "md",
                             CardHeader {
                                 CardTitle {
                                     div { class: "flex items-center gap-2",
                                         Icon { icon: HiBell, width: 16, height: 16 }
                                         {tid!("settings-notifications-title")}
+                                        span { class: "settings-coming-soon-badge", "Coming soon" }
                                     }
                                 }
                             }
@@ -479,14 +448,17 @@ pub fn Settings() -> Element {
                                 }
                             }
                         }
+                        } // end settings-card-disabled (Notifications)
 
-                        // Security card
+                        // Security card — not yet implemented
+                        div { class: "settings-card-disabled",
                         Card { data_size: "md",
                             CardHeader {
                                 CardTitle {
                                     div { class: "flex items-center gap-2",
                                         Icon { icon: HiShieldCheck, width: 16, height: 16 }
                                         {tid!("settings-security-title")}
+                                        span { class: "settings-coming-soon-badge", "Coming soon" }
                                     }
                                 }
                             }
@@ -525,6 +497,7 @@ pub fn Settings() -> Element {
                                 }
                             }
                         }
+                        } // end settings-card-disabled (Security)
                     }
                 }
 
@@ -583,50 +556,8 @@ pub fn Settings() -> Element {
                             }
                         }
 
-                        // Billing & rates card
-                        Card { data_size: "md",
-                            CardHeader {
-                                CardTitle {
-                                    div { class: "flex items-center gap-2",
-                                        Icon { icon: HiTag, width: 16, height: 16 }
-                                        {tid!("settings-billing-title")}
-                                    }
-                                }
-                            }
-                            CardContent {
-                                div { class: "space-y-4",
-                                    div { class: "form-field",
-                                        label { class: "form-label", {tid!("settings-currency-label")} }
-                                        Select::<String> {
-                                            options: currency_options(),
-                                            value: Some(ws_currency.read().clone()),
-                                            on_change: move |v| ws_currency.set(v),
-                                            placeholder: tid!("settings-currency-placeholder"),
-                                        }
-                                    }
-                                    div { class: "form-field",
-                                        label { class: "form-label", {tid!("settings-billing-hourly-rate")} }
-                                        Input {
-                                            placeholder: "120",
-                                            value: billing_hourly_rate.read().clone(),
-                                            oninput: move |e: FormEvent| billing_hourly_rate.set(e.value()),
-                                        }
-                                    }
-                                    div { class: "form-field",
-                                        label { class: "form-label", {tid!("settings-billing-rounding")} }
-                                        Select::<String> {
-                                            options: rounding_options(),
-                                            value: Some(billing_rounding.read().clone()),
-                                            on_change: move |v| billing_rounding.set(v),
-                                            placeholder: tid!("settings-billing-rounding-none"),
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Danger zone card — full width
-                        div { class: "settings-grid-full",
+                        // Danger zone card — full width, not yet implemented
+                        div { class: "settings-grid-full settings-card-disabled",
                             Card {
                                 data_size: "md",
                                 class: "settings-danger-card",
@@ -635,6 +566,7 @@ pub fn Settings() -> Element {
                                         div { class: "flex items-center gap-2 settings-danger-title",
                                             Icon { icon: HiTrash, width: 16, height: 16 }
                                             {tid!("settings-danger-zone-title")}
+                                            span { class: "settings-coming-soon-badge", "Coming soon" }
                                         }
                                     }
                                 }

@@ -123,3 +123,26 @@
 .settings-danger-title {
   color: var(--danger, #ef4444);
 }
+
+/* ── Unavailable (coming soon) cards ──────────────────────────────────── */
+
+.settings-card-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+  user-select: none;
+}
+
+.settings-coming-soon-badge {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-3);
+  border: 1px solid var(--border-soft);
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: 4px;
+}

@@ -372,12 +372,10 @@
 }
 
 .sidebar--collapsed .sidebar-brand {
-  padding: 18px 0;
+  padding: 12px 0;
   justify-content: center;
-}
-
-.sidebar--collapsed .sidebar-collapse-btn {
-  display: none;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .sidebar--collapsed .sidebar-label {

@@ -154,6 +154,8 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                         let act_name = t.activity_id.as_ref()
                             .and_then(|aid| activities.read().iter().find(|a| &a.id == aid).map(|a| a.name.clone()))
                             .unwrap_or_else(|| "—".to_string());
+                        let act_color = t.activity_id.as_ref()
+                            .and_then(|aid| activities.read().iter().find(|a| &a.id == aid).map(|a| a.color.clone()));
                         let duration_str = t.duration.map(|dur| {
                             let h = dur / 3600;
                             let m = (dur % 3600) / 60;
@@ -168,7 +170,14 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                         rsx! {
                             TableRow { key: "{t.id}",
                                 TableCell {
-                                    div { class: "flex flex-col gap-0.5",
+                                    div { class: "flex items-start gap-2",
+                                        if let Some(ref color) = act_color {
+                                            span {
+                                                class: "zk-activity-dot mt-0.5",
+                                                style: "background:{color}",
+                                            }
+                                        }
+                                        div { class: "flex flex-col gap-0.5",
                                         span { class: "text-xs text-secondary", "{act_name}" }
                                         if let Some(ref desc) = t.description {
                                             span { class: "text-xs text-secondary italic", "{desc}" }
@@ -179,6 +188,7 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                                     span { class: "tag-pill tag-pill--active tag-pill--sm", "{tag.name}" }
                                                 }
                                             }
+                                        }
                                         }
                                     }
                                 }

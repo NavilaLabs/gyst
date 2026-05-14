@@ -2,8 +2,8 @@
   display: flex;
   box-sizing: border-box;
   padding: 3px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
+  /*border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);*/
   background-color: var(--surface-2);
   gap: 2px;
 }

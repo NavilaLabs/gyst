@@ -279,3 +279,33 @@
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.35; }
 }
+
+/* ── Activity color swatch picker ── */
+.zk-color-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 100ms ease, border-color 100ms ease;
+  flex-shrink: 0;
+}
+.zk-color-swatch:hover { transform: scale(1.12); }
+.zk-color-swatch[data-selected="true"] { border-color: var(--text); }
+
+/* ── Small colored dot next to an activity name ── */
+.zk-activity-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* ── Left-edge color stripe on timesheet entry rows ── */
+.zk-entry-color {
+  width: 3px;
+  align-self: stretch;
+  border-radius: 2px;
+  flex-shrink: 0;
+}

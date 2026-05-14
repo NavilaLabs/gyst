@@ -26,7 +26,7 @@ impl Projector for ActivityProjector {
     async fn handle(&mut self, event: RawEvent) -> Result<(), Self::Error> {
         match event.event_type.as_str() {
             "ActivityCreated" => {
-                let ActivityEvent::Created { id, name, comment } =
+                let ActivityEvent::Created { id, name, color, comment } =
                     serde_json::from_slice(&event.payload_bytes)?
                 else {
                     return Ok(());
@@ -37,9 +37,10 @@ impl Projector for ActivityProjector {
                     .columns([
                         DynIden::from("id"),
                         DynIden::from("name"),
+                        DynIden::from("color"),
                         DynIden::from("comment"),
                     ])
-                    .values_panic([id.to_string().into(), name.into(), comment.into()])
+                    .values_panic([id.to_string().into(), name.into(), color.into(), comment.into()])
                     .on_conflict(OnConflict::new().do_nothing().to_owned())
                     .to_owned();
 
@@ -49,7 +50,7 @@ impl Projector for ActivityProjector {
                     .await?;
             }
             "ActivityUpdated" => {
-                let ActivityEvent::Updated { name, comment } =
+                let ActivityEvent::Updated { name, color, comment } =
                     serde_json::from_slice(&event.payload_bytes)?
                 else {
                     return Ok(());
@@ -59,6 +60,7 @@ impl Projector for ActivityProjector {
                     .table(TableRef::from(Self::TABLE))
                     .values([
                         (DynIden::from("name"), name.into()),
+                        (DynIden::from("color"), color.into()),
                         (DynIden::from("comment"), comment.into()),
                     ])
                     .cond_where(

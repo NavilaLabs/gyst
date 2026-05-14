@@ -11,6 +11,10 @@ use zeitrak_core::{
     validation::{validation_summary, Validate},
 };
 
+const PALETTE: [&str; 8] = [
+    "#22c55e", "#3b82f6", "#a855f7", "#f59e0b", "#06b6d4", "#ef4444", "#ec4899", "#84cc16",
+];
+
 #[derive(Clone, PartialEq, Props)]
 pub(super) struct ActivityCreateFormProps {
     pub on_created: EventHandler<ActivityDto>,
@@ -22,21 +26,24 @@ pub(super) fn ActivityCreateForm(props: ActivityCreateFormProps) -> Element {
 
     let mut create_form = use_signal(new_form);
     let mut new_name = use_signal(String::new);
+    let mut new_color = use_signal(|| PALETTE[0].to_string());
     let mut new_comment = use_signal(String::new);
 
     let on_create = move |_| async move {
         let name = new_name.peek().clone();
+        let color = new_color.peek().clone();
 
         create_form.write().handle(&FormAction::Submit);
-        if let Err(e) = (CreateActivityInput { name: name.clone() }).validate() {
+        if let Err(e) = (CreateActivityInput { name: name.clone(), color: color.clone() }).validate() {
             create_form
                 .write()
                 .handle(&FormAction::Fail(validation_summary(&e)));
             return;
         }
-        match api::activity::create_activity(name).await {
+        match api::activity::create_activity(name, color).await {
             Ok(dto) => {
                 new_name.set(String::new());
+                new_color.set(PALETTE[0].to_string());
                 new_comment.set(String::new());
                 create_form
                     .write()
@@ -72,6 +79,30 @@ pub(super) fn ActivityCreateForm(props: ActivityCreateFormProps) -> Element {
                             placeholder: tid!("activities-name-placeholder"),
                             value: new_name.read().clone(),
                             oninput: move |e: FormEvent| new_name.set(e.value()),
+                        }
+                    }
+                    div { class: "form-field",
+                        label { class: "form-label", {tid!("activities-color")} }
+                        div { class: "flex flex-wrap gap-2 items-center",
+                            for c in PALETTE {
+                                button {
+                                    r#type: "button",
+                                    class: "zk-color-swatch",
+                                    "data-selected": (*new_color.read() == c).to_string(),
+                                    style: "background:{c}",
+                                    onclick: {
+                                        let c = c.to_string();
+                                        move |_| new_color.set(c.clone())
+                                    },
+                                }
+                            }
+                            Input {
+                                id: "a-color-hex",
+                                placeholder: tid!("activities-color-hex-placeholder"),
+                                value: new_color.read().clone(),
+                                oninput: move |e: FormEvent| new_color.set(e.value()),
+                                style: "width:110px; font-family:var(--font-mono); font-size:12px;",
+                            }
                         }
                     }
                     div { class: "form-field md:col-span-2",

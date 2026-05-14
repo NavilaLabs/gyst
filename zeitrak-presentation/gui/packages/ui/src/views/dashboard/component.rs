@@ -5,20 +5,9 @@ use crate::layouts::DefaultLayout;
 use crate::{ActivitiesCache, TimesheetsCache};
 use chrono::{Datelike, Duration, Utc};
 use dioxus::prelude::*;
-use dioxus_charts::BarChart;
 use dioxus_free_icons::icons::hi_solid_icons::{HiLightningBolt, HiPlay, HiStop};
 use dioxus_free_icons::Icon;
 use dioxus_i18n::tid;
-
-// ── Palette ───────────────────────────────────────────────────────────────────
-
-const PALETTE: &[&str] = &[
-    "#22c55e", "#3b82f6", "#a855f7", "#f59e0b", "#06b6d4", "#ef4444", "#ec4899", "#84cc16",
-];
-
-fn palette_color(idx: usize) -> &'static str {
-    PALETTE[idx % PALETTE.len()]
-}
 
 // ── Chart period ──────────────────────────────────────────────────────────────
 
@@ -61,6 +50,190 @@ fn fmt_hours_axis(v: f32) -> String {
     format!("{:.0}h", v)
 }
 
+fn nice_max(v: f32) -> f32 {
+    if v <= 1.0 { 1.0 }
+    else if v <= 2.0 { 2.0 }
+    else if v <= 4.0 { 4.0 }
+    else if v <= 6.0 { 6.0 }
+    else if v <= 8.0 { 8.0 }
+    else if v <= 12.0 { 12.0 }
+    else if v <= 16.0 { 16.0 }
+    else if v <= 24.0 { 24.0 }
+    else { (v / 8.0).ceil() * 8.0 }
+}
+
+// ── Hours bar chart with hover tooltip ───────────────────────────────────────
+
+#[component]
+fn HoursBarChart(bars: Vec<f32>, labels: Vec<String>) -> Element {
+    let mut hovered: Signal<Option<usize>> = use_signal(|| None);
+
+    // SVG geometry (matches previous BarChart configuration)
+    let vw = 560i32;
+    let vh = 240i32;
+    let chart_left = 50.0f32;
+    let chart_right = 550.0f32;
+    let chart_top = 20.0f32;
+    let chart_bottom = 204.0f32;
+    let chart_w = chart_right - chart_left;
+    let chart_h = chart_bottom - chart_top;
+
+    let n = bars.len().max(1);
+    let slot_w = chart_w / n as f32;
+    let bar_w = (slot_w * 0.55).clamp(4.0, 60.0);
+
+    let max_val = bars.iter().cloned().fold(0.0f32, f32::max);
+    let y_max = nice_max(max_val);
+
+    // Five evenly-spaced horizontal grid ticks (0 .. y_max)
+    let ticks: Vec<f32> = (0..5).map(|i| i as f32 * y_max / 4.0).collect();
+
+    let val_to_y = |v: f32| chart_bottom - (v / y_max) * chart_h;
+    let cx_of = |i: usize| chart_left + slot_w * (i as f32 + 0.5);
+
+    let hov = *hovered.read();
+
+    rsx! {
+        svg {
+            xmlns: "http://www.w3.org/2000/svg",
+            width: "100%",
+            height: "100%",
+            class: "dx-chart-bar",
+            preserve_aspect_ratio: "xMidYMid meet",
+            view_box: "0 0 {vw} {vh}",
+            onmouseleave: move |_| hovered.set(None),
+
+            // ── Y-axis grid lines + labels ─────────────────────────────────
+            g { class: "dx-grid",
+                for tick_v in ticks.iter() {
+                    {
+                        let y = val_to_y(*tick_v);
+                        let lbl = fmt_hours_axis(*tick_v);
+                        rsx! {
+                            line {
+                                x1: "{chart_left}",
+                                y1: "{y:.1}",
+                                x2: "{chart_right}",
+                                y2: "{y:.1}",
+                                class: "dx-grid-line",
+                            }
+                            text {
+                                x: "{chart_left - 5.0}",
+                                y: "{y:.1}",
+                                text_anchor: "end",
+                                alignment_baseline: "middle",
+                                class: "dx-grid-label",
+                                "{lbl}"
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Bar visuals (pointer-events: none so hit areas work) ───────
+            for (i, v) in bars.iter().copied().enumerate() {
+                {
+                    let top_y = val_to_y(v);
+                    let bar_h = chart_bottom - top_y;
+                    let bx = cx_of(i) - bar_w / 2.0;
+                    let is_hov = hov == Some(i);
+                    let opacity = if is_hov { "1" } else { "0.85" };
+                    rsx! {
+                        if bar_h > 0.5 {
+                            rect {
+                                key: "bar-{i}",
+                                x: "{bx:.1}",
+                                y: "{top_y:.1}",
+                                width: "{bar_w:.1}",
+                                height: "{bar_h:.1}",
+                                rx: "3",
+                                class: "dx-bar",
+                                opacity: "{opacity}",
+                                pointer_events: "none",
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Hit areas (rendered on top) + X-axis labels ────────────────
+            for (i, label) in labels.iter().enumerate() {
+                {
+                    let slot_x = chart_left + slot_w * i as f32;
+                    let cx = cx_of(i);
+                    rsx! {
+                        rect {
+                            key: "hit-{i}",
+                            x: "{slot_x:.1}",
+                            y: "{chart_top}",
+                            width: "{slot_w:.1}",
+                            height: "{chart_h}",
+                            fill: "transparent",
+                            cursor: "crosshair",
+                            onmouseenter: move |_| hovered.set(Some(i)),
+                        }
+                        text {
+                            x: "{cx:.1}",
+                            y: "{chart_bottom + 15.0}",
+                            text_anchor: "middle",
+                            alignment_baseline: "middle",
+                            class: "dx-bar-label",
+                            "{label}"
+                        }
+                    }
+                }
+            }
+
+            // ── Tooltip ────────────────────────────────────────────────────
+            if let Some(idx) = hov {
+                if idx < bars.len() {
+                    {
+                        let v = bars[idx];
+                        let cx = cx_of(idx);
+                        let top_y = val_to_y(v);
+                        let label = &labels[idx];
+                        let value_str = fmt_hours(v);
+
+                        let tw = 64.0f32;
+                        let th = 36.0f32;
+                        let tx = (cx - tw / 2.0).max(chart_left).min(chart_right - tw);
+                        let ty = (top_y - th - 8.0).max(chart_top);
+
+                        rsx! {
+                            g { pointer_events: "none",
+                                rect {
+                                    x: "{tx:.1}",
+                                    y: "{ty:.1}",
+                                    width: "{tw}",
+                                    height: "{th}",
+                                    rx: "5",
+                                    class: "dx-tooltip-bg",
+                                }
+                                text {
+                                    x: "{tx + tw / 2.0:.1}",
+                                    y: "{ty + 13.0:.1}",
+                                    text_anchor: "middle",
+                                    alignment_baseline: "middle",
+                                    class: "dx-tooltip-label",
+                                    "{label}"
+                                }
+                                text {
+                                    x: "{tx + tw / 2.0:.1}",
+                                    y: "{ty + 27.0:.1}",
+                                    text_anchor: "middle",
+                                    alignment_baseline: "middle",
+                                    class: "dx-tooltip-value",
+                                    "{value_str}"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 // ── Stats ─────────────────────────────────────────────────────────────────────
 
 #[derive(Clone, PartialEq)]
@@ -73,7 +246,6 @@ struct ActivityMixItem {
 struct DashStats {
     today_hours: f32,
     week_hours: f32,
-    billable_hours: f32,
     streak: u32,
     activity_mix: Vec<ActivityMixItem>,
 }
@@ -99,18 +271,6 @@ fn compute_stats(
                 && parse_date(&ts.start_time)
                     .map(|d| d >= week_start)
                     .unwrap_or(false)
-        })
-        .map(|ts| ts.duration.unwrap_or(0) as f32 / 3600.0)
-        .sum();
-
-    let billable_hours: f32 = timesheets
-        .iter()
-        .filter(|ts| {
-            ts.duration.is_some()
-                && ts
-                    .tags
-                    .iter()
-                    .any(|t| t.name.eq_ignore_ascii_case("billable"))
         })
         .map(|ts| ts.duration.unwrap_or(0) as f32 / 3600.0)
         .sum();
@@ -141,31 +301,22 @@ fn compute_stats(
     }
     let mut activity_mix: Vec<ActivityMixItem> = mix_map
         .into_iter()
-        .enumerate()
-        .map(|(i, (aid, hours))| {
-            let name = activities
-                .iter()
-                .find(|a| a.id == aid)
+        .map(|(aid, hours)| {
+            let activity = activities.iter().find(|a| a.id == aid);
+            let name = activity
                 .map(|a| a.name.clone())
                 .unwrap_or_else(|| "—".to_string());
-            ActivityMixItem {
-                name,
-                color: palette_color(i).to_string(),
-                hours,
-            }
+            let color = activity
+                .map(|a| a.color.clone())
+                .unwrap_or_else(|| "#6c6c76".to_string());
+            ActivityMixItem { name, color, hours }
         })
         .collect();
-    // Sort activities in mix by hours descending so the biggest slice comes first
     activity_mix.sort_by(|a, b| b.hours.partial_cmp(&a.hours).unwrap_or(std::cmp::Ordering::Equal));
-    // Re-assign palette colors after sorting so order is stable
-    for (i, item) in activity_mix.iter_mut().enumerate() {
-        item.color = palette_color(i).to_string();
-    }
 
     DashStats {
         today_hours,
         week_hours,
-        billable_hours,
         streak,
         activity_mix,
     }
@@ -423,12 +574,10 @@ pub fn Dashboard() -> Element {
     let (chart_bars, chart_labels) = compute_chart_data(&recent.read(), &chart_period.read());
     let has_data = chart_bars.iter().any(|&v| v > 0.0);
 
-    // Build activity index → color lookup for recent entries
     let activity_colors: std::collections::HashMap<String, String> = activities
         .read()
         .iter()
-        .enumerate()
-        .map(|(i, a)| (a.id.clone(), palette_color(i).to_string()))
+        .map(|a| (a.id.clone(), a.color.clone()))
         .collect();
 
     rsx! {
@@ -517,11 +666,6 @@ pub fn Dashboard() -> Element {
                         span { class: "dash-kpi-sub", {tid!("dashboard-tracked")} }
                     }
                     div { class: "dash-kpi-card",
-                        span { class: "dash-kpi-label", {tid!("dashboard-billable")} }
-                        span { class: "dash-kpi-value", "{fmt_hours(stats.billable_hours)}" }
-                        span { class: "dash-kpi-sub", {tid!("dashboard-tracked")} }
-                    }
-                    div { class: "dash-kpi-card",
                         span { class: "dash-kpi-label", {tid!("dashboard-streak")} }
                         span { class: "dash-kpi-value", "{stats.streak}" }
                         span { class: "dash-kpi-sub", {tid!("dashboard-streak-unit")} }
@@ -555,32 +699,7 @@ pub fn Dashboard() -> Element {
                                 }
                             }
                             div { class: "dash-chart-area",
-                                BarChart {
-                                    series: vec![chart_bars],
-                                    labels: Some(chart_labels),
-                                    padding_top: 20,
-                                    padding_bottom: 36,
-                                    padding_left: 50,
-                                    padding_right: 10,
-                                    label_interpolation: Some(fmt_hours_axis as fn(f32) -> String),
-                                    label_size: 25,
-                                    show_dotted_grid: false,
-                                    show_series_labels: false,
-                                    bar_width: "45",
-                                    bar_distance: 0.0,
-                                    width: "100%",
-                                    height: "100%",
-                                    viewbox_width: 560,
-                                    viewbox_height: 240,
-                                    class_chart_bar: "dx-chart-bar",
-                                    class_bar: "dx-bar",
-                                    class_bar_group: "dx-bar-group",
-                                    class_bar_label: "dx-bar-label",
-                                    class_grid: "dx-grid",
-                                    class_grid_line: "dx-grid-line",
-                                    class_grid_label: "dx-grid-label",
-                                    class_grid_labels: "dx-grid-labels",
-                                }
+                                HoursBarChart { bars: chart_bars, labels: chart_labels }
                             }
                         }
 

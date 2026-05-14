@@ -116,6 +116,8 @@ dashboard-unassigned = Nicht zugewiesen
 activities-title = Aktivitäten
 activities-new = Neue Aktivität
 activities-name-placeholder = Entwicklung
+activities-color = Farbe
+activities-color-hex-placeholder = z. B. #3b82f6
 
 # ── Einstellungen ─────────────────────────────────────────────────────────────
 

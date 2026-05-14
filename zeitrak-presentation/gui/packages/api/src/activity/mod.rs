@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct ActivityDto {
     pub id: String,
     pub name: String,
+    pub color: String,
     pub comment: Option<String>,
 }
 
@@ -25,14 +26,14 @@ pub async fn list_activities() -> Result<Vec<ActivityDto>, ServerFnError> {
 }
 
 #[post("/api/activities")]
-pub async fn create_activity(name: String) -> Result<ActivityDto, ServerFnError> {
+pub async fn create_activity(name: String, color: String) -> Result<ActivityDto, ServerFnError> {
     #[cfg(feature = "server")]
     {
-        _create_activity(name).await
+        _create_activity(name, color).await
     }
     #[cfg(not(feature = "server"))]
     {
-        let _ = (name);
+        let _ = (name, color);
         Err(ServerFnError::ServerError {
             message: "server only".into(),
             code: 500,
@@ -58,15 +59,16 @@ pub async fn delete_activity(id: String) -> Result<(), ServerFnError> {
 pub async fn update_activity(
     id: String,
     name: String,
+    color: String,
     comment: Option<String>,
 ) -> Result<(), ServerFnError> {
     #[cfg(feature = "server")]
     {
-        _update_activity(id, name, comment).await
+        _update_activity(id, name, color, comment).await
     }
     #[cfg(not(feature = "server"))]
     {
-        let _ = (id, name, comment);
+        let _ = (id, name, color, comment);
         Err(ServerFnError::ServerError {
             message: "server only".into(),
             code: 500,
@@ -88,25 +90,27 @@ async fn _list_activities() -> Result<Vec<ActivityDto>, ServerFnError> {
         .map(|r| ActivityDto {
             id: r.id().to_string(),
             name: r.name().to_string(),
+            color: r.color().to_string(),
             comment: r.comment().map(String::from),
         })
         .collect())
 }
 
 #[cfg(feature = "server")]
-async fn _create_activity(name: String) -> Result<ActivityDto, ServerFnError> {
+async fn _create_activity(name: String, color: String) -> Result<ActivityDto, ServerFnError> {
     use crate::session;
     use zeitrak::core::permissions;
 
     let (user, workspace_id) = session::session_workspace().await?;
     session::require_permission(&user, permissions::ACTIVITY_CREATE).await?;
 
-    let r = zeitrak::tenant::activity::create(&workspace_id, name, None)
+    let r = zeitrak::tenant::activity::create(&workspace_id, name, color, None)
         .await
         .map_err(session::internal)?;
     Ok(ActivityDto {
         id: r.id().to_string(),
         name: r.name().to_string(),
+        color: r.color().to_string(),
         comment: r.comment().map(String::from),
     })
 }
@@ -115,6 +119,7 @@ async fn _create_activity(name: String) -> Result<ActivityDto, ServerFnError> {
 async fn _update_activity(
     id: String,
     name: String,
+    color: String,
     comment: Option<String>,
 ) -> Result<(), ServerFnError> {
     use crate::session;
@@ -123,7 +128,7 @@ async fn _update_activity(
     let (user, workspace_id) = session::session_workspace().await?;
     session::require_permission(&user, permissions::ACTIVITY_UPDATE).await?;
 
-    zeitrak::tenant::activity::update(&workspace_id, &id, name, comment)
+    zeitrak::tenant::activity::update(&workspace_id, &id, name, color, comment)
         .await
         .map_err(session::internal)
 }

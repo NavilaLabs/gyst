@@ -6,7 +6,7 @@ use crate::layouts::DefaultLayout;
 use crate::TagsCache;
 use api::timesheet_tag::TimesheetsTagDto;
 use dioxus::prelude::*;
-use dioxus_free_icons::icons::hi_solid_icons::{HiPencil, HiPlus, HiSave, HiTag, HiTrash, HiX};
+use dioxus_free_icons::icons::hi_solid_icons::{HiHashtag, HiPencil, HiPlus, HiSave, HiTrash, HiX};
 use dioxus_free_icons::Icon;
 use dioxus_i18n::tid;
 
@@ -91,7 +91,7 @@ pub fn Tags() -> Element {
                     CardHeader {
                         CardTitle {
                             div { class: "flex items-center gap-2",
-                                Icon { icon: HiTag, width: 18, height: 18 }
+                                Icon { icon: HiHashtag, width: 18, height: 18 }
                                 {tid!("tags-new")}
                             }
                         }
