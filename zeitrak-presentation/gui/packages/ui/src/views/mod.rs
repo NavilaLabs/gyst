@@ -1,3 +1,5 @@
+pub mod landing;
+pub use landing::*;
 pub mod activities;
 pub use activities::*;
 pub mod dashboard;

@@ -11,8 +11,9 @@ use ui::{
         organisms::{Header, Sidebar},
     },
     views::{
-        setup::Setup, Activities, Dashboard, Database, InvitationAccept, Login, Register,
-        SelectWorkspace, Settings, Tags, Timesheets, VerifyEmailConfirm, VerifyEmailPending,
+        setup::Setup, Activities, Dashboard, Database, InvitationAccept, LandingPage, Login,
+        Register, SelectWorkspace, Settings, Tags, Timesheets, VerifyEmailConfirm,
+        VerifyEmailPending,
     },
     ActivitiesCache, GlobalStyles, RunningElapsed, RunningTimer, SidebarOpen, TagsCache,
     TimesheetsCache, UserSettings, WorkspaceSettings, FAVICON,
@@ -24,6 +25,11 @@ use ui::{
 /// - `Some(None)`     → confirmed not authenticated
 /// - `Some(Some(u))`  → confirmed authenticated as `u`
 pub type AuthState = Signal<Option<Option<UserInfo>>>;
+
+#[component]
+fn Landing() -> Element {
+    rsx! { LandingPage {} }
+}
 
 #[component]
 fn NotFound(route: Vec<String>) -> Element {
@@ -88,7 +94,8 @@ enum Route {
 
     #[end_layout]
 
-    #[redirect("/", || Route::Dashboard {})]
+    #[route("/")]
+    Landing {},
     #[route("/:..route")]
     NotFound { route: Vec<String> },
 }
@@ -329,6 +336,7 @@ fn Layout() -> Element {
         Route::InvitationAccept { .. } => tid!("layout-title-accept-invitation"),
         Route::VerifyEmailPending {} => tid!("layout-title-verify-email"),
         Route::VerifyEmailConfirm { .. } => tid!("layout-title-verify-email"),
+        Route::Landing {} => String::new(),
         Route::NotFound { .. } => tid!("layout-title-not-found"),
     };
 
@@ -337,7 +345,8 @@ fn Layout() -> Element {
         let ws_name = workspace_settings.read().name.clone();
         let skip_prefix = matches!(
             &route,
-            Route::Login {}
+            Route::Landing {}
+                | Route::Login {}
                 | Route::Setup {}
                 | Route::Register {}
                 | Route::InvitationAccept { .. }
