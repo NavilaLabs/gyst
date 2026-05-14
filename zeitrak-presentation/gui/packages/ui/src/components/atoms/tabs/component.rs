@@ -63,7 +63,10 @@ impl TabsVariant {
 
 #[component]
 pub fn Tabs(props: TabsProps) -> Element {
-    let base = attributes!(div { class: "tabs", "data-variant": props.variant.to_class() });
+    let base = attributes!(div {
+        class: "tabs flex w-full flex-col gap-2",
+        "data-variant": props.variant.to_class(),
+    });
     let merged = merge_attributes(vec![base, props.attributes.clone()]);
 
     rsx! {

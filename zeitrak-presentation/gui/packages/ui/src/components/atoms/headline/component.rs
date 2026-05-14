@@ -9,11 +9,12 @@ pub fn Headline(
     attributes: Vec<Attribute>,
     children: Element,
 ) -> Element {
-    let base = attributes!(h2 { class: "headline" });
+    let base = attributes!(h2 {
+        class: "font-display font-semibold text-[2rem] leading-[1.2] text-foreground",
+    });
     let merged = merge_attributes(vec![base, attributes]);
 
     rsx! {
-        document::Link { rel: "stylesheet", href: asset!("./style.css") }
         h2 { ..merged, {children} }
     }
 }

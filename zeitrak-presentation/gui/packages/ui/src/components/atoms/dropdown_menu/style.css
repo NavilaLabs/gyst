@@ -11,13 +11,13 @@
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 8px 12px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    background-color: var(--color-surface);
-    color: var(--color-text-primary);
+    padding: 9px 12px;
+    border: 1px solid var(--color-border-soft);
+    border-radius: var(--radius-sm);
+    background-color: var(--color-surface-raised);
+    color: var(--color-foreground);
     cursor: pointer;
-    font-size: 0.875rem;
+    font-size: 13px;
     transition:
         background-color var(--transition-fast),
         border-color var(--transition-fast);
@@ -30,8 +30,8 @@
 
 .dropdown-menu-trigger:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-focus-ring) 35%, transparent);
-    border-color: var(--color-focus-ring);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 35%, transparent);
+    border-color: var(--color-accent);
 }
 
 /* ── Content (popup panel) ───────────────────────────────────────────────── */
@@ -42,8 +42,8 @@
     top: calc(100% + 4px);
     left: 0;
     min-width: 200px;
-    padding: 0.25rem;
-    border-radius: var(--radius-md);
+    padding: 4px;
+    border-radius: var(--radius-sm);
     background-color: var(--color-surface-raised);
     border: 1px solid var(--color-border);
     box-shadow: var(--shadow-raised);
@@ -79,9 +79,9 @@
     gap: 0.5rem;
     padding: 7px 10px;
     border-radius: var(--radius-sm);
-    color: var(--color-text-primary);
+    color: var(--color-muted-foreground);
     cursor: pointer;
-    font-size: 0.875rem;
+    font-size: 13px;
     outline: none;
     user-select: none;
     transition:
@@ -90,7 +90,7 @@
 }
 
 .dropdown-menu-item[data-disabled="true"] {
-    color: var(--color-text-disabled);
+    color: var(--color-subtle-foreground);
     cursor: not-allowed;
     opacity: 0.6;
 }
@@ -98,5 +98,5 @@
 .dropdown-menu-item:hover:not([data-disabled="true"]),
 .dropdown-menu-item:focus-visible {
     background-color: var(--color-surface-tonal);
-    color: var(--color-text-primary);
+    color: var(--color-foreground);
 }

@@ -41,7 +41,7 @@ pub fn Database() -> Element {
                                                         Icon {
                                                             fill: "black",
                                                             icon: HiArrowRight,
-                                                            style: "color: var(--color-btn-icon)",
+                                                            style: "color: var(--color-foreground)",
                                                         }
                                                         {tid!("developer-actions-database-migrations-run")}
                                                     }
@@ -73,7 +73,7 @@ pub fn Database() -> Element {
                                                         Icon {
                                                             fill: "black",
                                                             icon: HiArrowRight,
-                                                            style: "color: var(--color-btn-icon)",
+                                                            style: "color: var(--color-foreground)",
                                                         }
                                                         {tid!("developer-actions-database-tenant-migrations-run")}
                                                     }

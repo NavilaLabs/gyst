@@ -1,253 +1,239 @@
-/* ── Workspace selection — full-page editorial layout ────────────────── */
+/* ── Workspace selection — full-page layout ── */
 
 .workspace-select-page {
-    min-height: 100%;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding: 4rem 1.5rem;
-    background-color: var(--color-bg);
+  min-height: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 4rem 1.5rem;
+  background-color: var(--color-background);
 }
 
 .workspace-select-container {
-    width: 100%;
-    max-width: 480px;
-    display: flex;
-    flex-direction: column;
-    gap: 2.5rem;
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
 }
 
-/* ── Headline area ───────────────────────────────────────────────────── */
-
+/* ── Headline area ── */
 .workspace-select-eyebrow {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.75rem;
-    color: var(--color-workspace-accent);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--color-accent-hover);
 }
 
 .workspace-select-eyebrow-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: var(--radius-circle);
-    background-color: var(--color-workspace-accent);
-    flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-accent-hover);
+  flex-shrink: 0;
 }
 
 .workspace-select-eyebrow-text {
-    font-size: 0.6875rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--color-workspace-accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent-hover);
 }
 
 .workspace-select-heading {
-    font-family: var(--font-display, "Noto Serif", serif);
-    font-size: 2.25rem;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    letter-spacing: -0.02em;
-    line-height: 1.15;
-    margin: 0 0 0.625rem;
+  font-family: var(--font-display);
+  font-size: 38px;
+  font-weight: 400;
+  color: var(--color-foreground);
+  letter-spacing: -0.015em;
+  line-height: 1.05;
+  margin: 0 0 10px;
+}
+.workspace-select-heading em {
+  font-style: italic;
+  color: var(--color-accent-hover);
 }
 
 .workspace-select-subheading {
-    font-size: 0.9375rem;
-    color: var(--color-text-secondary);
-    line-height: 1.5;
-    margin: 0;
+  font-size: 14px;
+  color: var(--color-muted-foreground);
+  line-height: 1.5;
+  margin: 0;
 }
 
-/* ── Workspace list ──────────────────────────────────────────────────── */
-
+/* ── Workspace list ── */
 .workspace-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.625rem;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .workspace-item {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem 1.25rem;
-    border-radius: var(--radius-lg);
-    background-color: var(--color-surface-raised);
-    border: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
-    box-shadow: var(--shadow-card);
-    cursor: pointer;
-    transition:
-        background-color var(--transition-fast),
-        border-color var(--transition-fast),
-        box-shadow var(--transition-fast),
-        transform var(--transition-fast);
-    text-decoration: none;
-    color: inherit;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
+  text-decoration: none;
+  color: inherit;
 }
-
 .workspace-item:hover {
-    border-color: color-mix(in srgb, var(--color-workspace-accent) 30%, transparent);
-    box-shadow: 0 4px 20px -2px rgba(26, 28, 25, 0.1);
-    transform: translateY(-1px);
+  border-color: var(--color-border-strong);
+  background-color: var(--color-surface-raised);
+  transform: translateY(-1px);
 }
-
 .workspace-item:active {
-    transform: translateY(0);
+  transform: translateY(0);
 }
 
-/* Coloured initial avatar */
+/* Workspace avatar */
 .workspace-item-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: var(--radius-md);
-    background-color: color-mix(in srgb, var(--color-workspace-accent) 15%, transparent);
-    color: var(--color-workspace-accent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--font-display, "Noto Serif", serif);
-    font-size: 1.125rem;
-    font-weight: 700;
-    flex-shrink: 0;
-    letter-spacing: -0.02em;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background-color: var(--color-accent-tint-strong);
+  color: var(--color-accent-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-style: italic;
+  font-weight: 400;
+  flex-shrink: 0;
 }
 
 .workspace-item-info {
-    flex: 1;
-    min-width: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 .workspace-item-name {
-    display: block;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .workspace-item-meta {
-    display: block;
-    font-size: 0.75rem;
-    color: var(--color-text-secondary);
-    margin-top: 0.125rem;
+  display: block;
+  font-size: 12px;
+  color: var(--color-subtle-foreground);
+  margin-top: 2px;
 }
 
 .workspace-item-arrow {
-    flex-shrink: 0;
-    color: var(--color-text-secondary);
-    opacity: 0.4;
-    transition: opacity var(--transition-fast), transform var(--transition-fast);
+  flex-shrink: 0;
+  color: var(--color-subtle-foreground);
+  transition: color var(--transition-fast), transform var(--transition-fast);
 }
-
 .workspace-item:hover .workspace-item-arrow {
-    opacity: 1;
-    color: var(--color-workspace-accent);
-    transform: translateX(3px);
+  color: var(--color-accent-hover);
+  transform: translateX(3px);
 }
 
-/* ── Error state ─────────────────────────────────────────────────────── */
-
+/* ── Error state ── */
 .workspace-select-error {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
-    border-radius: var(--radius-md);
-    background-color: color-mix(in srgb, #d32f2f 10%, transparent);
-    color: #b71c1c;
-    font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  background-color: var(--color-danger-tint);
+  color: var(--color-danger);
+  font-size: 13px;
 }
 
-/* ── Empty state ─────────────────────────────────────────────────────── */
-
+/* ── Empty state ── */
 .workspace-select-empty {
-    text-align: center;
-    padding: 3rem 1.5rem;
-    color: var(--color-text-secondary);
-    font-size: 0.9375rem;
+  text-align: center;
+  padding: 3rem 1.5rem;
+  color: var(--color-muted-foreground);
+  font-size: 14px;
 }
 
-/* ── Pending invitations section ─────────────────────────────────────── */
-
+/* ── Pending invitations ── */
 .workspace-invitations-section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .workspace-invitations-label {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--color-text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-subtle-foreground);
+  margin: 0;
 }
 
 .workspace-item--invitation {
-    cursor: default;
-    border-color: color-mix(in srgb, var(--color-accent) 30%, var(--color-border));
+  cursor: default;
+  border-color: var(--color-accent-tint-strong);
 }
-
 .workspace-item--invitation:hover {
-    transform: none;
-    box-shadow: none;
-    border-color: color-mix(in srgb, var(--color-accent) 50%, var(--color-border));
+  transform: none;
 }
 
 .workspace-item-avatar--invite {
-    background-color: color-mix(in srgb, var(--color-accent) 15%, transparent);
-    color: var(--color-accent);
+  background-color: var(--color-accent-tint);
+  color: var(--color-accent-hover);
 }
 
 .workspace-item-invite-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-left: auto;
-    flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .invite-action-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    padding: 0.3125rem 0.75rem;
-    border-radius: var(--radius-md);
-    font-size: 0.8125rem;
-    font-weight: 500;
-    cursor: pointer;
-    border: 1px solid transparent;
-    transition:
-        background-color var(--transition-fast),
-        color var(--transition-fast),
-        border-color var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .invite-action-btn--accept {
-    background-color: color-mix(in srgb, var(--color-accent) 12%, transparent);
-    color: var(--color-accent);
-    border-color: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  background-color: var(--color-accent-tint);
+  color: var(--color-accent-hover);
+  border-color: var(--color-accent-tint-strong);
 }
-
 .invite-action-btn--accept:hover {
-    background-color: var(--color-accent);
-    color: #fff;
-    border-color: var(--color-accent);
+  background-color: var(--color-accent);
+  color: white;
 }
 
 .invite-action-btn--decline {
-    background-color: transparent;
-    color: var(--color-text-secondary);
-    border-color: var(--color-border);
+  background-color: transparent;
+  color: var(--color-muted-foreground);
+  border-color: var(--color-border);
 }
-
 .invite-action-btn--decline:hover {
-    background-color: color-mix(in srgb, #d32f2f 10%, transparent);
-    color: #b71c1c;
-    border-color: color-mix(in srgb, #d32f2f 30%, transparent);
+  background-color: var(--color-danger-tint);
+  color: var(--color-danger);
+  border-color: transparent;
 }

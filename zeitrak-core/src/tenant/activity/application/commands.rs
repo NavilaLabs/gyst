@@ -23,13 +23,14 @@ pub trait ActivityCommandTrait<T> {
         &self,
         id: ActivityId,
         name: String,
+        color: String,
         comment: Option<String>,
     ) -> Result<T, Self::Error>;
 
     /// # Errors
     ///
     /// Returns an error if the event cannot be applied to the aggregate.
-    fn update(&mut self, name: String, comment: Option<String>) -> Result<(), Self::Error>;
+    fn update(&mut self, name: String, color: String, comment: Option<String>) -> Result<(), Self::Error>;
 
     /// # Errors
     ///
@@ -47,16 +48,17 @@ impl ActivityCommandTrait<Self> for ActivityCommand {
         &self,
         id: ActivityId,
         name: String,
+        color: String,
         comment: Option<String>,
     ) -> Result<Self, Self::Error> {
         Ok(aggregate::Root::<Activity>::record_new(
-            ActivityEvent::Created { id, name, comment }.into(),
+            ActivityEvent::Created { id, name, color, comment }.into(),
         )?
         .into())
     }
 
-    fn update(&mut self, name: String, comment: Option<String>) -> Result<(), Self::Error> {
-        self.record_that(ActivityEvent::Updated { name, comment }.into())
+    fn update(&mut self, name: String, color: String, comment: Option<String>) -> Result<(), Self::Error> {
+        self.record_that(ActivityEvent::Updated { name, color, comment }.into())
     }
 
     fn delete(&mut self) -> Result<(), Self::Error> {
@@ -71,10 +73,11 @@ impl ActivityCommand {
     pub fn create(
         id: ActivityId,
         name: String,
+        color: String,
         comment: Option<String>,
     ) -> Result<Self, activity::Error> {
         Ok(aggregate::Root::<Activity>::record_new(
-            ActivityEvent::Created { id, name, comment }.into(),
+            ActivityEvent::Created { id, name, color, comment }.into(),
         )?
         .into())
     }
@@ -88,6 +91,7 @@ pub trait ActivityHandlerTrait<R> {
         &self,
         id: ActivityId,
         name: String,
+        color: String,
         comment: Option<String>,
     ) -> Result<ActivityRow, Self::Error>;
 
@@ -95,6 +99,7 @@ pub trait ActivityHandlerTrait<R> {
         &self,
         id: ActivityId,
         name: String,
+        color: String,
         comment: Option<String>,
     ) -> Result<(), Self::Error>;
 
@@ -123,12 +128,14 @@ where
         &self,
         id: ActivityId,
         name: String,
+        color: String,
         comment: Option<String>,
     ) -> Result<ActivityRow, Self::Error> {
         let mut root = aggregate::Root::<Activity>::record_new(
             ActivityEvent::Created {
                 id: id.clone(),
                 name: name.clone(),
+                color: color.clone(),
                 comment: comment.clone(),
             }
             .into(),
@@ -137,13 +144,14 @@ where
             .save(&mut root)
             .await
             .map_err(|e| crate::Error::WriteRepositoryError(e.into()))?;
-        Ok(ActivityRow::new(id, name, comment))
+        Ok(ActivityRow::new(id, name, color, comment))
     }
 
     async fn update(
         &self,
         id: ActivityId,
         name: String,
+        color: String,
         comment: Option<String>,
     ) -> Result<(), Self::Error> {
         let mut root: ActivityCommand = self
@@ -152,7 +160,7 @@ where
             .await
             .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
             .into();
-        root.update(name, comment)?;
+        root.update(name, color, comment)?;
         self.repository
             .save(&mut root)
             .await
@@ -192,6 +200,7 @@ mod tests {
             ActivityEvent::Created {
                 id,
                 name: "seed".to_string(),
+                color: "#22c55e".to_string(),
                 comment: None,
             },
         )
@@ -203,12 +212,14 @@ mod tests {
     fn create_returns_root_with_applied_state() {
         let id: ActivityId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92".parse().unwrap();
 
-        let result = ActivityCommand::create(id.clone(), "Stand-up".to_string(), None);
+        let result =
+            ActivityCommand::create(id.clone(), "Stand-up".to_string(), "#3b82f6".to_string(), None);
 
         assert!(result.is_ok());
         let cmd = result.unwrap();
         assert_eq!(cmd.aggregate_id(), &id);
         assert_eq!(cmd.name(), "Stand-up");
+        assert_eq!(cmd.color(), "#3b82f6");
         assert!(cmd.comment().is_none());
         assert_eq!(cmd.version(), 1);
     }
@@ -220,6 +231,7 @@ mod tests {
         let cmd = ActivityCommand::create(
             id,
             "Debug session".to_string(),
+            "#22c55e".to_string(),
             Some("detailed".to_string()),
         )
         .unwrap();
@@ -231,11 +243,12 @@ mod tests {
         let id = test_id();
         let mut cmd = make_shell(id);
 
-        cmd.update("Renamed".to_string(), Some("a note".to_string()))
+        cmd.update("Renamed".to_string(), "#a855f7".to_string(), Some("a note".to_string()))
             .expect("update must succeed");
 
         assert_eq!(cmd.version(), 2);
         assert_eq!(cmd.name(), "Renamed");
+        assert_eq!(cmd.color(), "#a855f7");
         assert_eq!(cmd.comment(), Some(&"a note".to_string()));
     }
 
@@ -247,13 +260,14 @@ mod tests {
             ActivityEvent::Created {
                 id,
                 name: "seed".to_string(),
+                color: "#22c55e".to_string(),
                 comment: Some("original".to_string()),
             },
         )
         .expect("seed activity");
         let mut cmd: ActivityCommand = Root::<Activity>::rehydrate_from_state(1, activity).into();
 
-        cmd.update("Same".to_string(), None)
+        cmd.update("Same".to_string(), "#22c55e".to_string(), None)
             .expect("update must succeed");
 
         assert!(cmd.comment().is_none());

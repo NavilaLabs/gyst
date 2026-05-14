@@ -1,80 +1,68 @@
-/* ─── Card ───────────────────────────────────────────────────── */
-.card {
-    display: flex;
-    flex-direction: column;
-    padding: 1.5rem 0;
-    /* Ghost border — tactile, felt but not seen */
-    border: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
-    border-radius: var(--radius-lg); /* 18px */
-    /* Cards use surface-raised (#fff light / #2c2c2c dark) to pop against
-       the page background (#fafaf5 light / #1a1a1a dark). */
-    background-color: var(--color-surface-raised);
-    box-shadow: var(--shadow-card);
-    color: var(--color-text-primary);
-    gap: 1.5rem;
-    height: fit-content;
-}
+/* Structural card layout is expressed as Tailwind utilities in the RSX class
+   string. This file only defines size variants and sub-element layouts. */
 
+/* Size variants — max-width caps only */
 .card[data-size="sm"] {
-    width: 100%;
-    max-width: 20rem;
+  width: 100%;
+  max-width: 20rem;
 }
-
 .card[data-size="md"] {
-    width: 100%;
-    max-width: 30rem;
+  width: 100%;
+  max-width: 30rem;
 }
-
 .card[data-size="lg"] {
-    width: 100%;
-    max-width: 50rem;
+  width: 100%;
+  max-width: 50rem;
 }
 
-/* ─── Header ─────────────────────────────────────────────────── */
+/* ── Header ── */
 .card-header {
-    display: grid;
-    align-items: start;
-    padding: 0 1.5rem;
-    gap: 0.5rem;
-    grid-auto-rows: min-content;
-    grid-template-rows: auto auto;
+  display: grid;
+  align-items: start;
+  padding: 16px var(--spacing-card) 14px;
+  gap: 0.5rem;
+  grid-auto-rows: min-content;
+  grid-template-rows: auto auto;
+  border-bottom: 1px solid var(--color-border-soft);
 }
-
 .card-header:has([data-slot="card-action"]) {
-    grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto;
 }
 
-/* ─── Title ──────────────────────────────────────────────────── */
+/* ── Title ── */
 .card-title {
-    font-size: 1rem;
-    font-weight: 600;
-    line-height: 1;
-    color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-foreground);
+  letter-spacing: 0.005em;
 }
 
-/* ─── Description ────────────────────────────────────────────── */
+/* ── Description ── */
 .card-description {
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-    color: var(--color-text-secondary);
+  font-size: 12px;
+  color: var(--color-muted-foreground);
 }
 
-/* ─── Action slot ────────────────────────────────────────────── */
+/* ── Action slot ── */
 .card-action {
-    grid-column-start: 2;
-    grid-row: 1 / span 2;
-    place-self: start end;
+  grid-column-start: 2;
+  grid-row: 1 / span 2;
+  place-self: start end;
 }
 
-/* ─── Content ────────────────────────────────────────────────── */
+/* ── Content ── */
 .card-content {
-    padding: 0 1.5rem;
+  padding: var(--spacing-card);
 }
 
-/* ─── Footer ─────────────────────────────────────────────────── */
+/* ── Footer ── */
 .card-footer {
-    display: flex;
-    align-items: center;
-    padding: 0.75rem 1.5rem 0;
-    /* No divider line — spacing provides sufficient separation */
+  display: flex;
+  align-items: center;
+  padding: 12px var(--spacing-card);
+  border-top: 1px solid var(--color-border-soft);
+  gap: 8px;
 }

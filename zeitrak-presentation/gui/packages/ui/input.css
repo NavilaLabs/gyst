@@ -1,2 +1,57 @@
 @import "tailwindcss";
 @source "./src/**/*.{rs,html,css}";
+
+/*
+  Register design tokens as Tailwind utility classes.
+
+  Colors → bg-*, text-*, border-* utilities
+  Fonts  → font-display, font-body, font-mono utilities
+  Radius → rounded-sm, rounded-md, rounded-lg, rounded-full utilities
+
+  The compiled tailwind.css emits these as :root CSS custom properties inside
+  @layer theme, so component .css files can use var(--color-accent) etc.
+  without separately importing theme.css.
+*/
+@theme {
+  /* ── Surfaces ── */
+  --color-background:      #0b0b0c;
+  --color-surface:         #131316;
+  --color-surface-raised:  #1a1a1f;
+  --color-surface-tonal:   #21212a;
+
+  /* ── Text ── */
+  --color-foreground:         #ededee;
+  --color-muted-foreground:   #a4a4ae;
+  --color-subtle-foreground:  #6c6c76;
+  --color-faint-foreground:   #50505a;
+
+  /* ── Borders ── */
+  --color-border:        #26262d;
+  --color-border-soft:   #1d1d24;
+  --color-border-strong: #34343d;
+
+  /* ── Accent (brand green) ── */
+  --color-accent:              #16a34a;
+  --color-accent-hover:        #22c55e;
+  --color-accent-tint:         rgba(34, 197, 94, 0.10);
+  --color-accent-tint-strong:  rgba(34, 197, 94, 0.18);
+  --color-accent-foreground:   #ecfdf5;
+  --color-accent-ring:         rgba(34, 197, 94, 0.35);
+
+  /* ── Status ── */
+  --color-danger:      #ef4444;
+  --color-danger-tint: rgba(239, 68, 68, 0.12);
+  --color-warning:     #f59e0b;
+  --color-info:        #3b82f6;
+
+  /* ── Font families → font-display, font-body, font-mono ── */
+  --font-display: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
+  --font-body:    'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, 'Courier New', monospace;
+
+  /* ── Border radius → rounded-sm, rounded-md, rounded-lg, rounded-full ── */
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-full: 999px;
+}

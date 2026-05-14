@@ -1,65 +1,61 @@
-.tabs {
-    display: flex;
-    width: 100%;
-    flex-direction: column;
-    gap: 0.5rem;
-}
+/* Structural tabs wrapper layout is expressed as Tailwind utilities in the RSX.
+   This file defines the list/trigger/content styles that require CSS selectors. */
 
 .tabs-list {
-    display: flex;
-    width: fit-content;
-    box-sizing: border-box;
-    flex-direction: row;
-    padding: 0.25rem;
-    border: none;
-    border-radius: var(--radius-md);
-    gap: 0.25rem;
-    background-color: var(--color-tabs-list-bg);
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--color-border-soft);
+  margin-bottom: 24px;
+  padding: 0;
+  background: none;
+  border-radius: 0;
 }
 
 .tabs-trigger {
-    padding: 4px 8px;
-    border: none;
-    border-radius: var(--radius-sm);
-    background: none;
-    color: var(--color-tabs-trigger-text);
-    cursor: pointer;
-    font-size: 0.875rem;
-    transition:
-        background-color var(--transition-fast),
-        color var(--transition-fast);
+  padding: 10px 14px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--color-subtle-foreground);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  position: relative;
+  bottom: -1px;
+  border-bottom: 2px solid transparent;
+  transition: color var(--transition-fast);
 }
-
+.tabs-trigger:hover {
+  color: var(--color-foreground);
+}
 .tabs-trigger[data-state="active"] {
-    background-color: var(--color-tabs-trigger-active-bg);
-    color: var(--color-tabs-trigger-active-text);
-    box-shadow: var(--shadow-card);
+  color: var(--color-foreground);
+  border-bottom-color: var(--color-accent);
+  box-shadow: none;
 }
-
 .tabs-trigger[data-disabled="true"] {
-    color: var(--color-text-disabled);
-    cursor: not-allowed;
+  color: var(--color-faint-foreground);
+  cursor: not-allowed;
 }
-
 .tabs-trigger:hover:not([data-disabled="true"]):not([data-state="active"]),
 .tabs-trigger:focus-visible:not([data-state="active"]) {
-    color: var(--color-tabs-trigger-hover-text);
-    outline: none;
+  outline: none;
 }
 
 .tabs-content {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 0.25rem;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0;
 }
-
 .tabs-content-themed {
-    border: 1px solid var(--color-tabs-content-border);
-    border-radius: var(--radius-md);
-    background-color: var(--color-tabs-content-bg);
-    box-shadow: var(--shadow-card);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  padding: var(--spacing-card);
 }
-
 .tabs-content[data-state="inactive"] {
-    display: none;
+  display: none;
 }

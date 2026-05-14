@@ -263,3 +263,94 @@ The initial UI rendered by the component on the client must be identical to the 
 
 * Use the `use_server_future` hook instead of `use_resource`. It runs the future on the server, serializes the result, and sends it to the client, ensuring the client has the data immediately for its first render.
 * Any code that relies on browser-specific APIs (like accessing `localStorage`) must be run *after* hydration. Place this code inside a `use_effect` hook.
+
+---
+
+# Styling
+
+## Approach: Utility-First Tailwind + Custom CSS for Complex Patterns
+
+Pick one approach and be consistent. In this project:
+
+| Situation | Strategy |
+|---|---|
+| Layout, spacing, flex, grid, color, border-radius | Tailwind utilities in RSX (`class:` attribute) |
+| Repeated UI pattern | Extract a Dioxus `#[component]`, not a CSS class |
+| `@keyframes` / complex animations | Custom CSS in component `style.css` |
+| `::before` / `::after` pseudo-elements with `content` | Custom CSS |
+| `:has()` selectors | Custom CSS |
+| Variant styles via `data-*` attributes (e.g. `data-style="primary"`) | Custom CSS when the per-variant class string would be unreadable |
+| Design tokens / CSS custom properties | Colors/fonts/radius → `@theme` in `packages/ui/input.css`; spacing/shadows/transitions → `:root` in `packages/ui/assets/theme.css` |
+
+**Never** use `@apply` — extract a Rust component instead.
+**Never** use `tailwind.config.js` — Tailwind v4 customization goes in `@theme` inside `packages/ui/input.css`.
+**Never** duplicate a Tailwind utility class in a `style.css` file for the same element.
+
+## Design Token Naming
+
+All color tokens follow the `--color-{role}` pattern and are defined in `@theme` in `packages/ui/input.css`:
+
+```
+Surfaces:  --color-background   (page bg)
+           --color-surface       (card/panel bg)
+           --color-surface-raised (dropdowns, menus)
+           --color-surface-tonal  (active/hover rows)
+
+Text:      --color-foreground         (primary content)
+           --color-muted-foreground    (meta, labels)
+           --color-subtle-foreground   (section labels, placeholders)
+           --color-faint-foreground    (decorative, barely visible)
+
+Borders:   --color-border       --color-border-soft    --color-border-strong
+
+Accent:    --color-accent              (brand green, interactive)
+           --color-accent-hover        (hover state)
+           --color-accent-tint         (10% alpha accent bg)
+           --color-accent-tint-strong  (18% alpha accent bg)
+           --color-accent-foreground   (text on accent)
+           --color-accent-ring         (focus ring)
+
+Status:    --color-danger    --color-danger-tint    --color-warning    --color-info
+```
+
+Non-color tokens (spacing, shadows, transitions) live in `packages/ui/assets/theme.css`:
+
+```
+--spacing-card   --spacing-page   --height-row   --width-sidebar
+--shadow-card    --shadow-raised
+--transition-fast   --transition-normal   --transition-slow
+```
+
+## Available Tailwind Utilities from Design Tokens
+
+Because color/font/radius tokens are in `@theme`, these Tailwind classes work out of the box:
+
+```
+Colors:  bg-background, bg-surface, bg-surface-raised, bg-surface-tonal
+         bg-accent, bg-danger, bg-danger-tint
+         text-foreground, text-muted-foreground, text-subtle-foreground, text-faint-foreground
+         text-accent, text-accent-foreground
+         border-border, border-border-soft, border-border-strong
+
+Fonts:   font-display    font-body    font-mono
+
+Radius:  rounded-sm  rounded-md  rounded-lg  rounded-full
+```
+
+## Rebuilding Tailwind
+
+Run after changing `@theme` tokens or adding source files that use new utility classes:
+
+```sh
+cd packages/ui && deno task tailwind
+```
+
+## Stylesheet Loading Order
+
+All global stylesheets are loaded by `GlobalStyles` in `packages/ui/src/lib.rs` in this order:
+
+1. `tailwind.css` — Tailwind base layer + `@theme` CSS variables + generated utilities
+2. `theme.css` — spacing/shadow/transition tokens + shared utility classes (`.island`, `.tag-pill`, etc.)
+3. Component `style.css` files — may reference any `var(--color-*)` token from steps 1–2
+
+Do **not** add `document::Link` calls for `theme.css` or `tailwind.css` inside individual components — they are already loaded globally.

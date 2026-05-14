@@ -26,8 +26,6 @@ pub fn Header(
         .is_some();
 
     rsx! {
-        document::Link { rel: "stylesheet", href: asset!("/assets/theme.css") }
-        document::Link { rel: "stylesheet", href: asset!("/assets/tailwind.css") }
         document::Link { rel: "stylesheet", href: asset!("./style.css") }
 
         header { class: "header",

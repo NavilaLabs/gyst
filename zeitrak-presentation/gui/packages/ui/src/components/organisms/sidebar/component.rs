@@ -11,6 +11,25 @@ use crate::components::atoms::{Button, ButtonVariant, Navbar, NavbarItem, ToastM
 /// Mirrors the `AuthState` type alias from the `web` crate.
 type AuthState = Signal<Option<Option<api::auth::UserInfo>>>;
 
+/// Extract up-to-two uppercase initials from an email address.
+fn email_initials(email: &str) -> String {
+    let local = email.split('@').next().unwrap_or(email);
+    let parts: Vec<&str> = local.split(['.', '_', '-']).collect();
+    match parts.as_slice() {
+        [a, b, ..] => {
+            let a = a.chars().next().unwrap_or('?').to_uppercase().to_string();
+            let b = b.chars().next().unwrap_or('?').to_uppercase().to_string();
+            format!("{a}{b}")
+        }
+        [a] => a
+            .chars()
+            .next()
+            .map(|c| c.to_uppercase().to_string())
+            .unwrap_or_else(|| "?".to_string()),
+        [] => "?".to_string(),
+    }
+}
+
 #[component]
 pub fn Sidebar() -> Element {
     let auth: AuthState = use_context();
@@ -55,6 +74,9 @@ pub fn Sidebar() -> Element {
         "sidebar sidebar--collapsed"
     };
 
+    let initials = email_initials(&user.email);
+    let email = user.email.clone();
+
     rsx! {
         document::Link { rel: "stylesheet", href: asset!("./style.css") }
 
@@ -83,45 +105,77 @@ pub fn Sidebar() -> Element {
                         }
                     }
                 }
-                Navbar {
-                    class: "sidebar-nav",
-                    NavbarItem {
-                        index: 0usize,
-                        value: "dashboard".to_string(),
-                        to: "/dashboard",
-                        Icon { icon: HiHome, width: 16, height: 16 }
-                        span { class: "sidebar-label", {tid!("sidebar-nav-dashboard")} }
+
+                // ── Navigation grouped by section ──────────────────────────────
+                nav { class: "sidebar-nav-groups",
+                    // Tracking section
+                    div { class: "sidebar-nav-group",
+                        span { class: "sidebar-nav-section sidebar-label",
+                            {tid!("sidebar-section-tracking")}
+                        }
+                        Navbar {
+                            class: "sidebar-nav",
+                            NavbarItem {
+                                index: 0usize,
+                                value: "dashboard".to_string(),
+                                to: "/dashboard",
+                                Icon { icon: HiHome, width: 16, height: 16 }
+                                span { class: "sidebar-label", {tid!("sidebar-nav-dashboard")} }
+                            }
+                            NavbarItem {
+                                index: 1usize,
+                                value: "timesheets".to_string(),
+                                to: "/timesheets",
+                                Icon { icon: HiClock, width: 16, height: 16 }
+                                span { class: "sidebar-label", {tid!("sidebar-nav-timesheets")} }
+                            }
+                        }
                     }
-                    NavbarItem {
-                        index: 1usize,
-                        value: "timesheets".to_string(),
-                        to: "/timesheets",
-                        Icon { icon: HiClock, width: 16, height: 16 }
-                        span { class: "sidebar-label", {tid!("sidebar-nav-timesheets")} }
+
+                    // Library section
+                    div { class: "sidebar-nav-group",
+                        span { class: "sidebar-nav-section sidebar-label",
+                            {tid!("sidebar-section-library")}
+                        }
+                        Navbar {
+                            class: "sidebar-nav",
+                            NavbarItem {
+                                index: 2usize,
+                                value: "activities".to_string(),
+                                to: "/activities",
+                                Icon { icon: HiTag, width: 16, height: 16 }
+                                span { class: "sidebar-label", {tid!("sidebar-nav-activities")} }
+                            }
+                            NavbarItem {
+                                index: 3usize,
+                                value: "tags".to_string(),
+                                to: "/tags",
+                                Icon { icon: HiHashtag, width: 16, height: 16 }
+                                span { class: "sidebar-label", {tid!("sidebar-nav-tags")} }
+                            }
+                        }
                     }
-                    NavbarItem {
-                        index: 2usize,
-                        value: "activities".to_string(),
-                        to: "/activities",
-                        Icon { icon: HiTag, width: 16, height: 16 }
-                        span { class: "sidebar-label", {tid!("sidebar-nav-activities")} }
-                    }
-                    NavbarItem {
-                        index: 3usize,
-                        value: "tags".to_string(),
-                        to: "/tags",
-                        Icon { icon: HiHashtag, width: 16, height: 16 }
-                        span { class: "sidebar-label", {tid!("sidebar-nav-tags")} }
-                    }
-                    NavbarItem {
-                        index: 4usize,
-                        value: "settings".to_string(),
-                        to: "/settings",
-                        Icon { icon: HiCog, width: 16, height: 16 }
-                        span { class: "sidebar-label", {tid!("sidebar-nav-settings")} }
+
+                    // Preferences section
+                    div { class: "sidebar-nav-group",
+                        span { class: "sidebar-nav-section sidebar-label",
+                            {tid!("sidebar-section-preferences")}
+                        }
+                        Navbar {
+                            class: "sidebar-nav",
+                            NavbarItem {
+                                index: 4usize,
+                                value: "settings".to_string(),
+                                to: "/settings",
+                                Icon { icon: HiCog, width: 16, height: 16 }
+                                span { class: "sidebar-label", {tid!("sidebar-nav-settings")} }
+                            }
+                        }
                     }
                 }
             }
+
+            // ── Timer section ──────────────────────────────────────────────────
             div { class: "sidebar-timer",
                 if is_running {
                     div { class: "sidebar-timer-running",
@@ -157,6 +211,16 @@ pub fn Sidebar() -> Element {
                     }
                 }
             }
+
+            // ── User strip ────────────────────────────────────────────────────
+            div { class: "sidebar-user-strip sidebar-label",
+                div { class: "sidebar-user-avatar", "{initials}" }
+                div { class: "sidebar-user-meta",
+                    span { class: "sidebar-user-email", "{email}" }
+                }
+            }
+
+            // ── Footer (logout) ───────────────────────────────────────────────
             div { class: "sidebar-footer",
                 Button {
                     variant: ButtonVariant::Ghost,

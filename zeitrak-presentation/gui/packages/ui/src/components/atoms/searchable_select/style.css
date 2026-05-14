@@ -23,10 +23,10 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
-    background-color: var(--color-input-bg);
-    border: 1px solid var(--color-input-border);
+    background-color: var(--color-surface-raised);
+    border: 1px solid var(--color-border-soft);
     border-radius: var(--radius-md);
-    color: var(--color-input-text);
+    color: var(--color-foreground);
     padding: 8px 12px;
     font-size: 0.875rem;
     line-height: 1.5;
@@ -45,8 +45,8 @@
 
 .ss-trigger:focus-visible {
     outline: none;
-    border-color: var(--color-focus-ring);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-focus-ring) 35%, transparent);
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 35%, transparent);
 }
 
 .ss-trigger-label {
@@ -59,7 +59,7 @@
 .ss-trigger-chevron {
     flex-shrink: 0;
     font-size: 0.6rem;
-    color: var(--color-text-secondary);
+    color: var(--color-muted-foreground);
 }
 
 /* ── Panel ─────────────────────────────────────────────────────────────────── */
@@ -94,13 +94,13 @@
     border: none;
     border-bottom: 1px solid var(--color-border);
     background-color: var(--color-surface-raised);
-    color: var(--color-text-primary);
+    color: var(--color-foreground);
     font-size: 0.875rem;
     outline: none;
 }
 
 .ss-search::placeholder {
-    color: var(--color-text-placeholder, var(--color-text-secondary));
+    color: var(--color-faint-foreground);
 }
 
 /* ── Scrollable list ───────────────────────────────────────────────────────── */
@@ -121,7 +121,7 @@
     border: none;
     border-radius: var(--radius-sm);
     background: transparent;
-    color: var(--color-text-primary);
+    color: var(--color-foreground);
     font-size: 0.875rem;
     text-align: left;
     cursor: pointer;
@@ -147,6 +147,6 @@
 .ss-empty {
     padding: 12px 10px;
     font-size: 0.875rem;
-    color: var(--color-text-secondary);
+    color: var(--color-muted-foreground);
     text-align: center;
 }

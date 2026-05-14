@@ -19,15 +19,16 @@ pub async fn list(workspace_id: &str) -> Result<Vec<ActivityRow>> {
 pub async fn create(
     workspace_id: &str,
     name: String,
+    color: String,
     comment: Option<String>,
 ) -> Result<ActivityRow> {
-    crate::error::validate(&CreateActivityInput { name: name.clone() })?;
+    crate::error::validate(&CreateActivityInput { name: name.clone(), color: color.clone() })?;
 
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = ActivityRepository::from_pool(pool).await?;
     let id = ActivityId::new();
     ActivityHandler::new(repo)
-        .create(id, name, comment)
+        .create(id, name, color, comment)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))
 }
@@ -43,20 +44,21 @@ pub async fn delete(workspace_id: &str, id: &str) -> Result<()> {
         .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
-/// Update an existing activity's name and optional comment.
+/// Update an existing activity's name, color, and optional comment.
 pub async fn update(
     workspace_id: &str,
     id: &str,
     name: String,
+    color: String,
     comment: Option<String>,
 ) -> Result<()> {
-    crate::error::validate(&UpdateActivityInput { name: name.clone() })?;
+    crate::error::validate(&UpdateActivityInput { name: name.clone(), color: color.clone() })?;
 
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = ActivityRepository::from_pool(pool).await?;
     let agg_id: ActivityId = id.parse()?;
     ActivityHandler::new(repo)
-        .update(agg_id, name, comment)
+        .update(agg_id, name, color, comment)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))
 }

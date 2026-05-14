@@ -51,6 +51,9 @@ searchable-select-no-results = Keine Ergebnisse
 
 sidebar-brand-name = Zeitrak
 sidebar-brand-sub = Kuratierter Arbeitsbereich
+sidebar-section-tracking = Erfassung
+sidebar-section-library = Bibliothek
+sidebar-section-preferences = Einstellungen
 sidebar-nav-dashboard = Dashboard
 sidebar-nav-timesheets = Stundenzettel
 sidebar-nav-activities = Aktivitäten
@@ -96,8 +99,15 @@ dashboard-start-session = Sitzung starten
 dashboard-today = Heute
 dashboard-tracked = erfasst
 dashboard-this-week = Diese Woche
+dashboard-billable = Abrechenbar
+dashboard-streak = Serie
+dashboard-streak-unit = Tage
+dashboard-activity-mix = Aktivitätsmix
 dashboard-hours-per-day = Stunden pro Tag
 dashboard-last-7-days = letzte 7 Tage
+dashboard-chart-week = Woche
+dashboard-chart-month = Monat
+dashboard-chart-year = Jahr
 dashboard-recent-entries = Letzte Einträge
 dashboard-unassigned = Nicht zugewiesen
 
@@ -106,6 +116,8 @@ dashboard-unassigned = Nicht zugewiesen
 activities-title = Aktivitäten
 activities-new = Neue Aktivität
 activities-name-placeholder = Entwicklung
+activities-color = Farbe
+activities-color-hex-placeholder = z. B. #3b82f6
 
 # ── Einstellungen ─────────────────────────────────────────────────────────────
 
@@ -113,6 +125,37 @@ settings-tab-my-settings = Meine Einstellungen
 settings-tab-workspace-settings = Arbeitsbereich-Einstellungen
 settings-tab-members = Mitglieder
 settings-my-settings-title = Meine Einstellungen
+settings-profile-title = Profil
+settings-localization-title = Lokalisierung
+settings-notifications-title = Benachrichtigungen
+settings-notifications-daily-digest = Tägliche Zusammenfassung
+settings-notifications-daily-digest-desc = Zusammenfassung der gestrigen erfassten Zeit, jeden Morgen um 9 Uhr.
+settings-notifications-idle-reminder = Leerlauf-Erinnerung
+settings-notifications-idle-reminder-desc = Erinnerung, wenn ein Timer länger als 4 Stunden läuft.
+settings-notifications-weekly-review = Wöchentlicher Rückblick
+settings-notifications-weekly-review-desc = Freitagsnachmittags-Zusammenfassung mit abrechenbaren Summen.
+settings-security-title = Sicherheit
+settings-security-password = Passwort
+settings-security-password-desc = Zuletzt vor 4 Monaten geändert
+settings-security-password-change = Ändern
+settings-security-2fa = Zwei-Faktor-Authentifizierung
+settings-security-2fa-desc = Nicht konfiguriert
+settings-security-sessions = Sitzungen
+settings-security-sessions-desc = 1 aktives Gerät
+settings-security-sessions-manage = Verwalten
+settings-billing-title = Abrechnung & Tarife
+settings-billing-hourly-rate = Standard-Stundensatz
+settings-billing-rounding = Rundung
+settings-billing-rounding-none = Keine
+settings-billing-rounding-5min = Auf 5 Minuten runden
+settings-billing-rounding-15min = Auf 15 Minuten runden
+settings-danger-zone-title = Gefahrenzone
+settings-danger-export = Alle Daten exportieren
+settings-danger-export-desc = CSV-Download aller Einträge, Aktivitäten und Tags.
+settings-danger-export-btn = Exportieren
+settings-danger-delete-workspace = Arbeitsbereich löschen
+settings-danger-delete-workspace-desc = Dauerhaft. Alle Einträge und Mitglieder werden entfernt.
+settings-danger-delete-workspace-btn = Löschen
 settings-invite-member-title = Mitglied einladen
 settings-invite-email-label = E-Mail-Adresse
 settings-invite-email-placeholder = kollege@beispiel.de
@@ -223,3 +266,10 @@ developer-actions-database-tenant-migrations = Mandanten-Migrationen
     .description = Datenbank für den aktuell ausgewählten Arbeitsbereich migrieren.
 developer-actions-database-tenant-migrations-run = Mandanten-Migrationen ausführen
     .tooltip = Alle ausstehenden Mandanten-Migrationen für den aktiven Arbeitsbereich anwenden.
+
+# ── Login screen ──────────────────────────────────────────────────────────────
+
+login-heading = Willkommen zurück.
+login-subheading = Melde dich an, um deine Zeit weiter zu erfassen.
+login-email-placeholder = du@beispiel.de
+login-no-account = Noch kein Konto?

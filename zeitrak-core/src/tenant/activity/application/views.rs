@@ -4,13 +4,14 @@ use crate::tenant::activity::ActivityId;
 pub struct ActivityRow {
     id: ActivityId,
     name: String,
+    color: String,
     comment: Option<String>,
 }
 
 impl ActivityRow {
     #[must_use]
-    pub const fn new(id: ActivityId, name: String, comment: Option<String>) -> Self {
-        Self { id, name, comment }
+    pub const fn new(id: ActivityId, name: String, color: String, comment: Option<String>) -> Self {
+        Self { id, name, color, comment }
     }
 
     #[must_use]
@@ -21,6 +22,11 @@ impl ActivityRow {
     #[must_use]
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    #[must_use]
+    pub fn color(&self) -> &str {
+        &self.color
     }
 
     #[must_use]

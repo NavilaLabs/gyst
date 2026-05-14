@@ -12,9 +12,9 @@
   width: 44px;
   height: 44px;
   padding: 0;
-  border-radius: var(--radius-pill);
-  background-color: var(--color-btn-primary-bg);
-  color: var(--color-btn-primary-text);
+  border-radius: var(--radius-full);
+  background-color: var(--color-accent);
+  color: white;
   box-shadow: var(--shadow-raised);
   display: flex;
   align-items: center;
@@ -22,8 +22,8 @@
 }
 
 .theme-switcher .dropdown-menu-trigger:hover {
-  background-color: var(--color-btn-primary-hover);
-  color: var(--color-btn-primary-text);
+  background-color: var(--color-accent-hover);
+  color: white;
 }
 
 /* Drop-up: open above the trigger */
@@ -78,6 +78,6 @@
 
 .theme-menu-item-check {
   margin-left: auto;
-  color: var(--color-primary-500);
+  color: var(--color-accent-hover);
   font-size: 12px;
 }

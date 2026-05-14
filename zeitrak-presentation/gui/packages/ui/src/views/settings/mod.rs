@@ -1,2 +1,2 @@
 mod component;
-pub use component::{currency_options, timezone_options, Settings};
+pub use component::{timezone_options, Settings};

@@ -1,318 +1,467 @@
+/* ── Sidebar shell ────────────────────────────────────────────────────── */
+
 .sidebar {
-    width: 240px;
-    flex-shrink: 0;
-    background-color: var(--color-surface);
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    overflow-x: hidden;
-    transition: width 0.2s ease;
+  width: var(--width-sidebar);
+  flex-shrink: 0;
+  background-color: var(--color-surface);
+  border-right: 1px solid var(--color-border-soft);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow: hidden;
+  transition: width 0.2s ease;
 }
 
-/* The top section (brand + nav) grows to fill available space */
+/* ── Brand area ── */
 .sidebar-top {
-    flex: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
-
-/* ── Workspace branding ──────────────────────────────────────────────────── */
 
 .sidebar-brand {
-    padding: 1.25rem 1.25rem 0.5rem;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 0.5rem;
+  padding: 22px 20px 18px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--color-border-soft);
+  flex-shrink: 0;
+}
+
+/* Green "Z" brand mark via pseudo-element */
+.sidebar-brand::before {
+  content: 'Z';
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, var(--color-accent-hover), var(--color-accent));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 17px;
+  color: white;
+  font-style: italic;
+  flex-shrink: 0;
 }
 
 .sidebar-brand-text {
-    display: flex;
-    flex-direction: column;
-    gap: 0.125rem;
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
 }
 
 .sidebar-brand-name {
-    font-family: var(--font-display, "Noto Serif", serif);
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    letter-spacing: -0.01em;
-    line-height: 1.2;
-    white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  color: var(--color-foreground);
+  white-space: nowrap;
 }
 
 .sidebar-brand-sub {
-    font-size: 0.625rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: var(--color-text-secondary);
-    opacity: 0.6;
-    white-space: nowrap;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-subtle-foreground);
+  font-weight: 500;
+  white-space: nowrap;
 }
 
-/* ── Collapse toggle button (desktop only) ───────────────────────────────── */
-
+/* ── Collapse toggle ── */
 .sidebar-collapse-btn {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: var(--radius-md);
-    border: none;
-    background: transparent;
-    color: var(--color-text-secondary);
-    cursor: pointer;
-    transition:
-        background-color var(--transition-fast),
-        color var(--transition-fast);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-subtle-foreground);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
-
 .sidebar-collapse-btn:hover {
-    background-color: var(--color-surface-tonal);
-    color: var(--color-text-primary);
+  background-color: var(--color-surface-raised);
+  color: var(--color-foreground);
+  border-color: var(--color-border-soft);
 }
 
-/* ── Navbar override (vertical layout) ───────────────────────────────────── */
+/* ── Nav groups wrapper ── */
+.sidebar-nav-groups {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
 
+.sidebar-nav-group {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Section title labels */
+.sidebar-nav-section {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-faint-foreground);
+  padding: 12px 14px 4px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* ── Nav override (vertical sidebar layout) ── */
 .sidebar .sidebar-nav,
 .sidebar .navbar.sidebar-nav {
-    flex-direction: column;
-    background-color: transparent;
-    border-radius: 0;
-    padding: 0.625rem 0.5rem;
-    gap: 2px;
-    width: 100%;
-    box-sizing: border-box;
+  flex-direction: column;
+  background-color: transparent;
+  border-radius: 0;
+  padding: 2px 8px;
+  gap: 1px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-y: unset;
 }
 
 .sidebar .sidebar-nav [role="menuitem"] {
-    padding: 0.5rem 0.75rem;
-    border-radius: var(--radius-md);
-    color: var(--color-text-secondary);
-    font-size: 0.875rem;
-    font-weight: 500;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 0.625rem;
-    white-space: nowrap;
-    transition:
-        background-color var(--transition-fast),
-        color var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 12px;
+  margin: 1px 4px;
+  border-radius: 7px;
+  color: var(--color-muted-foreground);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  width: calc(100% - 8px);
+  text-align: left;
+  text-decoration: none;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+  position: relative;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
-
 .sidebar .sidebar-nav [role="menuitem"]:hover:not([data-disabled="true"]),
 .sidebar .sidebar-nav [role="menuitem"]:focus-visible {
-    background-color: var(--color-surface-tonal);
-    color: var(--color-text-primary);
-    outline: none;
+  background-color: var(--color-surface-raised);
+  color: var(--color-foreground);
+  outline: none;
 }
 
+/* Active item — accent tint + left indicator bar */
 .sidebar .sidebar-nav [role="menuitem"][aria-current="page"] {
-    background-color: var(--color-surface-raised);
-    color: var(--color-workspace-accent);
-    font-weight: 600;
-    box-shadow: inset -3px 0 0 var(--color-workspace-accent);
-    border-radius: var(--radius-md) 0 0 var(--radius-md);
-    margin-right: 0;
+  background-color: var(--color-accent-tint);
+  color: var(--color-accent-hover);
+  font-weight: 600;
+  box-shadow: none;
+  border-radius: 7px;
+  margin-right: 4px;
+  border-left: 2px solid var(--color-accent);
+  padding-left: calc(12px - 2px);
 }
-
 .sidebar .sidebar-nav [role="menuitem"][aria-current="page"]:hover {
-    background-color: var(--color-surface-raised);
+  background-color: var(--color-accent-tint);
 }
 
-/* ── Timer widget ─────────────────────────────────────────────────────────── */
+/* SVG icons inside nav items */
+.sidebar .sidebar-nav [role="menuitem"] svg {
+  width: 16px;
+  height: 16px;
+  color: var(--color-subtle-foreground);
+  flex-shrink: 0;
+}
+.sidebar .sidebar-nav [role="menuitem"][aria-current="page"] svg {
+  color: var(--color-accent-hover);
+}
 
+/* ── Sidebar bottom area (timer + footer) ── */
 .sidebar-timer {
-    padding: 0.625rem 0.5rem;
-    border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-border-soft);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
-.sidebar-timer > .button {
-    width: 100%;
-    justify-content: center;
-    font-size: 0.875rem;
-    border-radius: var(--radius-pill);
-}
-
+/* Running timer card */
 .sidebar-timer-running {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background-color: var(--color-surface-raised);
-    border-radius: var(--radius-pill);
-    padding: 0.375rem 0.5rem 0.375rem 0.75rem;
-    gap: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 11px;
+  border-radius: var(--radius-md);
+  background: var(--color-accent-tint);
+  border: 1px solid var(--color-accent-tint-strong);
+  cursor: pointer;
 }
 
 .sidebar-timer-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.125rem;
-    min-width: 0;
-    flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
 }
 
 .sidebar-timer-indicator {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    min-width: 0;
-}
-
-.sidebar-timer-elapsed {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--color-workspace-accent);
-    font-variant-numeric: tabular-nums;
-    padding-left: calc(7px + 0.5rem);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .sidebar-timer-dot {
-    flex-shrink: 0;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background-color: var(--color-workspace-accent);
-    animation: timer-pulse 1.6s ease-in-out infinite;
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-accent-hover);
+  position: relative;
+  animation: sidebar-timer-pulse 1.8s ease-out infinite;
+}
+.sidebar-timer-dot::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: var(--color-accent-hover);
+  opacity: 0.4;
+  animation: sidebar-timer-pulse 1.8s ease-out infinite;
 }
 
-@keyframes timer-pulse {
-    0%,
-    100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.35;
-    }
+@keyframes sidebar-timer-pulse {
+  0%   { transform: scale(1); opacity: 0.4; }
+  100% { transform: scale(2.2); opacity: 0; }
 }
 
 .sidebar-timer-label {
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: var(--color-text-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+.sidebar-timer-elapsed {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--color-accent-hover);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Stop button inside running timer */
 .sidebar-timer-running .button {
-    flex-shrink: 0;
-    font-size: 0.75rem;
-    padding: 0.25rem 0.5rem;
+  flex-shrink: 0;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid var(--color-accent-tint-strong);
+  color: var(--color-accent-hover);
+}
+.sidebar-timer-running .button:hover {
+  background: var(--color-accent-tint-strong);
 }
 
-/* ── Footer ───────────────────────────────────────────────────────────────── */
+/* Start timer button — full-width green pill */
+.sidebar-timer > .button {
+  width: 100%;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: white;
+  border-color: transparent;
+  padding: 10px 14px;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 1px 2px rgba(0,0,0,0.3);
+}
+.sidebar-timer > .button:hover {
+  background: var(--color-accent-hover);
+}
 
+/* ── User strip ── */
+.sidebar-user-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--color-border-soft);
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.sidebar-user-avatar {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 50%;
+  background: var(--color-accent-tint-strong);
+  color: var(--color-accent-hover);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sidebar-user-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.sidebar-user-email {
+  font-size: 12px;
+  color: var(--color-subtle-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Footer (logout) ── */
 .sidebar-footer {
-    padding: 0.625rem 0.5rem;
-    border-top: 1px solid var(--color-border);
+  padding: 8px 10px;
+  border-top: 1px solid var(--color-border-soft);
+  flex-shrink: 0;
 }
 
 .sidebar-footer .button {
-    width: 100%;
-    justify-content: flex-start;
-    font-size: 0.875rem;
+  width: 100%;
+  justify-content: flex-start;
+  font-size: 12.5px;
+  color: var(--color-subtle-foreground);
+  padding: 8px 10px;
+}
+.sidebar-footer .button:hover {
+  color: var(--color-foreground);
+  background-color: var(--color-surface-raised);
 }
 
-/* ── Collapsed state (desktop icon-only) ─────────────────────────────────── */
-
+/* ── Collapsed state (icon-only desktop) ── */
 .sidebar--collapsed {
-    width: 60px;
+  width: 64px;
+}
+
+.sidebar--collapsed .sidebar-brand::before {
+  margin: 0 auto;
 }
 
 .sidebar--collapsed .sidebar-brand-text {
-    display: none;
+  display: none;
 }
 
 .sidebar--collapsed .sidebar-brand {
-    padding: 0.75rem 0;
-    justify-content: center;
-}
-
-.sidebar--collapsed .sidebar-collapse-btn {
-    margin: 0 auto;
+  padding: 12px 0;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .sidebar--collapsed .sidebar-label {
-    display: none;
+  display: none;
 }
 
 .sidebar--collapsed .sidebar-timer {
-    display: none;
+  display: none;
 }
 
 .sidebar--collapsed .sidebar .sidebar-nav,
 .sidebar--collapsed .sidebar-nav,
 .sidebar--collapsed .navbar.sidebar-nav {
-    padding: 0.625rem 0.375rem;
+  padding: 8px 6px;
 }
 
 .sidebar--collapsed .sidebar-nav [role="menuitem"] {
-    justify-content: center;
-    padding: 0.5rem;
-    gap: 0;
+  justify-content: center;
+  padding: 10px 0;
+  margin: 1px auto;
+  width: calc(100% - 4px);
+  border-left: none;
+}
+
+.sidebar--collapsed .sidebar-nav [role="menuitem"][aria-current="page"] {
+  border-left: none;
+  padding-left: 0;
 }
 
 .sidebar--collapsed .sidebar-footer .button {
-    justify-content: center;
-    padding: 0.5rem;
+  justify-content: center;
+  padding: 8px;
 }
 
-/* ── Mobile backdrop ──────────────────────────────────────────────────────── */
+.sidebar--collapsed .sidebar-user-strip {
+  display: none;
+}
 
+.sidebar--collapsed .sidebar-nav-section {
+  display: none;
+}
+
+.sidebar--collapsed .sidebar-nav-group {
+  padding-top: 4px;
+}
+
+/* ── Mobile backdrop ── */
 .sidebar-backdrop {
-    display: none;
+  display: none;
 }
 
-/* ── Mobile responsive ────────────────────────────────────────────────────── */
-
+/* ── Mobile responsive ── */
 @media (max-width: 767px) {
-    .sidebar {
-        position: fixed;
-        z-index: 50;
-        top: 0;
-        left: 0;
-        bottom: 0;
-        height: 100dvh;
-        width: 240px !important;
-        transform: translateX(-100%);
-        /* width transition has no meaning on mobile — skip it */
-        transition: transform 0.25s ease;
-        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
-    }
+  .sidebar {
+    position: fixed;
+    z-index: 50;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100dvh;
+    width: var(--width-sidebar) !important;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+  }
 
-    .sidebar--open {
-        transform: translateX(0);
-    }
+  .sidebar--open {
+    transform: translateX(0);
+  }
 
-    /* Hide the desktop collapse toggle on mobile */
-    .sidebar-collapse-btn {
-        display: none;
-    }
+  .sidebar-collapse-btn {
+    display: none;
+  }
 
-    /* Always show labels on mobile (overrides collapsed class) */
-    .sidebar--open .sidebar-label,
-    .sidebar--open .sidebar-brand-text,
-    .sidebar--open .sidebar-timer {
-        display: revert;
-    }
+  .sidebar--open .sidebar-label,
+  .sidebar--open .sidebar-brand-text,
+  .sidebar--open .sidebar-timer {
+    display: revert;
+  }
 
-    .sidebar-backdrop {
-        display: block;
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.4);
-        z-index: 40;
-        cursor: pointer;
-    }
-
-    .sidebar {
-        z-index: 50;
-    }
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 40;
+    cursor: pointer;
+  }
 }

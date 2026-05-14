@@ -1,6 +1,6 @@
 use crate::components::atoms::card::{Card, CardContent, CardFooter, CardHeader, CardTitle};
 use crate::components::atoms::{
-    Button, Input, SearchableSelect, Select, SelectOption, ToastExt, Toasts,
+    Button, ButtonVariant, Input, SearchableSelect, Select, SelectOption, ToastExt, Toasts,
 };
 use crate::layouts::DefaultLayout;
 use api::invitation::InvitationDto;
@@ -8,7 +8,7 @@ use api::workspace_role::WorkspaceRoleDto;
 use chrono::NaiveDate;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{
-    HiOfficeBuilding, HiSave, HiTrash, HiUser, HiUsers,
+    HiBell, HiDownload, HiOfficeBuilding, HiSave, HiShieldCheck, HiTag, HiTrash, HiUser, HiUsers,
 };
 use dioxus_free_icons::Icon;
 use dioxus_i18n::{prelude::i18n, tid};
@@ -26,7 +26,6 @@ pub fn timezone_options() -> Vec<SelectOption<String>> {
 }
 
 /// Common date formats expressed as chrono format strings.
-/// The label shows what a sample date (2026-04-10) looks like in each format.
 fn date_format_options() -> Vec<SelectOption<String>> {
     let sample = NaiveDate::from_ymd_opt(2026, 4, 10).expect("valid date");
     [
@@ -51,24 +50,6 @@ fn language_options() -> Vec<SelectOption<String>> {
         .collect()
 }
 
-/// ISO 4217 currency codes with names.
-pub fn currency_options() -> Vec<SelectOption<String>> {
-    [
-        ("AUD", "AUD — Australian Dollar"),
-        ("CAD", "CAD — Canadian Dollar"),
-        ("CHF", "CHF — Swiss Franc"),
-        ("EUR", "EUR — Euro"),
-        ("GBP", "GBP — British Pound"),
-        ("JPY", "JPY — Japanese Yen"),
-        ("NOK", "NOK — Norwegian Krone"),
-        ("SEK", "SEK — Swedish Krona"),
-        ("USD", "USD — US Dollar"),
-    ]
-    .into_iter()
-    .map(|(val, label)| SelectOption::new(val.to_string(), label))
-    .collect()
-}
-
 fn week_start_options() -> Vec<SelectOption<String>> {
     [
         ("monday", "Monday"),
@@ -80,7 +61,33 @@ fn week_start_options() -> Vec<SelectOption<String>> {
     .collect()
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+fn ttl_options() -> Vec<SelectOption<u32>> {
+    [(7u32, "7 days"), (14, "14 days"), (30, "30 days")]
+        .into_iter()
+        .map(|(val, label)| SelectOption::new(val, label))
+        .collect()
+}
+
+/// Extract up-to-two uppercase initials from an email address.
+fn email_initials(email: &str) -> String {
+    let local = email.split('@').next().unwrap_or(email);
+    let parts: Vec<&str> = local.split(['.', '_', '-']).collect();
+    match parts.as_slice() {
+        [a, b, ..] => {
+            let a = a.chars().next().unwrap_or('?').to_uppercase().to_string();
+            let b = b.chars().next().unwrap_or('?').to_uppercase().to_string();
+            format!("{a}{b}")
+        }
+        [a] => a
+            .chars()
+            .next()
+            .map(|c| c.to_uppercase().to_string())
+            .unwrap_or_else(|| "?".to_string()),
+        [] => "?".to_string(),
+    }
+}
+
+// ── Tab ───────────────────────────────────────────────────────────────────────
 
 #[derive(Clone, PartialEq)]
 enum Tab {
@@ -89,12 +96,9 @@ enum Tab {
     Members,
 }
 
-fn ttl_options() -> Vec<SelectOption<u32>> {
-    [(7u32, "7 days"), (14, "14 days"), (30, "30 days")]
-        .into_iter()
-        .map(|(val, label)| SelectOption::new(val, label))
-        .collect()
-}
+// ── Component ─────────────────────────────────────────────────────────────────
+
+type AuthState = Signal<Option<Option<api::auth::UserInfo>>>;
 
 #[component]
 pub fn Settings() -> Element {
@@ -102,11 +106,19 @@ pub fn Settings() -> Element {
     let mut active_tab = use_signal(|| Tab::User);
     let mut i18n = i18n();
 
+    let auth: AuthState = use_context();
+    let user_email = auth
+        .cloned()
+        .flatten()
+        .map(|u| u.email)
+        .unwrap_or_default();
+    let initials = email_initials(&user_email);
+
     // Global context — read first so we can seed local signals.
     let mut global_user_settings: crate::UserSettings = use_context();
     let mut global_workspace_settings: crate::WorkspaceSettings = use_context();
 
-    // ── User settings state (seeded from global context) ──────────────────────
+    // ── User settings state ───────────────────────────────────────────────────
     let mut user_timezone = {
         let v = global_user_settings.peek().timezone.clone();
         use_signal(move || v)
@@ -122,7 +134,12 @@ pub fn Settings() -> Element {
     let mut user_saving = use_signal(|| false);
     let mut user_loaded = use_signal(|| false);
 
-    // ── Workspace settings state (seeded from global context) ─────────────────
+    // Notification toggles (local only, no backend yet)
+    let mut notif_daily = use_signal(|| true);
+    let mut notif_idle = use_signal(|| true);
+    let mut notif_weekly = use_signal(|| false);
+
+    // ── Workspace settings state ──────────────────────────────────────────────
     let mut ws_name = {
         let v = global_workspace_settings
             .peek()
@@ -150,7 +167,7 @@ pub fn Settings() -> Element {
     let mut ws_saving = use_signal(|| false);
     let mut ws_loaded = use_signal(|| false);
 
-    // ── Members state ─────────────────────────────────────────────────────
+    // ── Members state ─────────────────────────────────────────────────────────
     let mut roles = use_signal(Vec::<WorkspaceRoleDto>::new);
     let mut workspace_invitations = use_signal(Vec::<InvitationDto>::new);
     let mut invite_email = use_signal(String::new);
@@ -158,7 +175,7 @@ pub fn Settings() -> Element {
     let mut invite_ttl = use_signal(|| 7u32);
     let mut invite_sending = use_signal(|| false);
 
-    // Load both on mount — overwrites the context-seeded values with fresh data.
+    // Load settings on mount — overwrites context-seeded values with fresh data.
     use_resource(move || async move {
         match api::settings::get_user_settings().await {
             Ok(dto) => {
@@ -214,7 +231,6 @@ pub fn Settings() -> Element {
         .await
         {
             Ok(()) => {
-                // Push to global context so other views update immediately.
                 global_user_settings.write().timezone = timezone;
                 global_user_settings.write().date_format = date_format;
                 let lang_id = match language.as_str() {
@@ -253,15 +269,12 @@ pub fn Settings() -> Element {
         .await
         {
             Ok(()) => {
-                // Push to global context so other views update immediately.
-                {
-                    let mut ws = global_workspace_settings.write();
-                    ws.name = name;
-                    ws.timezone = timezone;
-                    ws.date_format = date_format;
-                    ws.currency = currency;
-                    ws.week_start = week_start;
-                }
+                let mut ws = global_workspace_settings.write();
+                ws.name = name;
+                ws.timezone = timezone;
+                ws.date_format = date_format;
+                ws.currency = currency;
+                ws.week_start = week_start;
                 toasts.push_success("Workspace settings saved");
             }
             Err(e) => toasts.push_error(e.to_string()),
@@ -270,6 +283,8 @@ pub fn Settings() -> Element {
     };
 
     rsx! {
+        document::Link { rel: "stylesheet", href: asset!("./style.css") }
+
         DefaultLayout {
             div { class: "space-y-6",
 
@@ -295,60 +310,308 @@ pub fn Settings() -> Element {
                     }
                 }
 
-                // ── User settings ─────────────────────────────────────────────
+                // ── My Settings tab ───────────────────────────────────────────
                 if *active_tab.read() == Tab::User {
-                    Card { data_size: "md",
-                        CardHeader {
-                            CardTitle {
-                                div { class: "flex items-center gap-2",
-                                    Icon { icon: HiUser, width: 18, height: 18 }
-                                    {tid!("settings-my-settings-title")}
+                    div { class: "settings-grid",
+
+                        // Profile card
+                        Card { data_size: "md",
+                            CardHeader {
+                                CardTitle {
+                                    div { class: "flex items-center gap-2",
+                                        Icon { icon: HiUser, width: 16, height: 16 }
+                                        {tid!("settings-profile-title")}
+                                    }
                                 }
                             }
-                        }
-                        CardContent {
-                            div { class: "space-y-4",
-                                div { class: "form-field",
-                                    label { class: "form-label", {tid!("common-timezone")} }
-                                    SearchableSelect::<String> {
-                                        options: timezone_options(),
-                                        value: Some(user_timezone.read().clone()),
-                                        on_change: move |v| user_timezone.set(v),
-                                        placeholder: tid!("common-select-timezone"),
+                            CardContent {
+                                div { class: "settings-profile-row",
+                                    div { class: "settings-avatar", "{initials}" }
+                                    div { class: "flex flex-col gap-1",
+                                        span { class: "text-sm font-medium", "{user_email}" }
+                                        span { class: "text-xs text-secondary", "Member" }
                                     }
                                 }
-                                div { class: "form-field",
-                                    label { class: "form-label", {tid!("common-date-format")} }
-                                    Select::<String> {
-                                        options: date_format_options(),
-                                        value: Some(user_date_format.read().clone()),
-                                        on_change: move |v| user_date_format.set(v),
-                                        placeholder: tid!("common-select-format"),
-                                    }
-                                }
-                                div { class: "form-field",
-                                    label { class: "form-label", {tid!("common-language")} }
-                                    Select::<String> {
-                                        options: language_options(),
-                                        value: Some(user_language.read().clone()),
-                                        on_change: move |v| user_language.set(v),
-                                        placeholder: tid!("common-select-language"),
+                                div { class: "space-y-4",
+                                    div { class: "form-field",
+                                        label { class: "form-label", {tid!("common-email")} }
+                                        Input {
+                                            value: user_email.clone(),
+                                            disabled: true,
+                                        }
                                     }
                                 }
                             }
                         }
-                        CardFooter {
+
+                        // Localization card
+                        Card { data_size: "md",
+                            CardHeader {
+                                CardTitle {
+                                    div { class: "flex items-center gap-2",
+                                        Icon { icon: HiTag, width: 16, height: 16 }
+                                        {tid!("settings-localization-title")}
+                                    }
+                                }
+                            }
+                            CardContent {
+                                div { class: "space-y-4",
+                                    div { class: "form-field",
+                                        label { class: "form-label", {tid!("common-timezone")} }
+                                        SearchableSelect::<String> {
+                                            options: timezone_options(),
+                                            value: Some(user_timezone.read().clone()),
+                                            on_change: move |v| user_timezone.set(v),
+                                            placeholder: tid!("common-select-timezone"),
+                                        }
+                                    }
+                                    div { class: "form-field",
+                                        label { class: "form-label", {tid!("common-date-format")} }
+                                        Select::<String> {
+                                            options: date_format_options(),
+                                            value: Some(user_date_format.read().clone()),
+                                            on_change: move |v| user_date_format.set(v),
+                                            placeholder: tid!("common-select-format"),
+                                        }
+                                    }
+                                    div { class: "form-field",
+                                        label { class: "form-label", {tid!("common-language")} }
+                                        Select::<String> {
+                                            options: language_options(),
+                                            value: Some(user_language.read().clone()),
+                                            on_change: move |v| user_language.set(v),
+                                            placeholder: tid!("common-select-language"),
+                                        }
+                                    }
+                                }
+                            }
+                            CardFooter {
+                                Button {
+                                    onclick: on_save_user,
+                                    disabled: *user_saving.read(),
+                                    Icon { icon: HiSave, width: 16, height: 16 }
+                                    if *user_saving.read() { {tid!("common-saving")} } else { {tid!("common-save-settings")} }
+                                }
+                            }
+                        }
+
+                        // Notifications card — not yet implemented
+                        div { class: "settings-card-disabled",
+                        Card { data_size: "md",
+                            CardHeader {
+                                CardTitle {
+                                    div { class: "flex items-center gap-2",
+                                        Icon { icon: HiBell, width: 16, height: 16 }
+                                        {tid!("settings-notifications-title")}
+                                        span { class: "settings-coming-soon-badge", "Coming soon" }
+                                    }
+                                }
+                            }
+                            CardContent {
+                                div { class: "settings-notif-rows",
+                                    div { class: "settings-row-spaced",
+                                        div { class: "settings-row-label",
+                                            span { class: "settings-row-label-title", {tid!("settings-notifications-daily-digest")} }
+                                            span { class: "settings-row-label-desc", {tid!("settings-notifications-daily-digest-desc")} }
+                                        }
+                                        button {
+                                            class: if *notif_daily.read() { "settings-status-pill settings-status-pill--on" } else { "settings-status-pill" },
+                                            onclick: move |_| { let v = *notif_daily.read(); notif_daily.set(!v); },
+                                            span { class: "settings-status-pill-dot" }
+                                            if *notif_daily.read() { "On" } else { "Off" }
+                                        }
+                                    }
+                                    div { class: "settings-row-spaced",
+                                        div { class: "settings-row-label",
+                                            span { class: "settings-row-label-title", {tid!("settings-notifications-idle-reminder")} }
+                                            span { class: "settings-row-label-desc", {tid!("settings-notifications-idle-reminder-desc")} }
+                                        }
+                                        button {
+                                            class: if *notif_idle.read() { "settings-status-pill settings-status-pill--on" } else { "settings-status-pill" },
+                                            onclick: move |_| { let v = *notif_idle.read(); notif_idle.set(!v); },
+                                            span { class: "settings-status-pill-dot" }
+                                            if *notif_idle.read() { "On" } else { "Off" }
+                                        }
+                                    }
+                                    div { class: "settings-row-spaced",
+                                        div { class: "settings-row-label",
+                                            span { class: "settings-row-label-title", {tid!("settings-notifications-weekly-review")} }
+                                            span { class: "settings-row-label-desc", {tid!("settings-notifications-weekly-review-desc")} }
+                                        }
+                                        button {
+                                            class: if *notif_weekly.read() { "settings-status-pill settings-status-pill--on" } else { "settings-status-pill" },
+                                            onclick: move |_| { let v = *notif_weekly.read(); notif_weekly.set(!v); },
+                                            span { class: "settings-status-pill-dot" }
+                                            if *notif_weekly.read() { "On" } else { "Off" }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        } // end settings-card-disabled (Notifications)
+
+                        // Security card — not yet implemented
+                        div { class: "settings-card-disabled",
+                        Card { data_size: "md",
+                            CardHeader {
+                                CardTitle {
+                                    div { class: "flex items-center gap-2",
+                                        Icon { icon: HiShieldCheck, width: 16, height: 16 }
+                                        {tid!("settings-security-title")}
+                                        span { class: "settings-coming-soon-badge", "Coming soon" }
+                                    }
+                                }
+                            }
+                            CardContent {
+                                div { class: "settings-notif-rows",
+                                    div { class: "settings-row-spaced",
+                                        div { class: "settings-row-label",
+                                            span { class: "settings-row-label-title", {tid!("settings-security-password")} }
+                                            span { class: "settings-row-label-desc", {tid!("settings-security-password-desc")} }
+                                        }
+                                        Button {
+                                            variant: ButtonVariant::Outline,
+                                            {tid!("settings-security-password-change")}
+                                        }
+                                    }
+                                    div { class: "settings-row-spaced",
+                                        div { class: "settings-row-label",
+                                            span { class: "settings-row-label-title", {tid!("settings-security-2fa")} }
+                                            span { class: "settings-row-label-desc", {tid!("settings-security-2fa-desc")} }
+                                        }
+                                        span { class: "settings-status-pill",
+                                            span { class: "settings-status-pill-dot" }
+                                            "Off"
+                                        }
+                                    }
+                                    div { class: "settings-row-spaced",
+                                        div { class: "settings-row-label",
+                                            span { class: "settings-row-label-title", {tid!("settings-security-sessions")} }
+                                            span { class: "settings-row-label-desc", {tid!("settings-security-sessions-desc")} }
+                                        }
+                                        Button {
+                                            variant: ButtonVariant::Outline,
+                                            {tid!("settings-security-sessions-manage")}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        } // end settings-card-disabled (Security)
+                    }
+                }
+
+                // ── Workspace tab ─────────────────────────────────────────────
+                if *active_tab.read() == Tab::Workspace {
+                    div { class: "settings-grid",
+
+                        // Workspace card
+                        Card { data_size: "md",
+                            CardHeader {
+                                CardTitle {
+                                    div { class: "flex items-center gap-2",
+                                        Icon { icon: HiOfficeBuilding, width: 16, height: 16 }
+                                        {tid!("settings-workspace-title")}
+                                    }
+                                }
+                            }
+                            CardContent {
+                                div { class: "space-y-4",
+                                    div { class: "form-field",
+                                        label { class: "form-label", {tid!("common-workspace-name")} }
+                                        Input {
+                                            placeholder: tid!("settings-workspace-name-placeholder"),
+                                            value: ws_name.read().clone(),
+                                            oninput: move |e: FormEvent| ws_name.set(e.value()),
+                                        }
+                                    }
+                                    div { class: "form-field",
+                                        label { class: "form-label", {tid!("common-timezone")} }
+                                        SearchableSelect::<String> {
+                                            options: timezone_options(),
+                                            value: Some(ws_timezone.read().clone()),
+                                            on_change: move |v| ws_timezone.set(v),
+                                            placeholder: tid!("common-select-timezone"),
+                                        }
+                                    }
+                                    div { class: "form-field",
+                                        label { class: "form-label", {tid!("common-date-format")} }
+                                        Select::<String> {
+                                            options: date_format_options(),
+                                            value: Some(ws_date_format.read().clone()),
+                                            on_change: move |v| ws_date_format.set(v),
+                                            placeholder: tid!("common-select-format"),
+                                        }
+                                    }
+                                    div { class: "form-field",
+                                        label { class: "form-label", {tid!("settings-week-starts-label")} }
+                                        Select::<String> {
+                                            options: week_start_options(),
+                                            value: Some(ws_week_start.read().clone()),
+                                            on_change: move |v| ws_week_start.set(v),
+                                            placeholder: tid!("settings-week-starts-placeholder"),
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Danger zone card — full width, not yet implemented
+                        div { class: "settings-grid-full settings-card-disabled",
+                            Card {
+                                data_size: "md",
+                                class: "settings-danger-card",
+                                CardHeader {
+                                    CardTitle {
+                                        div { class: "flex items-center gap-2 settings-danger-title",
+                                            Icon { icon: HiTrash, width: 16, height: 16 }
+                                            {tid!("settings-danger-zone-title")}
+                                            span { class: "settings-coming-soon-badge", "Coming soon" }
+                                        }
+                                    }
+                                }
+                                CardContent {
+                                    div { class: "settings-notif-rows",
+                                        div { class: "settings-row-spaced",
+                                            div { class: "settings-row-label",
+                                                span { class: "settings-row-label-title", {tid!("settings-danger-export")} }
+                                                span { class: "settings-row-label-desc", {tid!("settings-danger-export-desc")} }
+                                            }
+                                            Button {
+                                                variant: ButtonVariant::Outline,
+                                                Icon { icon: HiDownload, width: 14, height: 14 }
+                                                {tid!("settings-danger-export-btn")}
+                                            }
+                                        }
+                                        div { class: "settings-row-spaced",
+                                            div { class: "settings-row-label",
+                                                span { class: "settings-row-label-title settings-danger-title", {tid!("settings-danger-delete-workspace")} }
+                                                span { class: "settings-row-label-desc", {tid!("settings-danger-delete-workspace-desc")} }
+                                            }
+                                            Button {
+                                                variant: ButtonVariant::Destructive,
+                                                Icon { icon: HiTrash, width: 14, height: 14 }
+                                                {tid!("settings-danger-delete-workspace-btn")}
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Save button — full width
+                        div { class: "settings-grid-full",
                             Button {
-                                onclick: on_save_user,
-                                disabled: *user_saving.read(),
+                                onclick: on_save_workspace,
+                                disabled: *ws_saving.read(),
                                 Icon { icon: HiSave, width: 16, height: 16 }
-                                if *user_saving.read() { {tid!("common-saving")} } else { {tid!("common-save-settings")} }
+                                if *ws_saving.read() { {tid!("common-saving")} } else { {tid!("common-save-settings")} }
                             }
                         }
                     }
                 }
 
-                // ── Members ───────────────────────────────────────────────────
+                // ── Members tab ───────────────────────────────────────────────
                 if *active_tab.read() == Tab::Members {
                     // Invite member card
                     Card { data_size: "md",
@@ -458,7 +721,7 @@ pub fn Settings() -> Element {
                                                             }
                                                             button {
                                                                 class: "flex items-center gap-1 px-2 py-1 text-xs rounded border border-border text-secondary hover:text-error hover:border-error transition-colors cursor-pointer bg-transparent",
-                                                                title: "Revoke invitation", // tooltip only, not translated
+                                                                title: "Revoke invitation",
                                                                 onclick: move |_| {
                                                                     let t = token.clone();
                                                                     let tr = token_retain.clone();
@@ -482,76 +745,6 @@ pub fn Settings() -> Element {
                                         }
                                     }
                                 }
-                            }
-                        }
-                    }
-                }
-
-                // ── Workspace settings ────────────────────────────────────────
-                if *active_tab.read() == Tab::Workspace {
-                    Card { data_size: "md",
-                        CardHeader {
-                            CardTitle {
-                                div { class: "flex items-center gap-2",
-                                    Icon { icon: HiOfficeBuilding, width: 18, height: 18 }
-                                    {tid!("settings-workspace-title")}
-                                }
-                            }
-                        }
-                        CardContent {
-                            div { class: "space-y-4",
-                                div { class: "form-field",
-                                    label { class: "form-label", {tid!("common-workspace-name")} }
-                                    Input {
-                                        placeholder: tid!("settings-workspace-name-placeholder"),
-                                        value: ws_name.read().clone(),
-                                        oninput: move |e: FormEvent| ws_name.set(e.value()),
-                                    }
-                                }
-                                div { class: "form-field",
-                                    label { class: "form-label", {tid!("common-timezone")} }
-                                    SearchableSelect::<String> {
-                                        options: timezone_options(),
-                                        value: Some(ws_timezone.read().clone()),
-                                        on_change: move |v| ws_timezone.set(v),
-                                        placeholder: tid!("common-select-timezone"),
-                                    }
-                                }
-                                div { class: "form-field",
-                                    label { class: "form-label", {tid!("common-date-format")} }
-                                    Select::<String> {
-                                        options: date_format_options(),
-                                        value: Some(ws_date_format.read().clone()),
-                                        on_change: move |v| ws_date_format.set(v),
-                                        placeholder: tid!("common-select-format"),
-                                    }
-                                }
-                                div { class: "form-field",
-                                    label { class: "form-label", {tid!("settings-currency-label")} }
-                                    Select::<String> {
-                                        options: currency_options(),
-                                        value: Some(ws_currency.read().clone()),
-                                        on_change: move |v| ws_currency.set(v),
-                                        placeholder: tid!("settings-currency-placeholder"),
-                                    }
-                                }
-                                div { class: "form-field",
-                                    label { class: "form-label", {tid!("settings-week-starts-label")} }
-                                    Select::<String> {
-                                        options: week_start_options(),
-                                        value: Some(ws_week_start.read().clone()),
-                                        on_change: move |v| ws_week_start.set(v),
-                                        placeholder: tid!("settings-week-starts-placeholder"),
-                                    }
-                                }
-                            }
-                        }
-                        CardFooter {
-                            Button {
-                                onclick: on_save_workspace,
-                                disabled: *ws_saving.read(),
-                                Icon { icon: HiSave, width: 16, height: 16 }
-                                if *ws_saving.read() { {tid!("common-saving")} } else { {tid!("common-save-settings")} }
                             }
                         }
                     }

@@ -1,7 +1,4 @@
-use crate::components::atoms::{
-    Button, Card, CardContent, CardFooter, Form, FormField, Input, Label,
-};
-use crate::layouts::DefaultLayout;
+use crate::components::atoms::{Button, Form, FormField, Input, Label};
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{HiLogin, HiRefresh};
 use dioxus_free_icons::Icon;
@@ -18,7 +15,7 @@ pub fn Login() -> Element {
 
     let navigator = use_navigator();
     let mut auth: AuthState = use_context();
-    let invite_only = use_resource(|| api::registration::is_invite_only());
+    let invite_only = use_resource(api::registration::is_invite_only);
 
     let on_submit = move |_| {
         let email = email.read().clone();
@@ -30,8 +27,6 @@ pub fn Login() -> Element {
 
             match api::login::login(email, password).await {
                 Ok(()) => {
-                    // Fetch fresh user info and push it into the global auth signal
-                    // so the navbar updates immediately without waiting for a re-mount.
                     if let Ok(user) = api::auth::get_current_user().await {
                         auth.set(Some(user));
                     }
@@ -46,56 +41,83 @@ pub fn Login() -> Element {
     };
 
     rsx! {
-        DefaultLayout {
-            Card {
-                class: "w-full",
-                data_size: "md",
-                CardContent {
+        document::Link { rel: "stylesheet", href: asset!("./style.css") }
+
+        div { class: "auth-screen",
+            div { class: "auth-form-wrap",
+                div { class: "auth-form",
+                    // Brand
+                    div { class: "auth-brand",
+                        div { class: "auth-brand-mark", "Z" }
+                        div { class: "auth-brand-text",
+                            span { class: "auth-brand-name", "Zeitrak" }
+                            span { class: "auth-brand-sub", {tid!("sidebar-brand-sub")} }
+                        }
+                    }
+
+                    // Heading
+                    h1 { class: "auth-heading", {tid!("login-heading")} }
+                    p { class: "auth-subheading", {tid!("login-subheading")} }
+
+                    // Form
                     Form {
                         FormField {
-                            Label { html_for: "email", class: "w-full", {tid!("common-email")} }
+                            Label { html_for: "email", {tid!("common-email")} }
                             Input {
                                 id: "email",
                                 r#type: "email",
-                                class: "w-full",
+                                placeholder: tid!("login-email-placeholder"),
                                 oninput: move |e: FormEvent| email.set(e.value()),
                             }
                         }
                         FormField {
-                            Label { html_for: "password", class: "w-full", {tid!("common-password")} }
+                            Label { html_for: "password", {tid!("common-password")} }
                             Input {
                                 id: "password",
                                 r#type: "password",
-                                class: "w-full",
+                                placeholder: "••••••••",
                                 oninput: move |e: FormEvent| password.set(e.value()),
                             }
                         }
                         if let Some(msg) = error.read().as_deref() {
-                            p { class: "text-red-500 text-sm mt-2", "{msg}" }
+                            p { class: "auth-error", "{msg}" }
+                        }
+                        Button {
+                            class: "auth-submit-btn",
+                            r#type: "submit",
+                            disabled: *submitting.read(),
+                            onclick: on_submit,
+                            if *submitting.read() {
+                                Icon { icon: HiRefresh, width: 15, height: 15 }
+                                {tid!("login-signing-in")}
+                            } else {
+                                Icon { icon: HiLogin, width: 15, height: 15 }
+                                {tid!("common-sign-in")}
+                            }
+                        }
+                    }
+
+                    // Footer
+                    if matches!(invite_only.value().cloned(), Some(Ok(false))) {
+                        div { class: "auth-footer",
+                            span { class: "auth-footer-text", {tid!("login-no-account")} }
+                            a {
+                                href: "/register",
+                                class: "auth-footer-link",
+                                {tid!("login-create-account")}
+                            }
                         }
                     }
                 }
-                CardFooter {
-                    if matches!(invite_only.value().cloned(), Some(Ok(false))) {
-                        a {
-                            href: "/register",
-                            class: "text-sm underline self-center",
-                            {tid!("login-create-account")}
-                        }
+            }
+
+            // Right art panel
+            div { class: "auth-art",
+                div { class: "auth-art-quote",
+                    p { class: "auth-art-quote-text",
+                        "Time is the most valuable thing you can spend."
                     }
-                    Button {
-                        class: "ms-auto",
-                        r#type: "submit",
-                        disabled: *submitting.read(),
-                        onclick: on_submit,
-                        if *submitting.read() {
-                            Icon { icon: HiRefresh, width: 16, height: 16 }
-                            {tid!("login-signing-in")}
-                        } else {
-                            Icon { icon: HiLogin, width: 16, height: 16 }
-                            {tid!("common-sign-in")}
-                        }
-                    }
+                    span { class: "auth-art-quote-attr", "— Theophrastus" }
                 }
             }
         }

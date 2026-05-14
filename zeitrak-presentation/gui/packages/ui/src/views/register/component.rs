@@ -21,7 +21,7 @@ pub fn Register() -> Element {
     let navigator = use_navigator();
     let mut auth: AuthState = use_context();
 
-    let invite_only = use_resource(|| api::registration::is_invite_only());
+    let invite_only = use_resource(api::registration::is_invite_only);
 
     let on_submit = move |_| {
         let name = name.read().clone();

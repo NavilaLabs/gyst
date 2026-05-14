@@ -51,6 +51,9 @@ searchable-select-no-results = No results
 
 sidebar-brand-name = Zeitrak
 sidebar-brand-sub = Curated Workspace
+sidebar-section-tracking = Tracking
+sidebar-section-library = Library
+sidebar-section-preferences = Preferences
 sidebar-nav-dashboard = Dashboard
 sidebar-nav-timesheets = Timesheets
 sidebar-nav-activities = Activities
@@ -96,8 +99,15 @@ dashboard-start-session = Start Session
 dashboard-today = Today
 dashboard-tracked = tracked
 dashboard-this-week = This Week
+dashboard-billable = Billable
+dashboard-streak = Streak
+dashboard-streak-unit = days
+dashboard-activity-mix = Activity Mix
 dashboard-hours-per-day = Hours per Day
 dashboard-last-7-days = last 7 days
+dashboard-chart-week = Week
+dashboard-chart-month = Month
+dashboard-chart-year = Year
 dashboard-recent-entries = Recent Entries
 dashboard-unassigned = Unassigned
 
@@ -106,6 +116,8 @@ dashboard-unassigned = Unassigned
 activities-title = Activities
 activities-new = New Activity
 activities-name-placeholder = Development
+activities-color = Color
+activities-color-hex-placeholder = e.g. #3b82f6
 
 # ── Settings ──────────────────────────────────────────────────────────────────
 
@@ -113,6 +125,37 @@ settings-tab-my-settings = My Settings
 settings-tab-workspace-settings = Workspace Settings
 settings-tab-members = Members
 settings-my-settings-title = My Settings
+settings-profile-title = Profile
+settings-localization-title = Localization
+settings-notifications-title = Notifications
+settings-notifications-daily-digest = Daily digest
+settings-notifications-daily-digest-desc = Summary of yesterday's tracked time, every morning at 9.
+settings-notifications-idle-reminder = Idle reminder
+settings-notifications-idle-reminder-desc = Nudge me when a timer has been running for more than 4 hours.
+settings-notifications-weekly-review = Weekly review
+settings-notifications-weekly-review-desc = Friday afternoon recap with billable totals.
+settings-security-title = Security
+settings-security-password = Password
+settings-security-password-desc = Last changed 4 months ago
+settings-security-password-change = Change
+settings-security-2fa = Two-factor auth
+settings-security-2fa-desc = Not configured
+settings-security-sessions = Sessions
+settings-security-sessions-desc = 1 active device
+settings-security-sessions-manage = Manage
+settings-billing-title = Billing & Rates
+settings-billing-hourly-rate = Default Hourly Rate
+settings-billing-rounding = Rounding
+settings-billing-rounding-none = None
+settings-billing-rounding-5min = Nearest 5 min
+settings-billing-rounding-15min = Nearest 15 min
+settings-danger-zone-title = Danger Zone
+settings-danger-export = Export all data
+settings-danger-export-desc = Download a CSV of every entry, activity, and tag.
+settings-danger-export-btn = Export
+settings-danger-delete-workspace = Delete workspace
+settings-danger-delete-workspace-desc = Permanent. All entries and members will be removed.
+settings-danger-delete-workspace-btn = Delete
 settings-invite-member-title = Invite Member
 settings-invite-email-label = Email address
 settings-invite-email-placeholder = colleague@example.com
@@ -223,3 +266,10 @@ developer-actions-database-tenant-migrations = Tenant Migrations
     .description = Migrate the database for the currently selected workspace.
 developer-actions-database-tenant-migrations-run = Run tenant migrations
     .tooltip = Apply all pending tenant migrations for the active workspace.
+
+# ── Login screen ──────────────────────────────────────────────────────────────
+
+login-heading = Welcome back.
+login-subheading = Sign in to continue tracking your time.
+login-email-placeholder = you@example.com
+login-no-account = Don't have an account?

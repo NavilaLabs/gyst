@@ -56,7 +56,7 @@ impl ActivityRepository {
     /// Returns an error if the database query fails.
     pub async fn all(&self) -> Result<Vec<ActivityRow>, crate::Error> {
         let rows = sqlx::query(
-            "SELECT id, name, comment FROM projections__activities WHERE deleted_at IS NULL ORDER BY name",
+            "SELECT id, name, color, comment FROM projections__activities WHERE deleted_at IS NULL ORDER BY name",
         )
         .fetch_all(self.store.pool.as_ref())
         .await?;
@@ -67,6 +67,7 @@ impl ActivityRepository {
         Ok(ActivityRow::new(
             ActivityId::from_str(&row.try_get::<String, _>("id")?)?,
             row.try_get("name")?,
+            row.try_get("color")?,
             row.try_get("comment")?,
         ))
     }
@@ -79,8 +80,9 @@ impl RowToRoot<AnyRow, Activity> for ActivityRepository {
         let id: String = row.try_get("id")?;
         let id = ActivityId::from_str(&id)?;
         let name: String = row.try_get("name")?;
+        let color: String = row.try_get("color")?;
         let comment: Option<String> = row.try_get("comment")?;
-        let activity = Activity::apply(None, ActivityEvent::Created { id, name, comment })
+        let activity = Activity::apply(None, ActivityEvent::Created { id, name, color, comment })
             .expect("Created event on None state is infallible");
         Ok(Root::rehydrate_from_state(0, activity))
     }
