@@ -1,7 +1,6 @@
 #!/bin/bash
 
 sudo chown -R "$(whoami)":"$(whoami)" /workspaces/zeitrak
-sudo chown -R "$(whoami)":"$(whoami)" /sqlite
 
 # Make scripts executable
 chmod +x /workspaces/zeitrak/scripts/*.sh

@@ -32,3 +32,6 @@ RUN curl -L --proto '=https' --tlsv1.2 -sSf \
 
 RUN cargo binstall -y prek --git https://github.com/j178/prek
 RUN cargo binstall -y cargo-tarpaulin wasm-pack dioxus-cli just sea-orm-cli@^2.0.0-rc
+
+ENV PATH="/home/vscode/.deno/bin:${PATH}"
+RUN deno install -fg npm:tailwind npm:@tailwindcss/cli
