@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>zeitrak — Time tracking on rails</title>
+<template id="__bundler_thumbnail" data-bg-color="#fafaf5">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#fafaf5"/>
+    <!-- Rail lines -->
+    <line x1="580" y1="80" x2="580" y2="720" stroke="#0d631b" stroke-width="6"/>
+    <line x1="620" y1="80" x2="620" y2="720" stroke="#0d631b" stroke-width="6"/>
+    <line x1="565" y1="150" x2="635" y2="150" stroke="#0d631b" stroke-width="3" opacity="0.4"/>
+    <line x1="565" y1="220" x2="635" y2="220" stroke="#0d631b" stroke-width="3" opacity="0.4"/>
+    <line x1="565" y1="290" x2="635" y2="290" stroke="#0d631b" stroke-width="3" opacity="0.4"/>
+    <line x1="565" y1="360" x2="635" y2="360" stroke="#0d631b" stroke-width="3" opacity="0.4"/>
+    <line x1="565" y1="430" x2="635" y2="430" stroke="#0d631b" stroke-width="3" opacity="0.4"/>
+    <line x1="565" y1="500" x2="635" y2="500" stroke="#0d631b" stroke-width="3" opacity="0.4"/>
+    <line x1="565" y1="570" x2="635" y2="570" stroke="#0d631b" stroke-width="3" opacity="0.4"/>
+    <line x1="565" y1="640" x2="635" y2="640" stroke="#0d631b" stroke-width="3" opacity="0.4"/>
+    <!-- Nodes -->
+    <circle cx="600" cy="200" r="14" fill="#0d631b"/>
+    <circle cx="600" cy="450" r="14" fill="#0d631b"/>
+    <circle cx="600" cy="660" r="14" fill="white" stroke="#0d631b" stroke-width="5"/>
+    <!-- Sidetrack -->
+    <path d="M600 330 Q660 370 720 400" stroke="#bfcaba" stroke-width="4" fill="none" stroke-dasharray="10,6"/>
+    <!-- Cards -->
+    <rect x="650" y="155" width="340" height="80" rx="16" fill="white" opacity="0.9"/>
+    <rect x="650" y="405" width="340" height="80" rx="16" fill="white" opacity="0.9"/>
+    <rect x="650" y="615" width="340" height="80" rx="16" fill="white" stroke="#0d631b" stroke-width="2" opacity="0.9"/>
+    <!-- Sidetrack card -->
+    <rect x="670" y="310" width="280" height="55" rx="12" fill="#f4f4ef" opacity="0.9"/>
+    <!-- Logo text area -->
+    <rect x="200" y="355" width="280" height="90" rx="16" fill="#eeeee9"/>
+    <rect x="222" y="375" width="80" height="14" rx="7" fill="#0d631b" opacity="0.5"/>
+    <rect x="222" y="398" width="140" height="10" rx="5" fill="#9a9c99" opacity="0.5"/>
+    <rect x="222" y="416" width="100" height="10" rx="5" fill="#9a9c99" opacity="0.4"/>
+  </svg>
+</template>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --surface: #fafaf5;
+  --surface-low: #f4f4ef;
+  --surface-container: #eeeee9;
+  --surface-container-high: #e8e8e3;
+  --surface-dim: #dadad5;
+  --surface-lowest: #ffffff;
+  --on-surface: #1a1c19;
+  --on-surface-muted: #5a5c59;
+  --on-surface-faint: #9a9c99;
+  --primary: #0d631b;
+  --primary-container: #2e7d32;
+  --primary-light: #e8f5e9;
+  --secondary-container: #cfe6f2;
+  --on-secondary: #526772;
+  --tertiary: #00598f;
+  --tertiary-light: #99cbff;
+  --outline-variant: #bfcaba;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--surface);
+  color: var(--on-surface);
+  overflow-x: hidden;
+}
+
+/* NAV */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 3rem; height: 64px;
+  background: rgba(250,250,245,0.82);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.nav-logo {
+  font-family: 'Noto Serif', serif;
+  font-size: 1.35rem; font-weight: 700;
+  color: var(--on-surface); letter-spacing: -0.02em;
+}
+.nav-logo span { color: var(--primary); }
+.nav-links { display: flex; gap: 2.5rem; align-items: center; }
+.nav-links a {
+  font-size: 0.875rem; font-weight: 500; color: var(--on-surface-muted);
+  text-decoration: none; transition: color 0.2s;
+}
+.nav-links a:hover { color: var(--on-surface); }
+.nav-cta {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%);
+  color: white; border: none; border-radius: 1.5rem;
+  padding: 0.55rem 1.4rem; font-size: 0.875rem; font-weight: 500;
+  font-family: 'Inter', sans-serif; cursor: pointer; transition: opacity 0.2s;
+}
+.nav-cta:hover { opacity: 0.88; }
+
+/* HERO */
+.hero {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  padding: 6rem 3rem 4rem 3rem;
+  gap: 4rem;
+  max-width: 1300px;
+  margin: 0 auto;
+}
+.hero-left {}
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  background: var(--primary-light); color: var(--primary);
+  border-radius: 9999px; padding: 0.35rem 1rem;
+  font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; margin-bottom: 1.75rem;
+}
+.hero-eyebrow::before {
+  content: ''; width: 6px; height: 6px;
+  border-radius: 9999px; background: var(--primary);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+.hero-title {
+  font-family: 'Noto Serif', serif;
+  font-size: clamp(2.8rem, 5vw, 4.2rem);
+  font-weight: 700; line-height: 1.08;
+  letter-spacing: -0.03em;
+  color: var(--on-surface);
+  margin-bottom: 1.5rem;
+}
+.hero-title em { font-style: italic; color: var(--primary); }
+.hero-sub {
+  font-size: 1.05rem; line-height: 1.65; color: var(--on-surface-muted);
+  max-width: 440px; margin-bottom: 2.5rem;
+  font-weight: 300;
+}
+.hero-actions { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%);
+  color: white; border: none; border-radius: 1.5rem;
+  padding: 0.85rem 2rem; font-size: 0.95rem; font-weight: 500;
+  font-family: 'Inter', sans-serif; cursor: pointer;
+  transition: opacity 0.2s, transform 0.2s;
+  box-shadow: 0 8px 24px -4px rgba(13,99,27,0.3);
+}
+.btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-secondary {
+  background: var(--surface-container-high); color: var(--on-surface);
+  border: none; border-radius: 1.5rem;
+  padding: 0.85rem 2rem; font-size: 0.95rem; font-weight: 500;
+  font-family: 'Inter', sans-serif; cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-secondary:hover { background: var(--surface-dim); }
+.hero-meta {
+  margin-top: 2.5rem; display: flex; gap: 2rem; flex-wrap: wrap;
+}
+.hero-meta-item {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.8rem; color: var(--on-surface-muted);
+}
+.hero-meta-icon { font-size: 1rem; }
+
+/* TRACK VISUALIZATION */
+.hero-right { position: relative; }
+.track-demo {
+  background: var(--surface-lowest);
+  border-radius: 2rem;
+  padding: 2rem;
+  box-shadow: 0 8px 24px -4px rgba(26,28,25,0.06);
+  position: relative; overflow: hidden;
+}
+.track-demo-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.track-demo-title {
+  font-family: 'Noto Serif', serif; font-size: 1.4rem; font-weight: 700;
+}
+.track-demo-sub { font-size: 0.75rem; color: var(--on-surface-muted); }
+.manifest {
+  display: flex; gap: 1.5rem; margin-bottom: 1.75rem;
+}
+.manifest-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.7rem; color: var(--on-surface-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.manifest-line { width: 20px; height: 3px; border-radius: 9999px; }
+.manifest-line.main { background: var(--primary); }
+.manifest-line.side { background: var(--outline-variant); }
+
+/* SVG Train Track */
+.track-svg-wrap { position: relative; height: 380px; }
+.track-svg-wrap svg { width: 100%; height: 100%; }
+.track-entry {
+  position: absolute; right: 0; left: 60px;
+  background: var(--surface-lowest);
+  border-radius: 1rem;
+  padding: 0.9rem 1.1rem;
+  box-shadow: 0 2px 12px -2px rgba(26,28,25,0.06);
+}
+.track-entry.sidetrack {
+  left: 80px; background: var(--surface-low);
+}
+.track-entry-label {
+  font-size: 0.65rem; font-weight: 600; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--on-surface-muted); margin-bottom: 0.2rem;
+}
+.track-entry-name { font-family: 'Noto Serif', serif; font-weight: 600; font-size: 0.95rem; }
+.track-entry-time { font-size: 0.8rem; color: var(--on-surface-muted); }
+.track-entry-dur { font-size: 0.95rem; font-weight: 600; color: var(--primary); font-variant-numeric: tabular-nums; }
+.track-entry-row { display: flex; justify-content: space-between; align-items: flex-end; }
+.track-entry.active { border: 1.5px solid rgba(13,99,27,0.15); }
+.track-entry.active .track-entry-label { color: var(--primary); }
+.active-timer {
+  font-family: 'Inter', sans-serif; font-size: 1.3rem; font-weight: 600;
+  color: var(--primary); font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.chip {
+  display: inline-block; background: var(--secondary-container);
+  color: var(--on-secondary); border-radius: 9999px;
+  padding: 0.2rem 0.6rem; font-size: 0.65rem; font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* SECTION GENERAL */
+section { padding: 6rem 3rem; max-width: 1300px; margin: 0 auto; }
+.section-full { max-width: 100%; padding: 6rem 0; }
+.section-tag {
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--primary); margin-bottom: 1rem;
+}
+.section-title {
+  font-family: 'Noto Serif', serif; font-size: clamp(1.9rem, 3.5vw, 2.8rem);
+  font-weight: 700; line-height: 1.15; letter-spacing: -0.025em;
+  margin-bottom: 1rem;
+}
+.section-sub {
+  font-size: 1rem; color: var(--on-surface-muted); max-width: 520px;
+  line-height: 1.65; font-weight: 300;
+}
+
+/* FEATURES */
+.features-bg {
+  background: var(--surface-low);
+  padding: 6rem 0;
+}
+.features-inner { max-width: 1300px; margin: 0 auto; padding: 0 3rem; }
+.features-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem; margin-top: 3.5rem;
+}
+.feature-card {
+  background: var(--surface-lowest); border-radius: 2rem;
+  padding: 2rem 1.75rem;
+  box-shadow: 0 4px 16px -4px rgba(26,28,25,0.05);
+  transition: transform 0.2s;
+}
+.feature-card:hover { transform: translateY(-3px); }
+.feature-icon {
+  width: 44px; height: 44px; border-radius: 1rem;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 1.25rem; font-size: 1.25rem;
+}
+.feature-icon.green { background: var(--primary-light); }
+.feature-icon.blue { background: var(--secondary-container); }
+.feature-icon.warm { background: #f5ece2; }
+.feature-title { font-family: 'Noto Serif', serif; font-weight: 600; font-size: 1.1rem; margin-bottom: 0.6rem; }
+.feature-desc { font-size: 0.875rem; line-height: 1.6; color: var(--on-surface-muted); }
+
+/* TRACK MAP SECTION */
+.trackmap-section {
+  display: grid; grid-template-columns: 1fr 1.1fr;
+  gap: 5rem; align-items: center;
+}
+.trackmap-visual {
+  background: var(--surface-lowest); border-radius: 2rem;
+  padding: 2.5rem 2rem;
+  box-shadow: 0 8px 24px -4px rgba(26,28,25,0.06);
+  position: relative;
+}
+.tm-header { margin-bottom: 2rem; }
+.tm-title { font-family: 'Noto Serif', serif; font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem; }
+.tm-sub { font-size: 0.8rem; color: var(--on-surface-muted); }
+.tm-track { position: relative; padding-left: 40px; display: flex; flex-direction: column; gap: 0; }
+.tm-line {
+  position: absolute; left: 14px; top: 0; bottom: 0; width: 3px;
+  background: repeating-linear-gradient(to bottom, var(--primary) 0px, var(--primary) 12px, transparent 12px, transparent 18px);
+}
+.tm-node {
+  position: absolute; left: 7px; width: 17px; height: 17px;
+  border-radius: 9999px; border: 3px solid var(--primary); background: var(--surface-lowest);
+}
+.tm-node.filled { background: var(--primary); }
+.tm-node.active {
+  background: var(--surface-lowest); border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(13,99,27,0.15);
+  animation: nodePulse 2s ease-in-out infinite;
+}
+@keyframes nodePulse {
+  0%,100% { box-shadow: 0 0 0 4px rgba(13,99,27,0.15); }
+  50% { box-shadow: 0 0 0 8px rgba(13,99,27,0.08); }
+}
+.tm-entry {
+  position: relative; background: var(--surface-lowest);
+  border-radius: 1rem; padding: 0.9rem 1rem; margin-bottom: 0.8rem;
+  box-shadow: 0 2px 8px -2px rgba(26,28,25,0.06);
+}
+.tm-entry.side {
+  background: var(--surface-low); margin-left: 20px;
+  border-left: 2px dashed var(--outline-variant);
+}
+.tm-entry-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.15rem; }
+.tm-entry-tag { font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--on-surface-muted); }
+.tm-entry-dur { font-size: 0.85rem; font-weight: 600; color: var(--primary); font-variant-numeric: tabular-nums; }
+.tm-entry-name { font-family: 'Noto Serif', serif; font-weight: 600; font-size: 0.9rem; }
+.tm-entry-time { font-size: 0.72rem; color: var(--on-surface-faint); margin-top: 0.1rem; }
+.tm-entry.active { border: 1.5px solid rgba(13,99,27,0.2); }
+.tm-active-time { font-size: 1.3rem; font-weight: 600; color: var(--primary); font-variant-numeric: tabular-nums; }
+.tm-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+.tm-btn {
+  flex: 1; background: var(--surface-container-high); border: none; border-radius: 0.75rem;
+  padding: 0.5rem 0; font-size: 0.78rem; font-weight: 500;
+  font-family: 'Inter', sans-serif; cursor: pointer; color: var(--on-surface);
+}
+.tm-btn.green { background: var(--primary-light); color: var(--primary); }
+.sidetrack-callout {
+  display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;
+  font-size: 0.75rem; color: var(--on-surface-muted);
+  background: var(--surface-container); border-radius: 0.75rem; padding: 0.5rem 0.75rem;
+}
+
+/* PLUGINS */
+.plugins-bg {
+  background: var(--on-surface);
+  padding: 6rem 0;
+  color: white;
+}
+.plugins-inner { max-width: 1300px; margin: 0 auto; padding: 0 3rem; }
+.plugins-inner .section-tag { color: #6ee37a; }
+.plugins-inner .section-title { color: white; }
+.plugins-inner .section-sub { color: rgba(255,255,255,0.55); }
+.plugins-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem; margin-top: 3.5rem;
+}
+.plugin-card {
+  background: rgba(255,255,255,0.06); border-radius: 2rem;
+  padding: 2rem 1.75rem;
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: background 0.2s;
+}
+.plugin-card:hover { background: rgba(255,255,255,0.1); }
+.plugin-badge {
+  display: inline-block; background: rgba(110,227,122,0.15); color: #6ee37a;
+  border-radius: 9999px; padding: 0.25rem 0.75rem;
+  font-size: 0.65rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  margin-bottom: 1.25rem;
+}
+.plugin-icon { font-size: 1.5rem; margin-bottom: 0.75rem; }
+.plugin-title { font-family: 'Noto Serif', serif; font-size: 1.15rem; font-weight: 600; color: white; margin-bottom: 0.6rem; }
+.plugin-desc { font-size: 0.875rem; line-height: 1.6; color: rgba(255,255,255,0.5); }
+.plugin-soon {
+  display: inline-block; margin-top: 1rem;
+  background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.4);
+  border-radius: 9999px; padding: 0.2rem 0.75rem;
+  font-size: 0.7rem; font-weight: 500;
+}
+
+/* EVENT LOG */
+.eventlog-section {
+  display: grid; grid-template-columns: 1.1fr 1fr;
+  gap: 5rem; align-items: center;
+}
+.eventlog-visual {
+  background: var(--surface-lowest); border-radius: 2rem;
+  padding: 2rem;
+  box-shadow: 0 8px 24px -4px rgba(26,28,25,0.06);
+  font-family: 'Inter', sans-serif;
+}
+.el-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+.el-title { font-family: 'Noto Serif', serif; font-weight: 700; font-size: 1.1rem; }
+.el-badge { background: var(--primary-light); color: var(--primary); border-radius: 9999px; padding: 0.2rem 0.6rem; font-size: 0.7rem; font-weight: 600; }
+.el-entries { display: flex; flex-direction: column; gap: 0; }
+.el-entry {
+  display: grid; grid-template-columns: auto 1fr auto;
+  gap: 1rem; align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--surface-container);
+}
+.el-entry:last-child { border-bottom: none; }
+.el-time { font-size: 0.72rem; color: var(--on-surface-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.el-dot { width: 8px; height: 8px; border-radius: 9999px; margin: 0 auto; flex-shrink: 0; }
+.el-dot.started { background: var(--primary); }
+.el-dot.paused { background: var(--outline-variant); }
+.el-dot.sidetrack { background: var(--tertiary); }
+.el-dot.resumed { background: #f59e0b; }
+.el-event-name { font-size: 0.82rem; font-weight: 500; }
+.el-event-detail { font-size: 0.72rem; color: var(--on-surface-muted); margin-top: 0.1rem; }
+.el-tag { font-size: 0.65rem; font-weight: 600; letter-spacing: 0.04em; color: var(--on-surface-faint); text-transform: uppercase; white-space: nowrap; }
+
+/* OPEN SOURCE */
+.opensource-section {
+  text-align: center; padding: 6rem 3rem;
+}
+.opensource-pills {
+  display: flex; flex-wrap: wrap; gap: 0.75rem;
+  justify-content: center; margin: 2rem 0 2.5rem;
+}
+.pill {
+  display: flex; align-items: center; gap: 0.4rem;
+  background: var(--surface-container); border-radius: 9999px;
+  padding: 0.45rem 1.1rem; font-size: 0.82rem; font-weight: 500;
+  color: var(--on-surface);
+}
+.pill-dot { width: 7px; height: 7px; border-radius: 9999px; background: var(--primary); }
+
+/* CTA / REGISTER */
+.cta-bg {
+  background: var(--surface-low);
+  padding: 7rem 3rem;
+  text-align: center;
+}
+.cta-inner { max-width: 580px; margin: 0 auto; }
+.cta-title { font-family: 'Noto Serif', serif; font-size: clamp(2rem, 4vw, 3rem); font-weight: 700; letter-spacing: -0.025em; margin-bottom: 1rem; }
+.cta-sub { font-size: 1rem; color: var(--on-surface-muted); line-height: 1.65; margin-bottom: 2.5rem; font-weight: 300; }
+.countdown-row {
+  display: flex; justify-content: center; gap: 1.5rem; margin-bottom: 2.5rem;
+}
+.countdown-item { text-align: center; }
+.countdown-num {
+  font-family: 'Noto Serif', serif; font-size: 2.5rem; font-weight: 700;
+  line-height: 1; color: var(--on-surface);
+  font-variant-numeric: tabular-nums;
+}
+.countdown-label { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--on-surface-muted); margin-top: 0.3rem; }
+.countdown-sep { font-size: 2rem; color: var(--outline-variant); align-self: flex-start; padding-top: 0.3rem; }
+.register-form {
+  display: flex; gap: 0.75rem; max-width: 440px; margin: 0 auto;
+}
+.register-input {
+  flex: 1; background: var(--surface-lowest);
+  border: none; outline: none; border-radius: 1rem;
+  padding: 0.85rem 1.25rem; font-size: 0.9rem; font-family: 'Inter', sans-serif;
+  color: var(--on-surface);
+  transition: box-shadow 0.2s;
+}
+.register-input:focus { box-shadow: 0 0 0 2px rgba(13,99,27,0.2); }
+.register-input::placeholder { color: var(--on-surface-faint); }
+.success-msg {
+  display: none;
+  background: var(--primary-light); color: var(--primary);
+  border-radius: 1rem; padding: 0.85rem 1.5rem;
+  font-size: 0.9rem; font-weight: 500; text-align: center;
+}
+
+/* FOOTER */
+footer {
+  background: var(--surface-container);
+  padding: 3rem;
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 1rem;
+}
+.footer-logo { font-family: 'Noto Serif', serif; font-weight: 700; font-size: 1.1rem; }
+.footer-logo span { color: var(--primary); }
+.footer-links { display: flex; gap: 2rem; }
+.footer-links a { font-size: 0.8rem; color: var(--on-surface-muted); text-decoration: none; }
+.footer-links a:hover { color: var(--on-surface); }
+.footer-copy { font-size: 0.78rem; color: var(--on-surface-faint); }
+
+/* TWEAKS PANEL */
+#tweaks-panel {
+  display: none; position: fixed; bottom: 2rem; right: 2rem; z-index: 999;
+  background: var(--surface-lowest); border-radius: 1.5rem;
+  padding: 1.5rem; width: 280px;
+  box-shadow: 0 8px 32px -4px rgba(26,28,25,0.14);
+}
+#tweaks-panel.open { display: block; }
+#tweaks-panel h3 { font-family: 'Noto Serif', serif; font-size: 1rem; font-weight: 600; margin-bottom: 1.25rem; }
+.tweak-row { margin-bottom: 1rem; }
+.tweak-label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; color: var(--on-surface-muted); text-transform: uppercase; margin-bottom: 0.4rem; }
+.tweak-options { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.tweak-option {
+  background: var(--surface-container); border: none; border-radius: 9999px;
+  padding: 0.3rem 0.85rem; font-size: 0.78rem; font-weight: 500;
+  font-family: 'Inter', sans-serif; cursor: pointer; color: var(--on-surface);
+  transition: background 0.15s;
+}
+.tweak-option.active { background: var(--primary); color: white; }
+.tweak-swatch { width: 28px; height: 28px; border-radius: 9999px; border: none; cursor: pointer; }
+.tweak-swatches { display: flex; gap: 0.5rem; }
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .hero, .trackmap-section, .eventlog-section { grid-template-columns: 1fr; }
+  .features-grid, .plugins-grid { grid-template-columns: 1fr 1fr; }
+  nav { padding: 0 1.5rem; }
+  .nav-links { display: none; }
+  section { padding: 4rem 1.5rem; }
+}
+@media (max-width: 600px) {
+  .features-grid, .plugins-grid { grid-template-columns: 1fr; }
+  .register-form { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">zeit<span>rak</span></div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#trackmap">Track Map</a>
+    <a href="#plugins">Plugins</a>
+    <a href="#opensource">Open Source</a>
+  </div>
+  <button class="nav-cta" onclick="document.getElementById('register').scrollIntoView({behavior:'smooth'})">Get early access</button>
+</nav>
+
+<!-- HERO -->
+<div style="max-width:1300px; margin: 0 auto; padding: 0 3rem;">
+  <div class="hero" style="padding-left:0; padding-right:0;">
+    <div class="hero-left">
+      <div class="hero-eyebrow">Launching in 3 months</div>
+      <h1 class="hero-title">Time tracking<br><em>on rails.</em></h1>
+      <p class="hero-sub">zeitrak visualizes your work as a train journey. Every activity is a station, every distraction a sidetrack. Free, open source, local-first — and yours to extend.</p>
+      <div class="hero-actions">
+        <button class="btn-primary" onclick="document.getElementById('register').scrollIntoView({behavior:'smooth'})">Register for early access</button>
+        <button class="btn-secondary" onclick="document.getElementById('trackmap').scrollIntoView({behavior:'smooth'})">See it in action</button>
+      </div>
+      <div class="hero-meta">
+        <div class="hero-meta-item"><span class="hero-meta-icon">🔓</span> Open source</div>
+        <div class="hero-meta-item"><span class="hero-meta-icon">📦</span> Self-hostable</div>
+        <div class="hero-meta-item"><span class="hero-meta-icon">💻</span> Local-first</div>
+        <div class="hero-meta-item"><span class="hero-meta-icon">🆓</span> Free forever</div>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="track-demo">
+        <div class="track-demo-header">
+          <div>
+            <div class="track-demo-title">Track Map</div>
+            <div class="track-demo-sub" style="display:flex;align-items:center;gap:0.4rem;">
+              <svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="none" stroke="#9a9c99" stroke-width="1.2"/><path d="M6 3v3.5l2 1.2" stroke="#9a9c99" stroke-width="1.2" stroke-linecap="round" fill="none"/></svg>
+              Station: Today
+            </div>
+          </div>
+          <div class="manifest">
+            <div class="manifest-item"><div class="manifest-line main"></div> Main Line</div>
+            <div class="manifest-item"><div class="manifest-line side"></div> Sidetracks</div>
+          </div>
+        </div>
+        
+        <!-- SVG track + floating cards -->
+        <div style="position:relative; height:340px;">
+          <!-- Vertical track line -->
+          <svg style="position:absolute;left:0;top:0;width:30px;height:100%;" viewBox="0 0 30 340" preserveAspectRatio="none">
+            <!-- Rail ties (crosshatch) -->
+            <line x1="10" y1="0" x2="10" y2="340" stroke="#0d631b" stroke-width="2.5"/>
+            <line x1="20" y1="0" x2="20" y2="340" stroke="#0d631b" stroke-width="2.5"/>
+            <!-- Ties -->
+            <line x1="6" y1="30" x2="24" y2="30" stroke="#0d631b" stroke-width="1.5" opacity="0.4"/>
+            <line x1="6" y1="55" x2="24" y2="55" stroke="#0d631b" stroke-width="1.5" opacity="0.4"/>
+            <line x1="6" y1="80" x2="24" y2="80" stroke="#0d631b" stroke-width="1.5" opacity="0.4"/>
+            <line x1="6" y1="105" x2="24" y2="105" stroke="#0d631b" stroke-width="1.5" opacity="0.4"/>
+            <line x1="6" y1="130" x2="24" y2="130" stroke="#0d631b" stroke-width="1.5" opacity="0.4"/>
+            <line x1="6" y1="155" x2="24" y2="155" stroke="#0d631b" stroke-width="1.5" opacity="0.4"/>
+            <line x1="6" y1="180" x2="24" y2="180" stroke="#0d631b" stroke-width="1.5" opacity="0.4"/>
+            <line x1="6" y1="210" x2="24" y2="210" stroke="#0d631b" stroke-width="1.5" opacity="0.4"/>
+            <line x1="6" y1="240" x2="24" y2="240" stroke="#0d631b" stroke-width="1.5" opacity="0.4"/>
+            <line x1="6" y1="265" x2="24" y2="265" stroke="#0d631b" stroke-width="1.5" opacity="0.4"/>
+            <line x1="6" y1="290" x2="24" y2="290" stroke="#0d631b" stroke-width="1.5" opacity="0.4"/>
+            <line x1="6" y1="315" x2="24" y2="315" stroke="#0d631b" stroke-width="1.5" opacity="0.4"/>
+            <!-- Sidetrack branch -->
+            <path d="M15 145 Q35 160 50 175" stroke="#bfcaba" stroke-width="1.5" fill="none" stroke-dasharray="4,3"/>
+          </svg>
+          <!-- Nodes -->
+          <div style="position:absolute;left:7px;top:10px;width:16px;height:16px;border-radius:9999px;background:var(--primary);border:2px solid white;z-index:2;"></div>
+          <div style="position:absolute;left:7px;top:152px;width:16px;height:16px;border-radius:9999px;background:var(--primary);border:2px solid white;z-index:2;"></div>
+          <div style="position:absolute;left:7px;top:295px;width:16px;height:16px;border-radius:9999px;background:white;border:3px solid var(--primary);z-index:2;box-shadow:0 0 0 5px rgba(13,99,27,0.12);animation:nodePulse 2s ease-in-out infinite;"></div>
+          
+          <!-- Entry 1 -->
+          <div style="position:absolute;top:0;left:38px;right:0;background:var(--surface-lowest);border-radius:1rem;padding:0.85rem 1rem;box-shadow:0 2px 8px -2px rgba(26,28,25,0.06);">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+              <div>
+                <div style="font-size:0.6rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--on-surface-muted);margin-bottom:0.15rem;">DEEP WORK</div>
+                <div style="font-family:'Noto Serif',serif;font-weight:600;font-size:0.9rem;">Design System Architecture</div>
+                <div style="font-size:0.7rem;color:var(--on-surface-faint);margin-top:0.1rem;">08:00 — 10:15</div>
+              </div>
+              <div style="font-size:0.9rem;font-weight:600;color:var(--primary);font-variant-numeric:tabular-nums;">02:15:00</div>
+            </div>
+            <div style="display:flex;gap:0.4rem;margin-top:0.5rem;">
+              <span class="chip">UI/UX</span><span class="chip">Figma</span>
+            </div>
+          </div>
+          
+          <!-- Sidetrack entry -->
+          <div style="position:absolute;top:148px;left:58px;right:0;background:var(--surface-low);border-radius:1rem;padding:0.75rem 1rem;border-left:2px dashed var(--outline-variant);">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="font-size:0.6rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--on-surface-faint);margin-bottom:0.1rem;">UNEXPECTED · SIDETRACK</div>
+                <div style="font-family:'Noto Serif',serif;font-weight:600;font-size:0.85rem;color:var(--on-surface-muted);">Client Sync</div>
+              </div>
+              <div style="font-size:0.8rem;font-weight:500;color:var(--on-surface-muted);">15m</div>
+            </div>
+          </div>
+
+          <!-- Entry 2 (current) -->
+          <div style="position:absolute;top:228px;left:38px;right:0;background:var(--surface-lowest);border-radius:1rem;padding:0.85rem 1rem;border:1.5px solid rgba(13,99,27,0.18);box-shadow:0 4px 16px -4px rgba(13,99,27,0.1);">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+              <div>
+                <div style="font-size:0.6rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--primary);margin-bottom:0.15rem;">CURRENT STATION</div>
+                <div style="font-family:'Noto Serif',serif;font-weight:600;font-size:0.9rem;">Track Map Rendering</div>
+              </div>
+              <div id="hero-timer" style="font-size:1.2rem;font-weight:600;color:var(--primary);font-variant-numeric:tabular-nums;">00:42:17</div>
+            </div>
+            <div style="display:flex;gap:0.5rem;margin-top:0.75rem;">
+              <button style="flex:1;background:var(--surface-container-high);border:none;border-radius:0.75rem;padding:0.45rem;font-size:0.75rem;font-family:'Inter',sans-serif;cursor:pointer;color:var(--on-surface);">⏸ Halt</button>
+              <button style="flex:1;background:var(--primary-light);border:none;border-radius:0.75rem;padding:0.45rem;font-size:0.75rem;font-family:'Inter',sans-serif;cursor:pointer;color:var(--primary);">⤳ Sidetrack</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<div class="features-bg" id="features">
+  <div class="features-inner">
+    <div class="section-tag">Why zeitrak</div>
+    <h2 class="section-title">Built different.<br>Built for you.</h2>
+    <p class="section-sub">No subscriptions. No data harvesting. No lock-in. Just a meticulously crafted tool you actually own.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon green">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="3" stroke="#0d631b" stroke-width="1.8"/><path d="M7 11h8M7 7.5h5M7 14.5h6" stroke="#0d631b" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <div class="feature-title">Activity-first tracking</div>
+        <p class="feature-desc">Every tracked session is tied to a named activity. Build a clear picture of where your hours actually go — no loose timers, no orphaned entries.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon green">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 3v4M11 15v4M3 11h4M15 11h4" stroke="#0d631b" stroke-width="1.8" stroke-linecap="round"/><circle cx="11" cy="11" r="3.5" stroke="#0d631b" stroke-width="1.8"/></svg>
+        </div>
+        <div class="feature-title">Sidetrack distractions</div>
+        <p class="feature-desc">When you get pulled away, don't stop — sidetrack. Interruptions appear as a parallel track in the log, keeping your main line unbroken and honest.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon blue">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="6" width="16" height="12" rx="2.5" stroke="#526772" stroke-width="1.8"/><path d="M8 6V5a3 3 0 016 0v1" stroke="#526772" stroke-width="1.8" stroke-linecap="round"/><path d="M11 11v3" stroke="#526772" stroke-width="1.5" stroke-linecap="round"/><circle cx="11" cy="10" r="1" fill="#526772"/></svg>
+        </div>
+        <div class="feature-title">Local-first, always yours</div>
+        <p class="feature-desc">Your data lives on your machine. Self-host for teams or run it offline — zeitrak works without a cloud dependency, because your work history is yours.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon green">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M5 11l4.5 4.5L17 7" stroke="#0d631b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="feature-title">Event-sourced history</div>
+        <p class="feature-desc">Every action — start, pause, sidetrack, resume — is stored as an immutable event. You get a complete, auditable log with perfect replay and no data loss.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon warm">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="7" stroke="#a0522d" stroke-width="1.8"/><path d="M11 7v4.5l3 1.8" stroke="#a0522d" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <div class="feature-title">Plugin ecosystem</div>
+        <p class="feature-desc">Extend zeitrak with community and official plugins. Worktime, DATEV export, project management — powerful add-ons that slot right in, all free.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon blue">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 8h14M4 11h9M4 14h6" stroke="#526772" stroke-width="1.6" stroke-linecap="round"/><rect x="3" y="4" width="16" height="14" rx="2.5" stroke="#526772" stroke-width="1.8"/></svg>
+        </div>
+        <div class="feature-title">Rich reports</div>
+        <p class="feature-desc">Visualize your week as a train journey. Drill into activities, spot distractions, and export to CSV — or let the DATEV plugin handle accounting exports.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TRACK MAP SECTION -->
+<section id="trackmap">
+  <div class="trackmap-section">
+    <div class="trackmap-visual">
+      <div class="tm-header">
+        <div class="tm-title">Track Map</div>
+        <div class="tm-sub" style="display:flex;align-items:center;gap:0.4rem;color:var(--on-surface-muted);font-size:0.78rem;">
+          <svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M5 2.5v2.8l1.5 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" fill="none"/></svg>
+          Station: Oct 18, 2023
+        </div>
+      </div>
+      <div style="position:relative;padding-left:44px;">
+        <!-- Track rail -->
+        <svg style="position:absolute;left:0;top:0;width:30px;height:100%;" viewBox="0 0 30 500" preserveAspectRatio="xMidYMin meet">
+          <line x1="10" y1="0" x2="10" y2="500" stroke="#0d631b" stroke-width="2.2"/>
+          <line x1="20" y1="0" x2="20" y2="500" stroke="#0d631b" stroke-width="2.2"/>
+          <line x1="5" y1="20" x2="25" y2="20" stroke="#0d631b" stroke-width="1.2" opacity="0.35"/>
+          <line x1="5" y1="45" x2="25" y2="45" stroke="#0d631b" stroke-width="1.2" opacity="0.35"/>
+          <line x1="5" y1="70" x2="25" y2="70" stroke="#0d631b" stroke-width="1.2" opacity="0.35"/>
+          <line x1="5" y1="95" x2="25" y2="95" stroke="#0d631b" stroke-width="1.2" opacity="0.35"/>
+          <line x1="5" y1="120" x2="25" y2="120" stroke="#0d631b" stroke-width="1.2" opacity="0.35"/>
+          <line x1="5" y1="150" x2="25" y2="150" stroke="#0d631b" stroke-width="1.2" opacity="0.35"/>
+          <line x1="5" y1="180" x2="25" y2="180" stroke="#0d631b" stroke-width="1.2" opacity="0.35"/>
+          <line x1="5" y1="210" x2="25" y2="210" stroke="#0d631b" stroke-width="1.2" opacity="0.35"/>
+          <line x1="5" y1="245" x2="25" y2="245" stroke="#0d631b" stroke-width="1.2" opacity="0.35"/>
+          <line x1="5" y1="275" x2="25" y2="275" stroke="#0d631b" stroke-width="1.2" opacity="0.35"/>
+          <line x1="5" y1="310" x2="25" y2="310" stroke="#0d631b" stroke-width="1.2" opacity="0.35"/>
+          <line x1="5" y1="340" x2="25" y2="340" stroke="#0d631b" stroke-width="1.2" opacity="0.35"/>
+          <line x1="5" y1="370" x2="25" y2="370" stroke="#0d631b" stroke-width="1.2" opacity="0.35"/>
+          <!-- Sidetrack -->
+          <path d="M15 178 Q35 195 55 210" stroke="#bfcaba" stroke-width="1.5" fill="none" stroke-dasharray="4,3"/>
+        </svg>
+        <!-- Nodes -->
+        <div style="position:absolute;left:7px;top:12px;width:16px;height:16px;border-radius:9999px;background:var(--primary);z-index:2;"></div>
+        <div style="position:absolute;left:7px;top:215px;width:16px;height:16px;border-radius:9999px;background:var(--primary);z-index:2;"></div>
+        <div style="position:absolute;left:7px;top:370px;width:16px;height:16px;border-radius:9999px;background:white;border:3px solid var(--primary);z-index:2;animation:nodePulse 2s ease-in-out infinite;"></div>
+
+        <!-- Entry 1 -->
+        <div style="background:var(--surface-lowest);border-radius:1rem;padding:1rem 1.1rem;margin-bottom:0.9rem;box-shadow:0 2px 8px -2px rgba(26,28,25,0.06);">
+          <div style="display:flex;justify-content:space-between;">
+            <div>
+              <div style="font-size:0.62rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--on-surface-muted);">DEEP WORK</div>
+              <div style="font-family:'Noto Serif',serif;font-weight:600;font-size:0.95rem;margin-top:0.15rem;">Design System Architecture</div>
+              <div style="font-size:0.72rem;color:var(--on-surface-faint);margin-top:0.15rem;">08:00 — 10:15</div>
+              <div style="margin-top:0.6rem;display:flex;gap:0.4rem;"><span class="chip">UI/UX</span><span class="chip">Figma</span></div>
+            </div>
+            <div style="font-size:0.95rem;font-weight:600;color:var(--primary);">02:15:00</div>
+          </div>
+        </div>
+
+        <!-- Sidetrack -->
+        <div style="background:var(--surface-low);border-radius:1rem;padding:0.8rem 1rem;margin-bottom:0.9rem;margin-left:20px;border-left:2px dashed var(--outline-variant);">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:0.6rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--on-surface-faint);">UNEXPECTED · SIDETRACK</div>
+              <div style="font-family:'Noto Serif',serif;font-size:0.88rem;font-weight:600;color:var(--on-surface-muted);margin-top:0.1rem;">Client Sync</div>
+            </div>
+            <div style="font-size:0.82rem;font-weight:500;color:var(--on-surface-muted);">15m</div>
+          </div>
+        </div>
+
+        <!-- Entry 2 -->
+        <div style="background:var(--surface-lowest);border-radius:1rem;padding:1rem 1.1rem;margin-bottom:0.9rem;box-shadow:0 2px 8px -2px rgba(26,28,25,0.06);">
+          <div style="display:flex;justify-content:space-between;">
+            <div>
+              <div style="font-size:0.62rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--on-surface-muted);">IMPLEMENTATION</div>
+              <div style="font-family:'Noto Serif',serif;font-weight:600;font-size:0.95rem;margin-top:0.15rem;">Track Map Rendering Logic</div>
+              <div style="font-size:0.72rem;color:var(--on-surface-faint);margin-top:0.15rem;">10:30 — 12:15</div>
+              <div style="margin-top:0.6rem;">
+                <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--on-surface-muted);margin-bottom:0.3rem;"><span>Progress</span><span>85%</span></div>
+                <div style="height:4px;background:var(--surface-dim);border-radius:9999px;overflow:hidden;"><div style="width:85%;height:100%;background:linear-gradient(90deg,var(--primary),var(--tertiary-light));border-radius:9999px;"></div></div>
+              </div>
+            </div>
+            <div style="font-size:0.95rem;font-weight:600;color:var(--primary);">01:45:30</div>
+          </div>
+        </div>
+
+        <!-- Active entry -->
+        <div style="background:var(--surface-lowest);border-radius:1rem;padding:1rem 1.1rem;border:1.5px solid rgba(13,99,27,0.2);box-shadow:0 4px 16px -4px rgba(13,99,27,0.1);">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div>
+              <div style="font-size:0.62rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--primary);">CURRENT STATION</div>
+              <div style="font-family:'Noto Serif',serif;font-weight:600;font-size:0.95rem;margin-top:0.15rem;">HTML Component Mapping</div>
+              <div style="font-size:0.72rem;color:var(--on-surface-faint);margin-top:0.1rem;">Started 13:00</div>
+            </div>
+            <div id="tm-timer" style="font-size:1.3rem;font-weight:600;color:var(--primary);font-variant-numeric:tabular-nums;">00:42:15</div>
+          </div>
+          <div style="display:flex;gap:0.5rem;margin-top:0.75rem;">
+            <button style="flex:1;background:var(--surface-container-high);border:none;border-radius:0.75rem;padding:0.5rem;font-size:0.78rem;font-family:'Inter',sans-serif;cursor:pointer;color:var(--on-surface);">⏸ Halt</button>
+            <button style="flex:1;background:var(--primary-light);border:none;border-radius:0.75rem;padding:0.5rem;font-size:0.78rem;font-family:'Inter',sans-serif;cursor:pointer;color:var(--primary);">⤳ Sidetrack</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="section-tag">Track Map</div>
+      <h2 class="section-title">Your day as a<br><em style="font-style:italic;color:var(--primary);">railway.</em></h2>
+      <p class="section-sub" style="margin-bottom:2rem;">The Track Map is the heart of zeitrak. Activities appear as stations on a timeline. You see not just what you worked on, but the exact rhythm and shape of your day.</p>
+      <div style="display:flex;flex-direction:column;gap:1.25rem;">
+        <div style="display:flex;gap:1rem;align-items:flex-start;">
+          <div style="width:36px;height:36px;border-radius:1rem;background:var(--primary-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="4" stroke="#0d631b" stroke-width="1.6"/><line x1="9" y1="2" x2="9" y2="5" stroke="#0d631b" stroke-width="1.4" stroke-linecap="round"/><line x1="9" y1="13" x2="9" y2="16" stroke="#0d631b" stroke-width="1.4" stroke-linecap="round"/><line x1="2" y1="9" x2="5" y2="9" stroke="#0d631b" stroke-width="1.4" stroke-linecap="round"/><line x1="13" y1="9" x2="16" y2="9" stroke="#0d631b" stroke-width="1.4" stroke-linecap="round"/></svg>
+          </div>
+          <div>
+            <div style="font-weight:600;font-size:0.9rem;margin-bottom:0.2rem;">Stations & milestones</div>
+            <div style="font-size:0.83rem;color:var(--on-surface-muted);line-height:1.5;">Each activity becomes a station on your rail. Complete it, and the train moves on.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:1rem;align-items:flex-start;">
+          <div style="width:36px;height:36px;border-radius:1rem;background:var(--surface-container);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 3v7" stroke="#5a5c59" stroke-width="1.6" stroke-linecap="round"/><path d="M9 10 Q15 13 16 17" stroke="#bfcaba" stroke-width="1.4" stroke-linecap="round" fill="none" stroke-dasharray="3,2"/></svg>
+          </div>
+          <div>
+            <div style="font-weight:600;font-size:0.9rem;margin-bottom:0.2rem;">Parallel sidetracks</div>
+            <div style="font-size:0.83rem;color:var(--on-surface-muted);line-height:1.5;">Distractions branch off as a dashed parallel track — always visible, never lost, never pretending they didn't happen.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:1rem;align-items:flex-start;">
+          <div style="width:36px;height:36px;border-radius:1rem;background:var(--secondary-container);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="3" y="5" width="12" height="9" rx="2" stroke="#526772" stroke-width="1.6"/><path d="M6 5V4a3 3 0 016 0v1" stroke="#526772" stroke-width="1.4" stroke-linecap="round"/></svg>
+          </div>
+          <div>
+            <div style="font-weight:600;font-size:0.9rem;margin-bottom:0.2rem;">Immutable event log</div>
+            <div style="font-size:0.83rem;color:var(--on-surface-muted);line-height:1.5;">Powered by event sourcing — every action is a logged event. The Track Map is just one view of your complete history.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- EVENT LOG -->
+<div class="features-bg">
+  <div class="features-inner">
+    <div class="eventlog-section">
+      <div>
+        <div class="section-tag">Event Log</div>
+        <h2 class="section-title">Every moment,<br><em style="font-style:italic;">recorded.</em></h2>
+        <p class="section-sub" style="margin-bottom:2rem;">Built on event sourcing — every start, pause, sidetrack, and resume is an immutable event. You get a complete audit trail, time-travel debugging, and perfect data integrity.</p>
+        <div style="background:var(--surface-lowest);border-radius:1.5rem;padding:1.25rem;display:inline-flex;flex-direction:column;gap:0.35rem;">
+          <div style="font-size:0.7rem;font-weight:600;color:var(--on-surface-muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0.5rem;">Why event sourcing?</div>
+          <div style="display:flex;align-items:center;gap:0.6rem;font-size:0.82rem;"><span style="color:var(--primary);">✓</span> Automatic, complete audit trail</div>
+          <div style="display:flex;align-items:center;gap:0.6rem;font-size:0.82rem;"><span style="color:var(--primary);">✓</span> Replay and reconstruct any state</div>
+          <div style="display:flex;align-items:center;gap:0.6rem;font-size:0.82rem;"><span style="color:var(--primary);">✓</span> Zero data loss, even on crash</div>
+          <div style="display:flex;align-items:center;gap:0.6rem;font-size:0.82rem;"><span style="color:var(--primary);">✓</span> Plugins can subscribe to any event</div>
+        </div>
+      </div>
+      <div class="eventlog-visual">
+        <div class="el-header">
+          <div class="el-title">Event Log</div>
+          <div class="el-badge">Live</div>
+        </div>
+        <div class="el-entries">
+          <div class="el-entry">
+            <div class="el-time">08:00:01</div>
+            <div class="el-dot started" style="grid-column:2;justify-self:center;"></div>
+            <div>
+              <div class="el-event-name">SessionStarted</div>
+              <div class="el-event-detail">Design System Architecture</div>
+            </div>
+          </div>
+          <div class="el-entry">
+            <div class="el-time">10:14:55</div>
+            <div class="el-dot paused" style="grid-column:2;justify-self:center;"></div>
+            <div>
+              <div class="el-event-name">SessionPaused</div>
+              <div class="el-event-detail">Manual halt by user</div>
+            </div>
+          </div>
+          <div class="el-entry">
+            <div class="el-time">10:15:03</div>
+            <div class="el-dot sidetrack" style="grid-column:2;justify-self:center;"></div>
+            <div>
+              <div class="el-event-name">SidetrackStarted</div>
+              <div class="el-event-detail">Client Sync · Unexpected</div>
+            </div>
+          </div>
+          <div class="el-entry">
+            <div class="el-time">10:30:14</div>
+            <div class="el-dot resumed" style="grid-column:2;justify-self:center;"></div>
+            <div>
+              <div class="el-event-name">SidetrackEnded</div>
+              <div class="el-event-detail">Duration: 15m 11s</div>
+            </div>
+          </div>
+          <div class="el-entry">
+            <div class="el-time">10:30:20</div>
+            <div class="el-dot started" style="grid-column:2;justify-self:center;"></div>
+            <div>
+              <div class="el-event-name">SessionStarted</div>
+              <div class="el-event-detail">Track Map Rendering Logic</div>
+            </div>
+          </div>
+          <div class="el-entry" style="border-bottom:none;">
+            <div class="el-time" style="color:var(--primary);">13:00:00</div>
+            <div style="grid-column:2;justify-self:center;width:8px;height:8px;border-radius:9999px;background:var(--primary);animation:pulse 2s ease-in-out infinite;"></div>
+            <div>
+              <div class="el-event-name" style="color:var(--primary);">SessionStarted</div>
+              <div class="el-event-detail">HTML Component Mapping</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PLUGINS -->
+<div class="plugins-bg" id="plugins">
+  <div class="plugins-inner">
+    <div class="section-tag">Plugin Ecosystem</div>
+    <h2 class="section-title">Extend everything.<br>Pay nothing.</h2>
+    <p class="section-sub">zeitrak ships with a powerful plugin API. Every official plugin is free — always. Companies can build their own, too.</p>
+    <div class="plugins-grid">
+      <div class="plugin-card">
+        <div class="plugin-badge">Official Plugin</div>
+        <div class="plugin-icon">⏱</div>
+        <div class="plugin-title">Worktime</div>
+        <p class="plugin-desc">Manage absence, overtime, flex time, and working-hour regulations. Get a clear picture of compliance against contracts and labor law requirements.</p>
+      </div>
+      <div class="plugin-card">
+        <div class="plugin-badge">Official Plugin</div>
+        <div class="plugin-icon">📊</div>
+        <div class="plugin-title">DATEV Export</div>
+        <p class="plugin-desc">Export your tracked time directly in DATEV-compatible formats. Hand off accurate data to your accountant or payroll with a single click.</p>
+      </div>
+      <div class="plugin-card">
+        <div class="plugin-badge">Official Plugin</div>
+        <div class="plugin-icon">📁</div>
+        <div class="plugin-title">Project Management</div>
+        <p class="plugin-desc">Organize activities into projects, track budgets and milestones, and see at a glance how your time maps to deliverables and client work.</p>
+      </div>
+    </div>
+    <div style="margin-top:3rem;background:rgba(255,255,255,0.04);border-radius:2rem;padding:2rem;border:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1.5rem;">
+      <div>
+        <div style="font-family:'Noto Serif',serif;font-size:1.15rem;font-weight:600;color:white;margin-bottom:0.4rem;">Build your own plugin</div>
+        <div style="font-size:0.875rem;color:rgba(255,255,255,0.45);max-width:440px;line-height:1.6;">The plugin API exposes the full event stream. Subscribe to any event, extend the UI, push to external systems — the only limit is imagination.</div>
+      </div>
+      <a href="#register" style="display:inline-block;background:rgba(255,255,255,0.1);color:white;text-decoration:none;border-radius:9999px;padding:0.75rem 1.5rem;font-size:0.875rem;font-weight:500;border:1px solid rgba(255,255,255,0.15);transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.16)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">Read the plugin docs →</a>
+    </div>
+  </div>
+</div>
+
+<!-- REPORTS -->
+<div class="features-bg" id="reports">
+  <div class="features-inner">
+    <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:5rem;align-items:center;">
+      <div>
+        <div class="section-tag">Reports</div>
+        <h2 class="section-title">Your time,<br><em style="font-style:italic;color:var(--primary);">quantified.</em></h2>
+        <p class="section-sub" style="margin-bottom:2rem;">See exactly where your hours go. Weekly performance, project breakdowns, billable summaries — all derived automatically from your event log.</p>
+        <div style="display:flex;flex-direction:column;gap:1rem;">
+          <div style="display:flex;align-items:center;gap:0.6rem;font-size:0.85rem;"><span style="color:var(--primary);font-weight:600;">✓</span> Export to CSV, PDF, or DATEV</div>
+          <div style="display:flex;align-items:center;gap:0.6rem;font-size:0.85rem;"><span style="color:var(--primary);font-weight:600;">✓</span> Billable vs. non-billable split</div>
+          <div style="display:flex;align-items:center;gap:0.6rem;font-size:0.85rem;"><span style="color:var(--primary);font-weight:600;">✓</span> Activity & project breakdowns</div>
+          <div style="display:flex;align-items:center;gap:0.6rem;font-size:0.85rem;"><span style="color:var(--primary);font-weight:600;">✓</span> Custom date ranges</div>
+        </div>
+      </div>
+
+      <!-- Reports Mock -->
+      <div style="background:var(--surface-lowest);border-radius:2rem;padding:2rem;box-shadow:0 8px 24px -4px rgba(26,28,25,0.06);">
+        <!-- Stat cards -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.9rem;margin-bottom:1.5rem;">
+          <div style="background:var(--surface-lowest);border-radius:1.25rem;padding:1.1rem 1rem;box-shadow:0 2px 10px -2px rgba(26,28,25,0.07);">
+            <div style="font-size:0.62rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--on-surface-muted);margin-bottom:0.5rem;">Total Hours</div>
+            <div style="font-family:'Noto Serif',serif;font-size:1.5rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;">164.5 <span style="font-size:0.75rem;font-weight:400;color:var(--on-surface-muted);">hrs</span></div>
+            <div style="font-size:0.7rem;color:var(--primary);margin-top:0.5rem;display:flex;align-items:center;gap:0.25rem;">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 7L4 4l2 2 3-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              +12% from last month
+            </div>
+          </div>
+          <div style="background:var(--surface-lowest);border-radius:1.25rem;padding:1.1rem 1rem;box-shadow:0 2px 10px -2px rgba(26,28,25,0.07);">
+            <div style="font-size:0.62rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--on-surface-muted);margin-bottom:0.5rem;">Billable Amount</div>
+            <div style="font-family:'Noto Serif',serif;font-size:1.5rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;"><span style="font-size:1rem;">$</span>14,280</div>
+            <div style="font-size:0.7rem;color:var(--primary);margin-top:0.5rem;display:flex;align-items:center;gap:0.25rem;">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 7L4 4l2 2 3-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              8.4% increase
+            </div>
+          </div>
+          <div style="background:var(--surface-lowest);border-radius:1.25rem;padding:1.1rem 1rem;box-shadow:0 2px 10px -2px rgba(26,28,25,0.07);">
+            <div style="font-size:0.62rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--on-surface-muted);margin-bottom:0.5rem;">Avg Daily Time</div>
+            <div style="font-family:'Noto Serif',serif;font-size:1.5rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;">7.8 <span style="font-size:0.75rem;font-weight:400;color:var(--on-surface-muted);">hrs/day</span></div>
+            <div style="font-size:0.7rem;color:var(--on-surface-faint);margin-top:0.5rem;">— Stable performance</div>
+          </div>
+        </div>
+
+        <!-- Charts row -->
+        <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:1rem;">
+          <!-- Donut chart -->
+          <div style="background:var(--surface-container);border-radius:1.5rem;padding:1.25rem 1.1rem;">
+            <div style="font-family:'Noto Serif',serif;font-weight:600;font-size:0.9rem;margin-bottom:1rem;">Time Distribution</div>
+            <div style="display:flex;justify-content:center;margin-bottom:1rem;">
+              <svg width="110" height="110" viewBox="0 0 110 110">
+                <!-- Background ring -->
+                <circle cx="55" cy="55" r="40" fill="none" stroke="#dadad5" stroke-width="14"/>
+                <!-- Segment 1: 60% green -->
+                <circle cx="55" cy="55" r="40" fill="none" stroke="#0d631b" stroke-width="14"
+                  stroke-dasharray="150.8 100.5" stroke-dashoffset="37.7" stroke-linecap="round"/>
+                <!-- Segment 2: 25% blue -->
+                <circle cx="55" cy="55" r="40" fill="none" stroke="#00598f" stroke-width="14"
+                  stroke-dasharray="62.8 188.5" stroke-dashoffset="-113.1" stroke-linecap="round"/>
+                <!-- Segment 3: 15% gray -->
+                <circle cx="55" cy="55" r="40" fill="none" stroke="#9a9c99" stroke-width="14"
+                  stroke-dasharray="37.7 213.6" stroke-dashoffset="-176" stroke-linecap="round"/>
+                <text x="55" y="50" text-anchor="middle" font-family="Inter,sans-serif" font-size="7" fill="#9a9c99" letter-spacing="0.5">OCTOBER</text>
+                <text x="55" y="63" text-anchor="middle" font-family="Noto Serif,serif" font-size="15" font-weight="700" fill="#1a1c19">164.5</text>
+              </svg>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:0.45rem;">
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.72rem;">
+                <span style="display:flex;align-items:center;gap:0.35rem;"><span style="width:7px;height:7px;border-radius:9999px;background:#0d631b;display:inline-block;"></span>Luminary Studio</span>
+                <span style="color:var(--on-surface-muted);">60% (98.7h)</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.72rem;">
+                <span style="display:flex;align-items:center;gap:0.35rem;"><span style="width:7px;height:7px;border-radius:9999px;background:#00598f;display:inline-block;"></span>Arcane Archway</span>
+                <span style="color:var(--on-surface-muted);">25% (41.1h)</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.72rem;">
+                <span style="display:flex;align-items:center;gap:0.35rem;"><span style="width:7px;height:7px;border-radius:9999px;background:#9a9c99;display:inline-block;"></span>Hearth & Home</span>
+                <span style="color:var(--on-surface-muted);">15% (24.7h)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bar chart + breakdown -->
+          <div style="background:var(--surface-container);border-radius:1.5rem;padding:1.25rem 1.1rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+              <div style="font-family:'Noto Serif',serif;font-weight:600;font-size:0.9rem;">Weekly Performance</div>
+              <div style="display:flex;gap:0.75rem;font-size:0.65rem;color:var(--on-surface-muted);">
+                <span style="display:flex;align-items:center;gap:0.25rem;"><span style="width:7px;height:7px;border-radius:9999px;background:#0d631b;display:inline-block;"></span>Billable</span>
+                <span style="display:flex;align-items:center;gap:0.25rem;"><span style="width:7px;height:7px;border-radius:9999px;background:#dadad5;display:inline-block;"></span>Non-bill.</span>
+              </div>
+            </div>
+            <!-- Bar chart SVG -->
+            <svg width="100%" height="80" viewBox="0 0 200 80" preserveAspectRatio="xMidYMax meet" style="margin-bottom:0.75rem;">
+              <!-- Week 1 -->
+              <rect x="10" y="18" width="28" height="52" rx="5" fill="#dadad5"/>
+              <rect x="10" y="34" width="28" height="36" rx="5" fill="#0d631b"/>
+              <!-- Week 2 -->
+              <rect x="58" y="10" width="28" height="60" rx="5" fill="#dadad5"/>
+              <rect x="58" y="22" width="28" height="48" rx="5" fill="#0d631b"/>
+              <!-- Week 3 -->
+              <rect x="106" y="22" width="28" height="48" rx="5" fill="#dadad5"/>
+              <rect x="106" y="40" width="28" height="30" rx="5" fill="#0d631b"/>
+              <!-- Week 4 -->
+              <rect x="154" y="5" width="28" height="65" rx="5" fill="#dadad5"/>
+              <rect x="154" y="14" width="28" height="56" rx="5" fill="#0d631b"/>
+              <!-- Labels -->
+              <text x="24" y="78" text-anchor="middle" font-family="Inter,sans-serif" font-size="7" fill="#9a9c99">WEEK 1</text>
+              <text x="72" y="78" text-anchor="middle" font-family="Inter,sans-serif" font-size="7" fill="#9a9c99">WEEK 2</text>
+              <text x="120" y="78" text-anchor="middle" font-family="Inter,sans-serif" font-size="7" fill="#9a9c99">WEEK 3</text>
+              <text x="168" y="78" text-anchor="middle" font-family="Inter,sans-serif" font-size="7" fill="#9a9c99">WEEK 4</text>
+            </svg>
+            <!-- Breakdown table -->
+            <div style="border-top:1px solid var(--surface-dim);padding-top:0.75rem;">
+              <div style="display:grid;grid-template-columns:1fr auto auto;gap:0 0.75rem;font-size:0.62rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--on-surface-faint);margin-bottom:0.5rem;">
+                <span>Category</span><span>Hours</span><span>%</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr auto auto;gap:0 0.75rem;font-size:0.75rem;padding:0.4rem 0;border-bottom:1px solid var(--surface-container);">
+                <span>Design & Strategy</span><span style="font-variant-numeric:tabular-nums;">112.0</span><span style="color:var(--primary);font-weight:600;">68%</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr auto auto;gap:0 0.75rem;font-size:0.75rem;padding:0.4rem 0;border-bottom:1px solid var(--surface-container);">
+                <span>Client Meetings</span><span style="font-variant-numeric:tabular-nums;">32.5</span><span>20%</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr auto auto;gap:0 0.75rem;font-size:0.75rem;padding:0.4rem 0;">
+                <span>Research & Dev</span><span style="font-variant-numeric:tabular-nums;">20.0</span><span>12%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OPEN SOURCE -->
+<section id="opensource" class="opensource-section" style="max-width:1300px;margin:0 auto;">
+  <div class="section-tag" style="display:inline-block;">Open Source · Free Forever</div>
+  <h2 class="section-title" style="max-width:480px;margin:1rem auto;">Your setup,<br><em style="font-style:italic;color:var(--primary);">your rules.</em></h2>
+  <p class="section-sub" style="margin:0 auto 2rem;text-align:center;">Run it locally, self-host it for your team, or use the hosted cloud version. zeitrak is open source and free — however you choose to run it.</p>
+  <div class="opensource-pills">
+    <div class="pill"><div class="pill-dot"></div> MIT License</div>
+    <div class="pill"><div class="pill-dot"></div> Self-hostable</div>
+    <div class="pill"><div class="pill-dot"></div> Local-first SQLite</div>
+    <div class="pill"><div class="pill-dot"></div> REST + Plugin API</div>
+    <div class="pill"><div class="pill-dot"></div> No telemetry</div>
+    <div class="pill"><div class="pill-dot"></div> Docker deploy</div>
+  </div>
+</section>
+
+<!-- CTA / REGISTER -->
+<div class="cta-bg" id="register">
+  <div class="cta-inner">
+    <div style="display:inline-flex;align-items:center;gap:0.5rem;background:var(--primary-light);color:var(--primary);border-radius:9999px;padding:0.35rem 1rem;font-size:0.72rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:1.75rem;">
+      <div style="width:6px;height:6px;border-radius:9999px;background:var(--primary);animation:pulse 2s ease-in-out infinite;"></div>
+      Launching July 2026
+    </div>
+    <h2 class="cta-title">Be first on the<br><em style="font-style:italic;color:var(--primary);">platform.</em></h2>
+    <p class="cta-sub">Register now and get early access, plugin announcements, and a special thanks in the release notes.</p>
+    <div class="countdown-row" id="countdown-row">
+      <div class="countdown-item">
+        <div class="countdown-num" id="cd-days">90</div>
+        <div class="countdown-label">Days</div>
+      </div>
+      <div class="countdown-sep">:</div>
+      <div class="countdown-item">
+        <div class="countdown-num" id="cd-hours">00</div>
+        <div class="countdown-label">Hours</div>
+      </div>
+      <div class="countdown-sep">:</div>
+      <div class="countdown-item">
+        <div class="countdown-num" id="cd-mins">00</div>
+        <div class="countdown-label">Minutes</div>
+      </div>
+    </div>
+    <form class="register-form" id="register-form">
+      <input type="email" class="register-input" placeholder="your@email.com" required id="reg-email">
+      <button type="submit" class="btn-primary" style="white-space:nowrap;">Register →</button>
+    </form>
+    <div class="success-msg" id="success-msg">
+      🎉 You're on the list! We'll be in touch before launch.
+    </div>
+    <div style="font-size:0.75rem;color:var(--on-surface-faint);margin-top:1.25rem;">No spam. Unsubscribe anytime. We take privacy seriously.</div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div>
+    <div class="footer-logo">zeit<span>rak</span></div>
+    <div style="font-size:0.75rem;color:var(--on-surface-faint);margin-top:0.25rem;">Time tracking on rails</div>
+  </div>
+  <div class="footer-links">
+    <a href="#features">Features</a>
+    <a href="#plugins">Plugins</a>
+    <a href="#register">Early access</a>
+    <a href="#">GitHub</a>
+    <a href="#">Docs</a>
+  </div>
+  <div class="footer-copy">Open source · MIT License · © 2026 zeitrak</div>
+</footer>
+
+<!-- TWEAKS PANEL -->
+<div id="tweaks-panel">
+  <h3>Tweaks</h3>
+  <div class="tweak-row">
+    <div class="tweak-label">Color theme</div>
+    <div class="tweak-swatches">
+      <button class="tweak-swatch" style="background:#0d631b;outline:3px solid #0d631b;outline-offset:2px;" onclick="setTheme('#0d631b','#2e7d32')" title="Forest"></button>
+      <button class="tweak-swatch" style="background:#1a56a0;" onclick="setTheme('#1a56a0','#2563eb')" title="Ocean"></button>
+      <button class="tweak-swatch" style="background:#6d2e8c;" onclick="setTheme('#6d2e8c','#7c3aed')" title="Violet"></button>
+      <button class="tweak-swatch" style="background:#9a3412;" onclick="setTheme('#9a3412','#b45309')" title="Amber"></button>
+    </div>
+  </div>
+  <div class="tweak-row">
+    <div class="tweak-label">Surface tone</div>
+    <div class="tweak-options">
+      <button class="tweak-option active" onclick="setSurface('#fafaf5','#f4f4ef','#eeeee9')">Warm</button>
+      <button class="tweak-option" onclick="setSurface('#f8f8f8','#f0f0f0','#e8e8e8')">Neutral</button>
+      <button class="tweak-option" onclick="setSurface('#f0f4f8','#e8eef4','#dce6ee')">Cool</button>
+    </div>
+  </div>
+  <div class="tweak-row">
+    <div class="tweak-label">Font style</div>
+    <div class="tweak-options">
+      <button class="tweak-option active" onclick="setFont('Noto Serif')">Serif</button>
+      <button class="tweak-option" onclick="setFont('Inter')">Sans</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Countdown
+function updateCountdown() {
+  const launch = new Date('2026-07-22T09:00:00');
+  const now = new Date();
+  const diff = launch - now;
+  if (diff <= 0) return;
+  const days = Math.floor(diff / (1000*60*60*24));
+  const hours = Math.floor((diff % (1000*60*60*24)) / (1000*60*60));
+  const mins = Math.floor((diff % (1000*60*60)) / (1000*60));
+  document.getElementById('cd-days').textContent = String(days).padStart(2,'0');
+  document.getElementById('cd-hours').textContent = String(hours).padStart(2,'0');
+  document.getElementById('cd-mins').textContent = String(mins).padStart(2,'0');
+}
+updateCountdown();
+setInterval(updateCountdown, 60000);
+
+// Live timers
+let heroSec = 42*60+17, tmSec = 42*60+15;
+function fmtTime(s) {
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), ss = s%60;
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0');
+}
+setInterval(() => {
+  heroSec++; tmSec++;
+  const a = document.getElementById('hero-timer'), b = document.getElementById('tm-timer');
+  if (a) a.textContent = fmtTime(heroSec);
+  if (b) b.textContent = fmtTime(tmSec);
+}, 1000);
+
+// Registration
+document.getElementById('register-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const email = document.getElementById('reg-email').value;
+  if (!email) return;
+  const emails = JSON.parse(localStorage.getItem('zt_signups') || '[]');
+  emails.push(email);
+  localStorage.setItem('zt_signups', JSON.stringify(emails));
+  this.style.display = 'none';
+  document.getElementById('success-msg').style.display = 'block';
+});
+
+// Tweaks
+window.addEventListener('message', e => {
+  if (e.data.type === '__activate_edit_mode') document.getElementById('tweaks-panel').classList.add('open');
+  if (e.data.type === '__deactivate_edit_mode') document.getElementById('tweaks-panel').classList.remove('open');
+});
+window.parent.postMessage({type:'__edit_mode_available'},'*');
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "primaryColor": "#0d631b",
+  "primaryContainer": "#2e7d32",
+  "surface": "#fafaf5",
+  "displayFont": "Noto Serif"
+}/*EDITMODE-END*/;
+
+function setTheme(p, pc) {
+  document.documentElement.style.setProperty('--primary', p);
+  document.documentElement.style.setProperty('--primary-container', pc);
+  document.documentElement.style.setProperty('--primary-light', p+'22');
+  document.querySelectorAll('.tweak-swatch').forEach(s => s.style.outline = '');
+  event.target.style.outline = '3px solid '+p;
+  event.target.style.outlineOffset = '2px';
+  window.parent.postMessage({type:'__edit_mode_set_keys', edits:{primaryColor:p, primaryContainer:pc}},'*');
+}
+function setSurface(s, sl, sc) {
+  document.documentElement.style.setProperty('--surface', s);
+  document.documentElement.style.setProperty('--surface-low', sl);
+  document.documentElement.style.setProperty('--surface-container', sc);
+  document.querySelectorAll('#tweaks-panel .tweak-options button').forEach(b => { if(b.closest('.tweak-row').querySelector('.tweak-label').textContent === 'Surface tone') b.classList.remove('active'); });
+  event.target.classList.add('active');
+}
+function setFont(f) {
+  document.documentElement.style.setProperty('--display-font', f);
+  document.querySelectorAll('[style*="Noto Serif"], .hero-title, .section-title, .cta-title').forEach(el => {
+    el.style.fontFamily = "'"+f+"', serif";
+  });
+  document.querySelectorAll('#tweaks-panel .tweak-options button').forEach(b => { if(b.closest('.tweak-row').querySelector('.tweak-label').textContent === 'Font style') b.classList.remove('active'); });
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>
