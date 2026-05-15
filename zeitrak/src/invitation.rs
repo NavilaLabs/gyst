@@ -62,7 +62,34 @@ pub async fn invite_member(
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let token = root.token().to_string();
-    let link = format!("{base_url}/invite/{token}");
+
+    // The projector is async, so the projection row may not yet exist immediately
+    // after the event is written. Poll until the row appears before sending the
+    // email — this guarantees the link is live when the recipient clicks it.
+    let projection_ready = {
+        let pool = Pool::connect_admin().await?;
+        let mut ready = false;
+        for _ in 0..20u8 {
+            let repo = InvitationRepository::from_pool(pool.clone()).await?;
+            if InvitationQuery::new(repo)
+                .find_by_token(&token)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))?
+                .is_some()
+            {
+                ready = true;
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+        ready
+    };
+    anyhow::ensure!(
+        projection_ready,
+        "invitation projection was not populated within 2 s — the projection daemon may not be running"
+    );
+
+    let link = format!("{base_url}/invitations/accept/{token}");
 
     let workspace_name = WorkspaceQuery::new(WorkspaceRepository::from_pool(pool.clone()).await?)
         .find_view_by_id(workspace_id)
@@ -80,7 +107,7 @@ pub async fn invite_member(
         .map_or_else(|| invited_by.email.clone(), |u| u.name().to_string());
 
     email_sender
-        .send_invitation(&email, &link, &workspace_name, &inviter_name)
+        .send_invitation(&email, &link, &workspace_name, &inviter_name, ttl_days)
         .await?;
 
     Ok(invitation_id)
@@ -92,12 +119,27 @@ pub async fn invite_member(
 ///
 /// Returns an error if the database query fails.
 pub async fn get_invitation_by_token(token: &str) -> Result<Option<InvitationRow>> {
+    tracing::debug!(token = %token, "querying invitation projection by token");
     let pool = Pool::connect_admin().await?;
     let repo = InvitationRepository::from_pool(pool).await?;
-    InvitationQuery::new(repo)
+    let result = InvitationQuery::new(repo)
         .find_by_token(token)
         .await
-        .map_err(|e| anyhow::anyhow!("{e}"))
+        .map_err(|e| {
+            tracing::error!(token = %token, error = %e, "find_by_token query failed");
+            anyhow::anyhow!("{e}")
+        })?;
+    match &result {
+        Some(row) => tracing::debug!(
+            token = %token,
+            invitation_id = %row.id(),
+            status = ?row.status,
+            expires_at = %row.expires_at,
+            "invitation row found in projection"
+        ),
+        None => tracing::warn!(token = %token, "invitation not found in projections__invitations"),
+    }
+    Ok(result)
 }
 
 /// Returns all invitations for the given workspace.

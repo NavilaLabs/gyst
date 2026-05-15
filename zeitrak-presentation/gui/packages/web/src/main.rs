@@ -2,22 +2,23 @@ use api::auth::UserInfo;
 use api::settings::{UserSettingsDto, WorkspaceSettingsDto};
 use dioxus::prelude::*;
 use dioxus_i18n::{prelude::*, tid};
-use unic_langid::langid;
 use dioxus_motion::prelude::*;
 use easer::functions::Easing;
+#[cfg(feature = "landing")]
+use ui::views::LandingPage;
 use ui::{
     components::{
         atoms::{ToastMessage, ToastStack},
         organisms::{Header, Sidebar},
     },
     views::{
-        setup::Setup, Activities, Dashboard, Database, InvitationAccept, LandingPage, Login,
-        Register, SelectWorkspace, Settings, Tags, Timesheets, VerifyEmailConfirm,
-        VerifyEmailPending,
+        setup::Setup, Activities, Dashboard, Database, InvitationAccept, Login, Register,
+        SelectWorkspace, Settings, Tags, Timesheets, VerifyEmailConfirm, VerifyEmailPending,
     },
     ActivitiesCache, GlobalStyles, RunningElapsed, RunningTimer, SidebarOpen, TagsCache,
     TimesheetsCache, UserSettings, WorkspaceSettings, FAVICON,
 };
+use unic_langid::langid;
 
 /// Three-state auth signal shared across the whole app.
 ///
@@ -28,7 +29,10 @@ pub type AuthState = Signal<Option<Option<UserInfo>>>;
 
 #[component]
 fn Landing() -> Element {
+    #[cfg(feature = "landing")]
     rsx! { LandingPage {} }
+    #[cfg(not(feature = "landing"))]
+    rsx! {}
 }
 
 #[component]

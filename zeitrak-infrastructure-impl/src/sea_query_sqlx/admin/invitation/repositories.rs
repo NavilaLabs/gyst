@@ -211,6 +211,7 @@ impl InvitationRepositoryTrait<AnyRow> for InvitationRepository {
     type Error = crate::Error;
 
     async fn find_by_token(&self, token: &str) -> Result<Option<InvitationRow>, crate::Error> {
+        tracing::debug!(token = %token, "executing find_by_token SQL query");
         let row = sqlx::query(
             "SELECT i.id, i.workspace_id, w.name AS workspace_name, i.email, \
              i.workspace_role_id, i.token, i.status, i.expires_at \
@@ -220,8 +221,20 @@ impl InvitationRepositoryTrait<AnyRow> for InvitationRepository {
         )
         .bind(token)
         .fetch_optional(self.store.pool.as_ref())
-        .await?;
-        row.map(|r| self.row_to_invitation_row(&r)).transpose()
+        .await
+        .map_err(|e| {
+            tracing::error!(token = %token, error = %e, "SQL query for invitation token failed");
+            e
+        })?;
+        match &row {
+            Some(_) => tracing::debug!(token = %token, "raw DB row found for token"),
+            None => tracing::warn!(token = %token, "no raw DB row found for token — token not in projections__invitations"),
+        }
+        let result = row.map(|r| self.row_to_invitation_row(&r)).transpose();
+        if let Err(ref e) = result {
+            tracing::error!(token = %token, error = %e, "failed to deserialize invitation row from DB");
+        }
+        result
     }
 
     async fn find_by_workspace(

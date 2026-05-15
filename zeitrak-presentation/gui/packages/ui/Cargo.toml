@@ -24,3 +24,4 @@ js-sys = "0.3"
 
 [features]
 server = ["api/server"]
+landing = []

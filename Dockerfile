@@ -10,8 +10,6 @@ ENV PATH="/.cargo/bin:$PATH"
 
 ENV ZK_ENVIRONMENT=production
 ENV ZK_PROJECT_ROOT="/app"
-ENV ZK_DATABASE_BASE_URI=sqlite:///app/databases
-ENV ZK_ADMIN_DATABASE_NAME=zeitrak_admin
 
 COPY . .
 
@@ -49,8 +47,8 @@ ENV PORT=8080
 ENV IP=0.0.0.0
 ENV ZK_ENVIRONMENT=production
 ENV ZK_PROJECT_ROOT="/app"
-ENV ZK_DATABASE_BASE_URI=sqlite:///app/databases
-ENV ZK_ADMIN_DATABASE_NAME=zeitrak_admin
+ENV ZK_DATABASE__BASE_URI=sqlite:///app/databases
+ENV ZK_DATABASE__DATABASES__ADMIN__NAME=zeitrak_admin
 
 RUN chmod +x /app/entrypoint.sh
 ENTRYPOINT ["/app/entrypoint.sh"]

@@ -1,5 +1,3 @@
-pub mod landing;
-pub use landing::*;
 pub mod activities;
 pub use activities::*;
 pub mod dashboard;
@@ -8,6 +6,10 @@ pub mod developer;
 pub use developer::*;
 pub mod invitation_accept;
 pub use invitation_accept::*;
+#[cfg(feature = "landing")]
+pub mod landing;
+#[cfg(feature = "landing")]
+pub use landing::*;
 pub mod login;
 pub use login::*;
 pub mod register;

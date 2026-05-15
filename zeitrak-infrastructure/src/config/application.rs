@@ -109,7 +109,7 @@ impl Default for SmtpConfig {
     fn default() -> Self {
         Self {
             host: "localhost".to_string(),
-            port: 1025,
+            port: 587,
             username: String::new(),
             password: String::new(),
             from_address: "noreply@zeitrak.app".to_string(),

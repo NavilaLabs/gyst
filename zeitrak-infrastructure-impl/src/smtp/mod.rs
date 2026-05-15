@@ -56,11 +56,12 @@ impl EmailSender for SmtpEmailSender {
         invitation_link: &str,
         workspace_name: &str,
         invited_by_name: &str,
+        ttl_days: u32,
     ) -> anyhow::Result<()> {
         let body = format!(
             "{invited_by_name} has invited you to join the workspace \"{workspace_name}\" on Zeitrak.\n\n\
              Accept the invitation here:\n{invitation_link}\n\n\
-             This link expires in 7 days."
+             This link expires in {ttl_days} days."
         );
 
         let email = Message::builder()

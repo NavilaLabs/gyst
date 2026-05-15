@@ -9,9 +9,10 @@ dioxus = { workspace = true, features = ["fullstack"] }
 zeitrak = { path = "../../../../zeitrak", optional = true }
 serde = { version = "1", features = ["derive"] }
 tower-sessions = { version = "0.14", optional = true }
+tracing = { workspace = true, optional = true }
 
 [features]
 # default = ["server"]
-server = ["dioxus/server", "dep:anyhow", "dep:zeitrak", "dep:tower-sessions", "sqlite"]
+server = ["dioxus/server", "dep:anyhow", "dep:zeitrak", "dep:tower-sessions", "dep:tracing", "sqlite"]
 postgres = ["zeitrak/postgres"]
 sqlite = ["zeitrak/sqlite"]

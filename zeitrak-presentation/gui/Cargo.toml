@@ -20,6 +20,7 @@ dioxus-i18n = "0.5"
 unic-langid = "0.9.6"
 dotenvy = "0.15.7"
 chrono = "0.4"
+tracing = "0.1"
 chrono-tz = { version = "0.10", features = ["serde"] }
 
 statig = "0.3"

@@ -1,8 +1,8 @@
 #!/bin/sh
 
 # Set the secret if not already provided
-if [ -z "$ZK_AUTHENTICATION_SECRET" ]; then
-  echo "ERROR: ZK_AUTHENTICATION_SECRET is not set. Aborting." >&2
+if [ -z "$ZK_APPLICATION__SECURITY__AUTHENTICATION_SECRET" ]; then
+  echo "ERROR: ZK_APPLICATION__SECURITY__AUTHENTICATION_SECRET is not set. Aborting." >&2
   exit 1
 fi
 

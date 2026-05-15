@@ -37,17 +37,50 @@ pub async fn send_invitation(
 ///
 /// This endpoint is public (no session required) so that uninvited visitors can
 /// view the workspace name before deciding to register.
+#[server]
 #[get("/api/invitations/by-token")]
-pub async fn get_invitation_by_token(token: String) -> Result<Option<InvitationDto>, ServerFnError> {
-    #[cfg(feature = "server")]
-    {
-        _get_invitation_by_token(token).await
+pub async fn get_invitation_by_token(
+    token: String,
+) -> Result<Option<InvitationDto>, ServerFnError> {
+    use crate::session::internal;
+    use zeitrak::core::admin::invitation::InvitationStatus;
+
+    tracing::info!(token = %token, "looking up invitation by token");
+
+    let row = zeitrak::invitation::get_invitation_by_token(&token)
+        .await
+        .map_err(|e| {
+            tracing::error!(token = %token, error = %e, "invitation lookup failed");
+            internal(e)
+        })?;
+
+    match &row {
+        Some(r) => tracing::info!(
+            token = %token,
+            invitation_id = %r.id(),
+            status = ?r.status,
+            email = %r.email(),
+            "invitation found"
+        ),
+        None => tracing::warn!(token = %token, "no invitation found for token"),
     }
-    #[cfg(not(feature = "server"))]
-    {
-        let _ = token;
-        Ok(None)
-    }
+
+    Ok(row.map(|r| {
+        let status = match r.status {
+            InvitationStatus::Pending => "pending",
+            InvitationStatus::Accepted => "accepted",
+            InvitationStatus::Revoked => "revoked",
+        };
+        InvitationDto {
+            id: r.id().to_string(),
+            workspace_id: r.workspace_id.to_string(),
+            workspace_name: r.workspace_name.clone(),
+            email: r.email().to_string(),
+            workspace_role_id: r.workspace_role_id.to_string(),
+            token: r.token().to_string(),
+            status: status.to_string(),
+        }
+    }))
 }
 
 /// Accepts the invitation identified by `token` for the currently authenticated user.
@@ -156,8 +189,9 @@ async fn _send_invitation(
     let (user, workspace_id) = session_workspace().await?;
     require_permission(&user, zeitrak::core::permissions::MEMBER_INVITE).await?;
 
-    let role_id: zeitrak::core::admin::workspace_role::WorkspaceRoleId =
-        workspace_role_id.parse().map_err(|_| ServerFnError::ServerError {
+    let role_id: zeitrak::core::admin::workspace_role::WorkspaceRoleId = workspace_role_id
+        .parse()
+        .map_err(|_| ServerFnError::ServerError {
             message: "invalid workspace_role_id".into(),
             code: 400,
             details: None,
@@ -184,33 +218,6 @@ async fn _send_invitation(
     .map_err(internal)?;
 
     Ok(invitation_id.to_string())
-}
-
-#[cfg(feature = "server")]
-async fn _get_invitation_by_token(token: String) -> Result<Option<InvitationDto>, ServerFnError> {
-    use crate::session::internal;
-    use zeitrak::core::admin::invitation::InvitationStatus;
-
-    let row = zeitrak::invitation::get_invitation_by_token(&token)
-        .await
-        .map_err(internal)?;
-
-    Ok(row.map(|r| {
-        let status = match r.status {
-            InvitationStatus::Pending => "pending",
-            InvitationStatus::Accepted => "accepted",
-            InvitationStatus::Revoked => "revoked",
-        };
-        InvitationDto {
-            id: r.id().to_string(),
-            workspace_id: r.workspace_id.to_string(),
-            workspace_name: r.workspace_name.clone(),
-            email: r.email().to_string(),
-            workspace_role_id: r.workspace_role_id.to_string(),
-            token: r.token().to_string(),
-            status: status.to_string(),
-        }
-    }))
 }
 
 #[cfg(feature = "server")]
@@ -271,10 +278,15 @@ async fn _register_and_accept(
 
     let email_sender = zeitrak::email::email_sender_from_config().map_err(internal)?;
     let base_url = zeitrak::email::base_url();
-    let user_id =
-        zeitrak::registration::register_user(name, email.clone(), password, &email_sender, base_url)
-            .await
-            .map_err(internal)?;
+    let user_id = zeitrak::registration::register_user(
+        name,
+        email.clone(),
+        password,
+        &email_sender,
+        base_url,
+    )
+    .await
+    .map_err(internal)?;
 
     let workspace_id = zeitrak::invitation::accept_invitation(&token, &user_id.to_string())
         .await

@@ -3,4 +3,3 @@ application:
   name: Zeitrak
   security:
     invite_only: true
-    invite_token_expiry_secs: 300

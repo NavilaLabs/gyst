@@ -358,6 +358,7 @@ pub enum SentEmailKind {
         invitation_link: String,
         workspace_name: String,
         invited_by_name: String,
+        ttl_days: u32,
     },
     Verification {
         verification_link: String,
@@ -409,6 +410,7 @@ impl EmailSender for RecordingEmailSender {
         invitation_link: &str,
         workspace_name: &str,
         invited_by_name: &str,
+        ttl_days: u32,
     ) -> anyhow::Result<()> {
         self.sent
             .lock()
@@ -419,6 +421,7 @@ impl EmailSender for RecordingEmailSender {
                     invitation_link: invitation_link.to_string(),
                     workspace_name: workspace_name.to_string(),
                     invited_by_name: invited_by_name.to_string(),
+                    ttl_days,
                 },
             });
         Ok(())

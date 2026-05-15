@@ -17,6 +17,7 @@ pub trait EmailSender: Send + Sync {
         invitation_link: &str,
         workspace_name: &str,
         invited_by_name: &str,
+        ttl_days: u32,
     ) -> anyhow::Result<()>;
 
     /// Sends an email verification link to a newly registered user.
