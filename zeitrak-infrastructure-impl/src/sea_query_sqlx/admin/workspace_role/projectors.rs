@@ -122,6 +122,55 @@ impl Projector for WorkspaceRoleProjector {
                     .execute(self.pool.as_ref())
                     .await?;
             }
+            "WorkspaceRoleRenamed" => {
+                let WorkspaceRoleEvent::Renamed { name } =
+                    serde_json::from_slice(&event.payload_bytes)?
+                else {
+                    return Ok(());
+                };
+
+                let query = Query::update()
+                    .table(TableRef::from(Self::TABLE))
+                    .value(DynIden::from("name"), sea_query::Value::String(Some(name)))
+                    .cond_where(
+                        Condition::all()
+                            .add(Expr::col("id").eq(Expr::val(event.stream_id.clone()))),
+                    )
+                    .to_owned();
+
+                let (sql, values) = match self.pool.database_type() {
+                    DatabaseType::Sqlite => query.build_sqlx(SqliteQueryBuilder),
+                    DatabaseType::Postgres => query.build_sqlx(PostgresQueryBuilder),
+                };
+
+                sqlx::query_with(&sql, values)
+                    .execute(self.pool.as_ref())
+                    .await?;
+            }
+            "WorkspaceRoleDeleted" => {
+                // Delete role-permission associations first, then the role row.
+                // Cascading on the FK is not guaranteed across all DB setups,
+                // so we handle it explicitly for idempotency.
+                let pool = self.pool.as_ref();
+                sqlx::query(
+                    "DELETE FROM projections__workspace_role_permissions WHERE workspace_role_id = ?",
+                )
+                .bind(&event.stream_id)
+                .execute(pool)
+                .await?;
+
+                sqlx::query(
+                    "DELETE FROM projections__workspace_user_roles WHERE workspace_role_id = ?",
+                )
+                .bind(&event.stream_id)
+                .execute(pool)
+                .await?;
+
+                sqlx::query("DELETE FROM projections__workspace_roles WHERE id = ?")
+                    .bind(&event.stream_id)
+                    .execute(pool)
+                    .await?;
+            }
             _ => {}
         }
 

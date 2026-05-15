@@ -60,7 +60,8 @@ impl Aggregate for Workspace {
                 WorkspaceEvent::UserRoleAssigned { .. }
                 | WorkspaceEvent::UserRoleRevoked { .. }
                 | WorkspaceEvent::UserPermissionGranted { .. }
-                | WorkspaceEvent::UserPermissionRevoked { .. },
+                | WorkspaceEvent::UserPermissionRevoked { .. }
+                | WorkspaceEvent::UserRemoved { .. },
             ) => Ok(w),
             (
                 Some(mut w),

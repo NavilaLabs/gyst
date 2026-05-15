@@ -79,7 +79,10 @@ pub fn Tags() -> Element {
         .cloned()
         .collect();
 
-    let columns = vec![ColumnDef::new(tid!("common-name")), ColumnDef::new("").width("120px")];
+    let columns = vec![
+        ColumnDef::new(tid!("common-name")),
+        ColumnDef::new("").width("120px"),
+    ];
     let col_count = columns.len();
 
     rsx! {

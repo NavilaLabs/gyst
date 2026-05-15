@@ -11,6 +11,7 @@ use zeitrak_core::admin::workspace::WorkspaceId;
 use zeitrak_core::admin::workspace_role::{
     WorkspaceRole, WorkspaceRoleEvent, WorkspaceRoleId,
     WorkspaceRoleRepository as WorkspaceRoleRepositoryTrait,
+    WorkspaceRoleWithPermissionsRow,
 };
 use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 
@@ -169,6 +170,84 @@ impl Saver<WorkspaceRole> for WorkspaceRoleRepository {
     }
 }
 
+#[async_trait]
 impl WorkspaceRoleRepositoryTrait<AnyRow> for WorkspaceRoleRepository {
     type Error = crate::Error;
+
+    async fn count_members_with_role(
+        &self,
+        role_id: &WorkspaceRoleId,
+    ) -> Result<u64, crate::Error> {
+        let row = sqlx::query(
+            "SELECT COUNT(*) as cnt FROM projections__workspace_user_roles WHERE workspace_role_id = ?",
+        )
+        .bind(role_id.to_string())
+        .fetch_one(self.store.pool.as_ref())
+        .await?;
+        let count: i64 = row.try_get(0)?;
+        Ok(count as u64)
+    }
+
+    async fn find_with_permissions(
+        &self,
+        workspace_id: &WorkspaceId,
+    ) -> Result<Vec<WorkspaceRoleWithPermissionsRow>, crate::Error> {
+        let workspace_id_str = workspace_id.to_string();
+        let sql = match self.store.pool.database_type() {
+            crate::DatabaseType::Sqlite => {
+                "SELECT wr.id, wr.workspace_id, wr.name, \
+                 GROUP_CONCAT(DISTINCT wrp.permission_id) AS perm_ids, \
+                 GROUP_CONCAT(DISTINCT p.name) AS perm_names \
+                 FROM projections__workspace_roles wr \
+                 LEFT JOIN projections__workspace_role_permissions wrp ON wr.id = wrp.workspace_role_id \
+                 LEFT JOIN permissions p ON wrp.permission_id = p.id \
+                 WHERE wr.workspace_id = ? \
+                 GROUP BY wr.id, wr.workspace_id, wr.name"
+            }
+            crate::DatabaseType::Postgres => {
+                "SELECT wr.id, wr.workspace_id, wr.name, \
+                 STRING_AGG(DISTINCT wrp.permission_id::text, ',') AS perm_ids, \
+                 STRING_AGG(DISTINCT p.name, ',') AS perm_names \
+                 FROM projections__workspace_roles wr \
+                 LEFT JOIN projections__workspace_role_permissions wrp ON wr.id = wrp.workspace_role_id \
+                 LEFT JOIN permissions p ON wrp.permission_id = p.id \
+                 WHERE wr.workspace_id = $1 \
+                 GROUP BY wr.id, wr.workspace_id, wr.name"
+            }
+        };
+
+        let rows = sqlx::query(sql)
+            .bind(&workspace_id_str)
+            .fetch_all(self.store.pool.as_ref())
+            .await?;
+
+        rows.into_iter()
+            .map(|row| {
+                let id: String = row.try_get("id")?;
+                let ws_id: String = row.try_get("workspace_id")?;
+                let name: Option<String> = row.try_get("name")?;
+                let perm_ids_raw: Option<String> = row.try_get("perm_ids")?;
+                let perm_names_raw: Option<String> = row.try_get("perm_names")?;
+                let permission_ids = perm_ids_raw
+                    .unwrap_or_default()
+                    .split(',')
+                    .filter(|s| !s.is_empty())
+                    .map(ToOwned::to_owned)
+                    .collect();
+                let permission_names = perm_names_raw
+                    .unwrap_or_default()
+                    .split(',')
+                    .filter(|s| !s.is_empty())
+                    .map(ToOwned::to_owned)
+                    .collect();
+                Ok(WorkspaceRoleWithPermissionsRow::new(
+                    id,
+                    ws_id,
+                    name,
+                    permission_ids,
+                    permission_names,
+                ))
+            })
+            .collect::<Result<Vec<_>, crate::Error>>()
+    }
 }

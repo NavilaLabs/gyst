@@ -265,9 +265,7 @@ fn build_page_numbers(current: usize, total: usize) -> Vec<Option<usize>> {
     let window = 2_usize; // pages around current to always show
     let mut prev = None::<usize>;
     for p in 0..total {
-        let show = p == 0
-            || p == total - 1
-            || p.abs_diff(current) <= window;
+        let show = p == 0 || p == total - 1 || p.abs_diff(current) <= window;
         if show {
             if let Some(prev_p) = prev {
                 if p > prev_p + 1 {

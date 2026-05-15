@@ -124,7 +124,9 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
     let ts_columns = vec![
         ColumnDef::new(tid!("timesheets-col-activity")),
         ColumnDef::new(tid!("timesheets-col-start")).width("160px"),
-        ColumnDef::new(tid!("timesheets-col-duration")).right().width("90px"),
+        ColumnDef::new(tid!("timesheets-col-duration"))
+            .right()
+            .width("90px"),
         ColumnDef::new("").width("120px"),
     ];
     let col_count = ts_columns.len();

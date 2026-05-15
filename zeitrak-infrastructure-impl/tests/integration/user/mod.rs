@@ -124,7 +124,7 @@ pub mod verification_tests {
                     token: token.to_string(),
                 },
             ),
-            (3, 3, "UserVerified", UserEvent::Verified),
+            (3, 3, "UserVerified", UserEvent::Verified {}),
         ] {
             projector
                 .handle(RawEvent {

@@ -5,6 +5,8 @@ pub mod auth;
 pub mod developer;
 pub mod invitation;
 pub mod login;
+pub mod member;
+pub mod permissions;
 pub mod registration;
 pub mod session;
 pub mod settings;

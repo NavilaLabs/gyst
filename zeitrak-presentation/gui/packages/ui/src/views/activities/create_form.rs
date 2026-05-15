@@ -34,7 +34,12 @@ pub(super) fn ActivityCreateForm(props: ActivityCreateFormProps) -> Element {
         let color = new_color.peek().clone();
 
         create_form.write().handle(&FormAction::Submit);
-        if let Err(e) = (CreateActivityInput { name: name.clone(), color: color.clone() }).validate() {
+        if let Err(e) = (CreateActivityInput {
+            name: name.clone(),
+            color: color.clone(),
+        })
+        .validate()
+        {
             create_form
                 .write()
                 .handle(&FormAction::Fail(validation_summary(&e)));

@@ -1,5 +1,34 @@
 use crate::admin::{workspace::WorkspaceId, workspace_role::WorkspaceRoleId};
 
+/// Read model for a workspace role enriched with its permission IDs and names.
+#[derive(Debug, Clone)]
+pub struct WorkspaceRoleWithPermissionsRow {
+    pub id: String,
+    pub workspace_id: String,
+    pub name: Option<String>,
+    pub permission_ids: Vec<String>,
+    pub permission_names: Vec<String>,
+}
+
+impl WorkspaceRoleWithPermissionsRow {
+    #[must_use]
+    pub fn new(
+        id: String,
+        workspace_id: String,
+        name: Option<String>,
+        permission_ids: Vec<String>,
+        permission_names: Vec<String>,
+    ) -> Self {
+        Self {
+            id,
+            workspace_id,
+            name,
+            permission_ids,
+            permission_names,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct WorkspaceRoleRow {
     id: WorkspaceRoleId,

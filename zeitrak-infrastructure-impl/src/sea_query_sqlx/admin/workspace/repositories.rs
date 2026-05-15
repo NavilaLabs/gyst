@@ -8,8 +8,8 @@ use eventually_any::snapshot::Repository;
 use sea_query::{Alias, Condition, Expr, ExprTrait, JoinType, Order};
 use sqlx::{Row, any::AnyRow};
 use zeitrak_core::admin::workspace::{
-    Workspace, WorkspaceEvent, WorkspaceId, WorkspaceRepository as WorkspaceRepositoryTrait,
-    WorkspaceRow,
+    MemberRow, Workspace, WorkspaceEvent, WorkspaceId,
+    WorkspaceRepository as WorkspaceRepositoryTrait, WorkspaceRow,
 };
 use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 
@@ -285,5 +285,61 @@ impl WorkspaceRepositoryTrait<AnyRow> for WorkspaceRepository {
 
     async fn find_view_by_id(&self, id: &str) -> Result<Option<WorkspaceRow>, crate::Error> {
         self.find_view_by_id_impl(id).await
+    }
+
+    async fn find_members(
+        &self,
+        workspace_id: &WorkspaceId,
+    ) -> Result<Vec<MemberRow>, crate::Error> {
+        let workspace_id_str = workspace_id.to_string();
+        let sql = match self.store.pool.database_type() {
+            crate::DatabaseType::Sqlite => {
+                "SELECT u.id AS user_id, u.name, u.email, \
+                 GROUP_CONCAT(DISTINCT wur.workspace_role_id) AS role_ids, \
+                 GROUP_CONCAT(DISTINCT wup.permission_id) AS perm_ids \
+                 FROM projections__users u \
+                 JOIN projections__workspace_user_roles wur ON u.id = wur.user_id AND wur.workspace_id = ? \
+                 LEFT JOIN projections__workspace_user_permissions wup ON u.id = wup.user_id AND wup.workspace_id = ? \
+                 GROUP BY u.id, u.name, u.email"
+            }
+            crate::DatabaseType::Postgres => {
+                "SELECT u.id AS user_id, u.name, u.email, \
+                 STRING_AGG(DISTINCT wur.workspace_role_id::text, ',') AS role_ids, \
+                 STRING_AGG(DISTINCT wup.permission_id::text, ',') AS perm_ids \
+                 FROM projections__users u \
+                 JOIN projections__workspace_user_roles wur ON u.id = wur.user_id AND wur.workspace_id = $1 \
+                 LEFT JOIN projections__workspace_user_permissions wup ON u.id = wup.user_id AND wup.workspace_id = $2 \
+                 GROUP BY u.id, u.name, u.email"
+            }
+        };
+
+        let rows = sqlx::query(sql)
+            .bind(&workspace_id_str)
+            .bind(&workspace_id_str)
+            .fetch_all(self.store.pool.as_ref())
+            .await?;
+
+        rows.into_iter()
+            .map(|row| {
+                let user_id: String = row.try_get("user_id")?;
+                let name: String = row.try_get("name")?;
+                let email: String = row.try_get("email")?;
+                let role_ids_raw: Option<String> = row.try_get("role_ids")?;
+                let perm_ids_raw: Option<String> = row.try_get("perm_ids")?;
+                let role_ids = role_ids_raw
+                    .unwrap_or_default()
+                    .split(',')
+                    .filter(|s| !s.is_empty())
+                    .map(ToOwned::to_owned)
+                    .collect();
+                let permission_ids = perm_ids_raw
+                    .unwrap_or_default()
+                    .split(',')
+                    .filter(|s| !s.is_empty())
+                    .map(ToOwned::to_owned)
+                    .collect();
+                Ok(MemberRow::new(user_id, email, name, role_ids, permission_ids))
+            })
+            .collect::<Result<Vec<_>, crate::Error>>()
     }
 }

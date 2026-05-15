@@ -38,6 +38,14 @@ pub trait WorkspaceRoleCommandTrait<R> {
         role_id: WorkspaceRoleId,
         permission_id: PermissionId,
     ) -> Result<(), Self::Error>;
+
+    async fn rename(
+        &self,
+        role_id: WorkspaceRoleId,
+        name: String,
+    ) -> Result<(), Self::Error>;
+
+    async fn delete(&self, role_id: WorkspaceRoleId) -> Result<(), Self::Error>;
 }
 
 #[derive(Debug)]
@@ -112,6 +120,41 @@ where
             .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
             .into();
         root.record_that(WorkspaceRoleEvent::PermissionRevoked { permission_id }.into())?;
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))
+    }
+
+    async fn rename(
+        &self,
+        id: WorkspaceRoleId,
+        name: String,
+    ) -> Result<(), <Self as WorkspaceRoleCommandTrait<R>>::Error> {
+        let mut root: WorkspaceRoleRoot = self
+            .repository
+            .get(&id)
+            .await
+            .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
+            .into();
+        root.record_that(WorkspaceRoleEvent::Renamed { name }.into())?;
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))
+    }
+
+    async fn delete(
+        &self,
+        id: WorkspaceRoleId,
+    ) -> Result<(), <Self as WorkspaceRoleCommandTrait<R>>::Error> {
+        let mut root: WorkspaceRoleRoot = self
+            .repository
+            .get(&id)
+            .await
+            .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
+            .into();
+        root.record_that(WorkspaceRoleEvent::Deleted.into())?;
         self.repository
             .save(&mut root)
             .await

@@ -130,7 +130,7 @@ where
             .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
             .into();
 
-        root.record_that(InvitationEvent::Revoked.into())?;
+        root.record_that(InvitationEvent::Revoked {}.into())?;
         self.repository
             .save(&mut root)
             .await

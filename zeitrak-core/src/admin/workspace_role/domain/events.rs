@@ -18,6 +18,10 @@ pub enum WorkspaceRoleEvent {
     PermissionRevoked {
         permission_id: PermissionId,
     },
+    Renamed {
+        name: String,
+    },
+    Deleted,
 }
 
 impl Message for WorkspaceRoleEvent {
@@ -26,6 +30,8 @@ impl Message for WorkspaceRoleEvent {
             Self::Created { .. } => "WorkspaceRoleCreated",
             Self::PermissionGranted { .. } => "WorkspaceRolePermissionGranted",
             Self::PermissionRevoked { .. } => "WorkspaceRolePermissionRevoked",
+            Self::Renamed { .. } => "WorkspaceRoleRenamed",
+            Self::Deleted => "WorkspaceRoleDeleted",
         }
     }
 }

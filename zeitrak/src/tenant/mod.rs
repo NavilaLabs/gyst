@@ -10,9 +10,15 @@ pub mod user;
 pub(super) async fn tenant_pool(
     workspace_id: &str,
 ) -> anyhow::Result<zeitrak_infrastructure_impl::ConnectedTenantPool> {
-    Ok(zeitrak_infrastructure_impl::Pool::<
+    use zeitrak_infrastructure::database::Migrate as _;
+
+    let pool = zeitrak_infrastructure_impl::Pool::<
         zeitrak_infrastructure_impl::ScopeTenant,
         zeitrak_infrastructure_impl::StateDisconnected,
     >::connect_tenant(workspace_id)
-    .await?)
+    .await?;
+
+    pool.migrate_database().await?;
+
+    Ok(pool)
 }

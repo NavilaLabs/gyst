@@ -50,11 +50,20 @@ pub(super) fn ActivityRow(props: ActivityRowProps) -> Element {
         let color = edit_color.peek().clone();
         let comment = {
             let s = edit_comment.peek().clone();
-            if s.is_empty() { None } else { Some(s) }
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
         };
 
         edit_form.write().handle(&FormAction::Submit);
-        if let Err(e) = (UpdateActivityInput { name: name.clone(), color: color.clone() }).validate() {
+        if let Err(e) = (UpdateActivityInput {
+            name: name.clone(),
+            color: color.clone(),
+        })
+        .validate()
+        {
             edit_form
                 .write()
                 .handle(&FormAction::Fail(validation_summary(&e)));

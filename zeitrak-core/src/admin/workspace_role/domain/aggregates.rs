@@ -16,6 +16,8 @@ pub struct WorkspaceRole {
     id: WorkspaceRoleId,
     workspace_id: WorkspaceId,
     name: Option<String>,
+    #[serde(default)]
+    is_deleted: bool,
 }
 
 impl WorkspaceRole {
@@ -32,6 +34,11 @@ impl WorkspaceRole {
     #[must_use]
     pub fn name(&self) -> Option<&str> {
         self.name.as_deref()
+    }
+
+    #[must_use]
+    pub const fn is_deleted(&self) -> bool {
+        self.is_deleted
     }
 }
 
@@ -61,6 +68,7 @@ impl Aggregate for WorkspaceRole {
                 id,
                 workspace_id,
                 name,
+                is_deleted: false,
             }),
             (Some(_), WorkspaceRoleEvent::Created { .. }) => {
                 Err(workspace_role::Error::AlreadyExists)
@@ -71,6 +79,14 @@ impl Aggregate for WorkspaceRole {
                 WorkspaceRoleEvent::PermissionGranted { .. }
                 | WorkspaceRoleEvent::PermissionRevoked { .. },
             ) => Ok(role),
+            (Some(role), WorkspaceRoleEvent::Renamed { name }) => Ok(Self {
+                name: Some(name),
+                ..role
+            }),
+            (Some(role), WorkspaceRoleEvent::Deleted) => Ok(Self {
+                is_deleted: true,
+                ..role
+            }),
         }
     }
 }

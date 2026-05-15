@@ -143,7 +143,7 @@ where
             .await
             .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
             .into();
-        root.record_that(UserEvent::Verified.into())?;
+        root.record_that(UserEvent::Verified {}.into())?;
         self.repository
             .save(&mut root)
             .await

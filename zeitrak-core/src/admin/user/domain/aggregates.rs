@@ -91,7 +91,7 @@ impl Aggregate for User {
                 user.verification_token = Some(token);
                 Ok(user)
             }
-            (Some(mut user), UserEvent::Verified) => {
+            (Some(mut user), UserEvent::Verified {}) => {
                 user.is_verified = true;
                 user.verification_token = None;
                 Ok(user)
@@ -145,7 +145,7 @@ mod tests {
             },
         )
         .unwrap();
-        let result = User::apply(Some(user), UserEvent::Verified);
+        let result = User::apply(Some(user), UserEvent::Verified {});
         assert!(result.is_ok());
         let user = result.unwrap();
         assert!(user.is_verified);

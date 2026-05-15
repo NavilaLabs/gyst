@@ -1,7 +1,14 @@
 use std::fmt::Debug;
 
 use crate::{
-    admin::workspace_role::{self, domain::aggregates::WorkspaceRole},
+    admin::{
+        workspace::WorkspaceId,
+        workspace_role::{
+            self,
+            application::rows::WorkspaceRoleWithPermissionsRow,
+            domain::aggregates::{WorkspaceRole, WorkspaceRoleId},
+        },
+    },
     shared::repositories::{ReadRepository, Repository, WriteRepository},
 };
 use async_trait::async_trait;
@@ -14,6 +21,28 @@ pub trait WorkspaceRoleRepository<R>: Repository<WorkspaceRole, R> + Send + Sync
         + From<workspace_role::Error>
         + From<<Self as ReadRepository<WorkspaceRole, R>>::Error>
         + From<<Self as WriteRepository<WorkspaceRole>>::Error>;
+
+    /// Returns the count of workspace members that have this role assigned.
+    ///
+    /// Used to enforce the "cannot delete role while members are assigned" guard.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    async fn count_members_with_role(
+        &self,
+        role_id: &WorkspaceRoleId,
+    ) -> Result<u64, <Self as WorkspaceRoleRepository<R>>::Error>;
+
+    /// Returns all roles for the given workspace, enriched with their permission IDs and names.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    async fn find_with_permissions(
+        &self,
+        workspace_id: &WorkspaceId,
+    ) -> Result<Vec<WorkspaceRoleWithPermissionsRow>, <Self as WorkspaceRoleRepository<R>>::Error>;
 }
 
 #[cfg(test)]
@@ -27,7 +56,7 @@ pub mod in_memory_repository {
 
     use super::*;
     use crate::{
-        admin::workspace_role::WorkspaceRoleId,
+        admin::{workspace::WorkspaceId, workspace_role::WorkspaceRoleId},
         shared::{
             AggregateId,
             repositories::{ReadRepository, Repository, RowToRoot, WriteRepository},
@@ -124,7 +153,22 @@ pub mod in_memory_repository {
         type Error = StubError;
     }
 
+    #[async_trait]
     impl WorkspaceRoleRepository<()> for InMemoryWorkspaceRoleRepository {
         type Error = StubError;
+
+        async fn count_members_with_role(
+            &self,
+            _role_id: &WorkspaceRoleId,
+        ) -> Result<u64, StubError> {
+            Ok(0)
+        }
+
+        async fn find_with_permissions(
+            &self,
+            _workspace_id: &WorkspaceId,
+        ) -> Result<Vec<WorkspaceRoleWithPermissionsRow>, StubError> {
+            Ok(vec![])
+        }
     }
 }

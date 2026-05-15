@@ -6,7 +6,7 @@ pub use application::{
     commands::{WorkspaceRoleCommand, WorkspaceRoleCommandTrait},
     inputs::CreateWorkspaceRoleInput,
     queries::{WorkspaceRoleQuery, WorkspaceRoleQueryTrait},
-    rows::WorkspaceRoleRow,
+    rows::{WorkspaceRoleRow, WorkspaceRoleWithPermissionsRow},
 };
 pub use domain::{
     aggregates::{WorkspaceRole, WorkspaceRoleId},

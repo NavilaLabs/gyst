@@ -170,6 +170,19 @@ settings-invitation-pending = Ausstehend
 settings-revoke-invitation = Widerrufen
 settings-workspace-title = Arbeitsbereich-Einstellungen
 settings-workspace-name-placeholder = Mein Arbeitsbereich
+
+settings-roles-title = Rollen
+settings-roles-permissions-btn = Berechtigungen
+settings-roles-rename-title = Umbenennen
+settings-roles-delete-title = Rolle löschen
+settings-roles-no-permissions = Keine Berechtigungen verfügbar.
+settings-roles-new-placeholder = Neuer Rollenname
+
+settings-members-title = Mitglieder
+settings-members-empty = Noch keine Mitglieder.
+settings-members-revoke-role-title = Rolle entfernen
+settings-members-remove-title = Aus Arbeitsbereich entfernen
+settings-members-remove-btn = Entfernen
 settings-currency-label = Währung
 settings-currency-placeholder = Währung auswählen
 settings-week-starts-label = Woche beginnt am

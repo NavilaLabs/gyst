@@ -14,7 +14,6 @@ use dioxus_primitives::ContentSide;
 
 #[component]
 pub fn Database() -> Element {
-
     rsx! {
         DefaultLayout {
             Accordion { class: "developer-actions",

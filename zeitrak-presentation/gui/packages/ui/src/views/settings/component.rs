@@ -4,11 +4,14 @@ use crate::components::atoms::{
 };
 use crate::layouts::DefaultLayout;
 use api::invitation::InvitationDto;
+use api::member::MemberDto;
+use api::permissions::PermissionDto;
 use api::workspace_role::WorkspaceRoleDto;
 use chrono::NaiveDate;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{
-    HiBell, HiDownload, HiOfficeBuilding, HiSave, HiShieldCheck, HiTag, HiTrash, HiUser, HiUsers,
+    HiBell, HiCheck, HiDownload, HiOfficeBuilding, HiPencil, HiPlus, HiSave, HiShieldCheck,
+    HiTag, HiTrash, HiUser, HiUsers, HiX,
 };
 use dioxus_free_icons::Icon;
 use dioxus_i18n::{prelude::i18n, tid};
@@ -68,10 +71,14 @@ fn ttl_options() -> Vec<SelectOption<u32>> {
         .collect()
 }
 
-/// Extract up-to-two uppercase initials from an email address.
-fn email_initials(email: &str) -> String {
-    let local = email.split('@').next().unwrap_or(email);
-    let parts: Vec<&str> = local.split(['.', '_', '-']).collect();
+/// Extract up-to-two uppercase initials from a display name or email address.
+fn name_initials(name: &str) -> String {
+    let source = if name.contains('@') {
+        name.split('@').next().unwrap_or(name)
+    } else {
+        name
+    };
+    let parts: Vec<&str> = source.split(['.', '_', '-', ' ']).collect();
     match parts.as_slice() {
         [a, b, ..] => {
             let a = a.chars().next().unwrap_or('?').to_uppercase().to_string();
@@ -107,12 +114,8 @@ pub fn Settings() -> Element {
     let mut i18n = i18n();
 
     let auth: AuthState = use_context();
-    let user_email = auth
-        .cloned()
-        .flatten()
-        .map(|u| u.email)
-        .unwrap_or_default();
-    let initials = email_initials(&user_email);
+    let user_email = auth.cloned().flatten().map(|u| u.email).unwrap_or_default();
+    let initials = name_initials(&user_email);
 
     // Global context — read first so we can seed local signals.
     let mut global_user_settings: crate::UserSettings = use_context();
@@ -167,15 +170,24 @@ pub fn Settings() -> Element {
     let mut ws_saving = use_signal(|| false);
     let mut ws_loaded = use_signal(|| false);
 
+    // ── Roles management state ────────────────────────────────────────────────
+    let mut roles_with_perms = use_signal(Vec::<WorkspaceRoleDto>::new);
+    let mut all_permissions = use_signal(Vec::<PermissionDto>::new);
+    let mut new_role_name = use_signal(String::new);
+    let mut role_expanded = use_signal(|| Option::<String>::None);
+    let mut role_editing = use_signal(|| Option::<String>::None);
+    let mut role_edit_name = use_signal(String::new);
+
     // ── Members state ─────────────────────────────────────────────────────────
-    let mut roles = use_signal(Vec::<WorkspaceRoleDto>::new);
+    let mut members = use_signal(Vec::<MemberDto>::new);
+    let mut member_role_dropdown = use_signal(|| Option::<String>::None);
     let mut workspace_invitations = use_signal(Vec::<InvitationDto>::new);
     let mut invite_email = use_signal(String::new);
     let mut invite_role_id = use_signal(String::new);
     let mut invite_ttl = use_signal(|| 7u32);
     let mut invite_sending = use_signal(|| false);
 
-    // Load settings on mount — overwrites context-seeded values with fresh data.
+    // ── Data loading ──────────────────────────────────────────────────────────
     use_resource(move || async move {
         match api::settings::get_user_settings().await {
             Ok(dto) => {
@@ -203,11 +215,23 @@ pub fn Settings() -> Element {
     });
 
     use_resource(move || async move {
-        if let Ok(list) = api::workspace_role::list_workspace_roles().await {
+        if let Ok(list) = api::workspace_role::list_roles_with_permissions().await {
             if let Some(first) = list.first() {
                 invite_role_id.set(first.id.clone());
             }
-            roles.set(list);
+            roles_with_perms.set(list);
+        }
+    });
+
+    use_resource(move || async move {
+        if let Ok(list) = api::permissions::list_permissions().await {
+            all_permissions.set(list);
+        }
+    });
+
+    use_resource(move || async move {
+        if let Ok(list) = api::member::list_members().await {
+            members.set(list);
         }
     });
 
@@ -281,6 +305,14 @@ pub fn Settings() -> Element {
         }
         ws_saving.set(false);
     };
+
+    // Snapshots for RSX rendering (avoids holding read guards across closures)
+    let roles_snapshot: Vec<WorkspaceRoleDto> = roles_with_perms.read().clone();
+    let perms_snapshot: Vec<PermissionDto> = all_permissions.read().clone();
+    let members_snapshot: Vec<MemberDto> = members.read().clone();
+    let current_expanded = role_expanded.read().clone();
+    let current_editing = role_editing.read().clone();
+    let current_member_dropdown = member_role_dropdown.read().clone();
 
     rsx! {
         document::Link { rel: "stylesheet", href: asset!("./style.css") }
@@ -505,7 +537,7 @@ pub fn Settings() -> Element {
                 if *active_tab.read() == Tab::Workspace {
                     div { class: "settings-grid",
 
-                        // Workspace card
+                        // Workspace settings card
                         Card { data_size: "md",
                             CardHeader {
                                 CardTitle {
@@ -550,6 +582,232 @@ pub fn Settings() -> Element {
                                             value: Some(ws_week_start.read().clone()),
                                             on_change: move |v| ws_week_start.set(v),
                                             placeholder: tid!("settings-week-starts-placeholder"),
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Roles card — full width
+                        div { class: "settings-grid-full",
+                            Card { data_size: "md",
+                                CardHeader {
+                                    CardTitle {
+                                        div { class: "flex items-center gap-2",
+                                            Icon { icon: HiShieldCheck, width: 16, height: 16 }
+                                            {tid!("settings-roles-title")}
+                                        }
+                                    }
+                                }
+                                CardContent {
+                                    div { class: "space-y-2",
+                                        for role in roles_snapshot.iter() {
+                                            {
+                                                let role = role.clone();
+                                                let rid = role.id.clone();
+                                                let rid_expand = rid.clone();
+                                                let rid_edit_btn = rid.clone();
+                                                let rid_edit_save = rid.clone();
+                                                let rid_delete = rid.clone();
+                                                let rname_display = role.name.clone();
+                                                let rname_for_edit = role.name.clone();
+                                                let role_perm_names = role.permissions.clone();
+                                                let is_expanded = current_expanded.as_deref() == Some(rid.as_str());
+                                                let is_editing = current_editing.as_deref() == Some(rid.as_str());
+
+                                                rsx! {
+                                                    div {
+                                                        key: "{rid}",
+                                                        class: "border border-border rounded-md overflow-hidden",
+
+                                                        // Role header row
+                                                        div { class: "flex items-center gap-2 px-3 py-2",
+                                                            if is_editing {
+                                                                div { class: "flex items-center gap-2 flex-1 min-w-0",
+                                                                    Input {
+                                                                        value: role_edit_name.read().clone(),
+                                                                        oninput: move |e: FormEvent| role_edit_name.set(e.value()),
+                                                                    }
+                                                                    button {
+                                                                        class: "shrink-0 p-1 text-success hover:opacity-80 cursor-pointer bg-transparent border-0",
+                                                                        title: "Save rename",
+                                                                        onclick: move |_| {
+                                                                            let rid = rid_edit_save.clone();
+                                                                            let name = role_edit_name.peek().trim().to_string();
+                                                                            async move {
+                                                                                if name.is_empty() { return; }
+                                                                                match api::workspace_role::rename_role(rid.clone(), name.clone()).await {
+                                                                                    Ok(()) => {
+                                                                                        if let Some(r) = roles_with_perms.write().iter_mut().find(|r| r.id == rid) {
+                                                                                            r.name = name;
+                                                                                        }
+                                                                                        role_editing.set(None);
+                                                                                    }
+                                                                                    Err(e) => toasts.push_error(e.to_string()),
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        Icon { icon: HiCheck, width: 14, height: 14 }
+                                                                    }
+                                                                    button {
+                                                                        class: "shrink-0 p-1 text-secondary hover:text-primary cursor-pointer bg-transparent border-0",
+                                                                        title: "Cancel",
+                                                                        onclick: move |_| role_editing.set(None),
+                                                                        Icon { icon: HiX, width: 14, height: 14 }
+                                                                    }
+                                                                }
+                                                            } else {
+                                                                span { class: "text-sm font-medium flex-1 min-w-0 truncate", "{rname_display}" }
+                                                            }
+
+                                                            div { class: "flex items-center gap-1 shrink-0",
+                                                                // Toggle permissions panel
+                                                                button {
+                                                                    class: if is_expanded {
+                                                                        "flex items-center gap-1 px-2 py-1 text-xs rounded border border-primary text-primary cursor-pointer bg-transparent"
+                                                                    } else {
+                                                                        "flex items-center gap-1 px-2 py-1 text-xs rounded border border-border text-secondary hover:border-primary hover:text-primary cursor-pointer bg-transparent"
+                                                                    },
+                                                                    onclick: move |_| {
+                                                                        let rid = rid_expand.clone();
+                                                                        let cur = role_expanded.peek().clone();
+                                                                        if cur.as_deref() == Some(rid.as_str()) {
+                                                                            role_expanded.set(None);
+                                                                        } else {
+                                                                            role_expanded.set(Some(rid));
+                                                                        }
+                                                                    },
+                                                                    Icon { icon: HiShieldCheck, width: 12, height: 12 }
+                                                                    {tid!("settings-roles-permissions-btn")}
+                                                                }
+                                                                // Rename button (hidden while editing)
+                                                                if !is_editing {
+                                                                    button {
+                                                                        class: "p-1 text-secondary hover:text-primary cursor-pointer bg-transparent border-0",
+                                                                        title: "Rename",
+                                                                        onclick: move |_| {
+                                                                            role_edit_name.set(rname_for_edit.clone());
+                                                                            role_editing.set(Some(rid_edit_btn.clone()));
+                                                                        },
+                                                                        Icon { icon: HiPencil, width: 14, height: 14 }
+                                                                    }
+                                                                }
+                                                                // Delete button
+                                                                button {
+                                                                    class: "p-1 text-secondary hover:text-error cursor-pointer bg-transparent border-0",
+                                                                    title: "Delete role",
+                                                                    onclick: move |_| {
+                                                                        let rid = rid_delete.clone();
+                                                                        async move {
+                                                                            match api::workspace_role::delete_role(rid.clone()).await {
+                                                                                Ok(()) => {
+                                                                                    roles_with_perms.write().retain(|r| r.id != rid);
+                                                                                    toasts.push_success("Role deleted");
+                                                                                }
+                                                                                Err(e) => toasts.push_error(e.to_string()),
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    Icon { icon: HiTrash, width: 14, height: 14 }
+                                                                }
+                                                            }
+                                                        }
+
+                                                        // Expandable permissions panel
+                                                        if is_expanded {
+                                                            div { class: "border-t border-border px-3 py-3 bg-[var(--color-surface)]",
+                                                                if perms_snapshot.is_empty() {
+                                                                    p { class: "text-xs text-secondary", {tid!("settings-roles-no-permissions")} }
+                                                                } else {
+                                                                    div { class: "flex flex-wrap gap-x-4 gap-y-2",
+                                                                        for perm in perms_snapshot.iter() {
+                                                                            {
+                                                                                let perm = perm.clone();
+                                                                                let pid = perm.id.clone();
+                                                                                let pname = perm.name.clone();
+                                                                                let pname_check = perm.name.clone();
+                                                                                let rid_perm = rid.clone();
+                                                                                let is_granted = role_perm_names.contains(&perm.name);
+
+                                                                                rsx! {
+                                                                                    label {
+                                                                                        key: "{pid}",
+                                                                                        class: "flex items-center gap-1.5 text-xs cursor-pointer select-none",
+                                                                                        input {
+                                                                                            r#type: "checkbox",
+                                                                                            checked: is_granted,
+                                                                                            onchange: move |e| {
+                                                                                                let pid = pid.clone();
+                                                                                                let pname = pname.clone();
+                                                                                                let rid = rid_perm.clone();
+                                                                                                let checked = e.checked();
+                                                                                                async move {
+                                                                                                    let result = if checked {
+                                                                                                        api::workspace_role::grant_role_permission(rid.clone(), pid).await
+                                                                                                    } else {
+                                                                                                        api::workspace_role::revoke_role_permission(rid.clone(), pid).await
+                                                                                                    };
+                                                                                                    match result {
+                                                                                                        Ok(()) => {
+                                                                                                            if let Some(r) = roles_with_perms.write().iter_mut().find(|r| r.id == rid) {
+                                                                                                                if checked {
+                                                                                                                    if !r.permissions.contains(&pname) {
+                                                                                                                        r.permissions.push(pname);
+                                                                                                                    }
+                                                                                                                } else {
+                                                                                                                    r.permissions.retain(|p| p != &pname);
+                                                                                                                }
+                                                                                                            }
+                                                                                                        }
+                                                                                                        Err(e) => toasts.push_error(e.to_string()),
+                                                                                                    }
+                                                                                                }
+                                                                                            },
+                                                                                        }
+                                                                                        "{pname_check}"
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // Create new role row
+                                        div { class: "flex items-center gap-2 pt-3 border-t border-border",
+                                            div { class: "flex-1",
+                                                Input {
+                                                    placeholder: tid!("settings-roles-new-placeholder"),
+                                                    value: new_role_name.read().clone(),
+                                                    oninput: move |e: FormEvent| new_role_name.set(e.value()),
+                                                }
+                                            }
+                                            Button {
+                                                disabled: new_role_name.read().trim().is_empty(),
+                                                onclick: move |_| async move {
+                                                    let name = new_role_name.peek().trim().to_string();
+                                                    if name.is_empty() { return; }
+                                                    match api::workspace_role::create_role(name.clone()).await {
+                                                        Ok(id) => {
+                                                            roles_with_perms.write().push(WorkspaceRoleDto {
+                                                                id,
+                                                                name,
+                                                                permissions: vec![],
+                                                            });
+                                                            new_role_name.set(String::new());
+                                                            toasts.push_success("Role created");
+                                                        }
+                                                        Err(e) => toasts.push_error(e.to_string()),
+                                                    }
+                                                },
+                                                Icon { icon: HiPlus, width: 14, height: 14 }
+                                                {tid!("common-create")}
+                                            }
                                         }
                                     }
                                 }
@@ -613,6 +871,177 @@ pub fn Settings() -> Element {
 
                 // ── Members tab ───────────────────────────────────────────────
                 if *active_tab.read() == Tab::Members {
+
+                    // Members roster card
+                    Card { data_size: "md",
+                        CardHeader {
+                            CardTitle {
+                                div { class: "flex items-center gap-2",
+                                    Icon { icon: HiUsers, width: 18, height: 18 }
+                                    {tid!("settings-members-title")}
+                                }
+                            }
+                        }
+                        CardContent {
+                            if members_snapshot.is_empty() {
+                                p { class: "text-sm text-secondary", {tid!("settings-members-empty")} }
+                            } else {
+                                div { class: "space-y-3",
+                                    for member in members_snapshot.iter() {
+                                        {
+                                            let member = member.clone();
+                                            let uid = member.user_id.clone();
+                                            let uid_remove = uid.clone();
+                                            let uid_dropdown = uid.clone();
+                                            let uid_assign = uid.clone();
+                                            let member_initials = name_initials(
+                                                if member.name.is_empty() { &member.email } else { &member.name }
+                                            );
+                                            let member_name = member.name.clone();
+                                            let member_email = member.email.clone();
+                                            let member_role_ids = member.role_ids.clone();
+                                            let member_role_ids_for_filter = member.role_ids.clone();
+                                            let is_dropdown_open = current_member_dropdown.as_deref() == Some(uid.as_str());
+
+                                            // Available roles to add (not yet assigned)
+                                            let available_roles: Vec<WorkspaceRoleDto> = roles_snapshot
+                                                .iter()
+                                                .filter(|r| !member_role_ids_for_filter.contains(&r.id))
+                                                .cloned()
+                                                .collect();
+
+                                            rsx! {
+                                                div {
+                                                    key: "{uid}",
+                                                    class: "flex items-start gap-3 py-2 border-b border-border last:border-0",
+
+                                                    // Avatar
+                                                    div { class: "settings-avatar shrink-0", "{member_initials}" }
+
+                                                    // Name + email + role badges
+                                                    div { class: "flex-1 min-w-0",
+                                                        div { class: "flex flex-col gap-0.5 mb-1.5",
+                                                            span { class: "text-sm font-medium truncate",
+                                                                if member_name.is_empty() { "{member_email}" } else { "{member_name}" }
+                                                            }
+                                                            if !member_name.is_empty() {
+                                                                span { class: "text-xs text-secondary truncate", "{member_email}" }
+                                                            }
+                                                        }
+
+                                                        // Role badges
+                                                        div { class: "flex flex-wrap items-center gap-1",
+                                                            for role_id in member_role_ids.iter() {
+                                                                {
+                                                                    let rid = role_id.clone();
+                                                                    let uid_revoke = uid.clone();
+                                                                    let role_name = roles_snapshot
+                                                                        .iter()
+                                                                        .find(|r| r.id == rid)
+                                                                        .map(|r| r.name.clone())
+                                                                        .unwrap_or_else(|| rid.clone());
+
+                                                                    rsx! {
+                                                                        span {
+                                                                            key: "{rid}",
+                                                                            class: "inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-[var(--color-primary-faint)] text-[var(--color-primary)] border border-[var(--color-primary-faint)]",
+                                                                            "{role_name}"
+                                                                            button {
+                                                                                class: "ml-0.5 opacity-60 hover:opacity-100 cursor-pointer bg-transparent border-0 p-0 leading-none",
+                                                                                title: "Revoke role",
+                                                                                onclick: move |_| {
+                                                                                    let uid = uid_revoke.clone();
+                                                                                    let rid = rid.clone();
+                                                                                    async move {
+                                                                                        match api::member::revoke_member_role(uid.clone(), rid.clone()).await {
+                                                                                            Ok(()) => {
+                                                                                                if let Some(m) = members.write().iter_mut().find(|m| m.user_id == uid) {
+                                                                                                    m.role_ids.retain(|r| r != &rid);
+                                                                                                }
+                                                                                            }
+                                                                                            Err(e) => toasts.push_error(e.to_string()),
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                Icon { icon: HiX, width: 10, height: 10 }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            // Add role button / inline select
+                                                            if !available_roles.is_empty() {
+                                                                if is_dropdown_open {
+                                                                    div { class: "flex items-center gap-1",
+                                                                        Select::<String> {
+                                                                            options: available_roles.iter().map(|r| SelectOption::new(r.id.clone(), r.name.clone())).collect(),
+                                                                            value: None,
+                                                                            on_change: move |selected_rid: String| {
+                                                                                let uid = uid_assign.clone();
+                                                                                let rid = selected_rid.clone();
+                                                                                async move {
+                                                                                    match api::member::assign_member_role(uid.clone(), rid.clone()).await {
+                                                                                        Ok(()) => {
+                                                                                            if let Some(m) = members.write().iter_mut().find(|m| m.user_id == uid) {
+                                                                                                if !m.role_ids.contains(&rid) {
+                                                                                                    m.role_ids.push(rid);
+                                                                                                }
+                                                                                            }
+                                                                                            member_role_dropdown.set(None);
+                                                                                        }
+                                                                                        Err(e) => toasts.push_error(e.to_string()),
+                                                                                    }
+                                                                                }
+                                                                            },
+                                                                            placeholder: tid!("settings-invite-role-placeholder"),
+                                                                        }
+                                                                        button {
+                                                                            class: "p-1 text-secondary hover:text-primary cursor-pointer bg-transparent border-0",
+                                                                            onclick: move |_| member_role_dropdown.set(None),
+                                                                            Icon { icon: HiX, width: 12, height: 12 }
+                                                                        }
+                                                                    }
+                                                                } else {
+                                                                    button {
+                                                                        class: "flex items-center gap-0.5 px-1.5 py-0.5 text-xs rounded border border-dashed border-border text-secondary hover:border-primary hover:text-primary cursor-pointer bg-transparent",
+                                                                        onclick: move |_| member_role_dropdown.set(Some(uid_dropdown.clone())),
+                                                                        Icon { icon: HiPlus, width: 10, height: 10 }
+                                                                        {tid!("common-role")}
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+
+                                                    // Remove member button
+                                                    button {
+                                                        class: "shrink-0 flex items-center gap-1 px-2 py-1 text-xs rounded border border-border text-secondary hover:text-error hover:border-error transition-colors cursor-pointer bg-transparent",
+                                                        title: "Remove from workspace",
+                                                        onclick: move |_| {
+                                                            let uid = uid_remove.clone();
+                                                            async move {
+                                                                match api::member::remove_member(uid.clone()).await {
+                                                                    Ok(()) => {
+                                                                        members.write().retain(|m| m.user_id != uid);
+                                                                        toasts.push_success("Member removed");
+                                                                    }
+                                                                    Err(e) => toasts.push_error(e.to_string()),
+                                                                }
+                                                            }
+                                                        },
+                                                        Icon { icon: HiTrash, width: 12, height: 12 }
+                                                        {tid!("settings-members-remove-btn")}
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Invite member card
                     Card { data_size: "md",
                         CardHeader {
@@ -636,7 +1065,7 @@ pub fn Settings() -> Element {
                                 div { class: "form-field",
                                     label { class: "form-label", {tid!("common-role")} }
                                     Select::<String> {
-                                        options: roles.read().iter().map(|r| SelectOption::new(r.id.clone(), r.name.clone())).collect(),
+                                        options: roles_with_perms.read().iter().map(|r| SelectOption::new(r.id.clone(), r.name.clone())).collect(),
                                         value: Some(invite_role_id.read().clone()),
                                         on_change: move |v| invite_role_id.set(v),
                                         placeholder: tid!("settings-invite-role-placeholder"),

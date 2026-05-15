@@ -64,6 +64,12 @@ pub trait WorkspaceCommandTrait<R> {
         currency: String,
         week_start: String,
     ) -> Result<(), Self::Error>;
+
+    async fn remove_member(
+        &self,
+        id: WorkspaceId,
+        user_id: UserId,
+    ) -> Result<(), Self::Error>;
 }
 
 #[derive(Debug)]
@@ -225,6 +231,24 @@ where
             }
             .into(),
         )?;
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))
+    }
+
+    async fn remove_member(
+        &self,
+        id: WorkspaceId,
+        user_id: UserId,
+    ) -> Result<(), <Self as WorkspaceCommandTrait<R>>::Error> {
+        let mut root: WorkspaceRoot = self
+            .repository
+            .get(&id)
+            .await
+            .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
+            .into();
+        root.record_that(WorkspaceEvent::UserRemoved { user_id }.into())?;
         self.repository
             .save(&mut root)
             .await

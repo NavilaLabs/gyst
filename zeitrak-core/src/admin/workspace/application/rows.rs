@@ -1,5 +1,34 @@
 use crate::admin::workspace::WorkspaceId;
 
+/// Read model for a workspace member with their assigned roles and direct permissions.
+#[derive(Debug, Clone)]
+pub struct MemberRow {
+    pub user_id: String,
+    pub email: String,
+    pub name: String,
+    pub role_ids: Vec<String>,
+    pub permission_ids: Vec<String>,
+}
+
+impl MemberRow {
+    #[must_use]
+    pub fn new(
+        user_id: String,
+        email: String,
+        name: String,
+        role_ids: Vec<String>,
+        permission_ids: Vec<String>,
+    ) -> Self {
+        Self {
+            user_id,
+            email,
+            name,
+            role_ids,
+            permission_ids,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct WorkspaceRow {
     id: WorkspaceId,

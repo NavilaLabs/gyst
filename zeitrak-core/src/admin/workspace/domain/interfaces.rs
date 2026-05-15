@@ -1,7 +1,11 @@
 use std::fmt::Debug;
 
 use crate::{
-    admin::workspace::{self, application::rows::WorkspaceRow, domain::aggregates::Workspace},
+    admin::workspace::{
+        self,
+        application::rows::{MemberRow, WorkspaceRow},
+        domain::aggregates::{Workspace, WorkspaceId},
+    },
     shared::repositories::{ReadRepository, Repository, WriteRepository},
 };
 use async_trait::async_trait;
@@ -44,6 +48,16 @@ pub trait WorkspaceRepository<R>: Repository<Workspace, R> + Send + Sync {
         &self,
         id: &str,
     ) -> Result<Option<WorkspaceRow>, <Self as WorkspaceRepository<R>>::Error>;
+
+    /// Returns all members of the given workspace with their assigned role and permission IDs.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    async fn find_members(
+        &self,
+        workspace_id: &WorkspaceId,
+    ) -> Result<Vec<MemberRow>, <Self as WorkspaceRepository<R>>::Error>;
 }
 
 #[cfg(test)]
@@ -57,7 +71,7 @@ pub mod in_memory_repository {
 
     use super::*;
     use crate::{
-        admin::workspace::WorkspaceId,
+        admin::workspace::{WorkspaceId, application::rows::MemberRow},
         shared::{
             AggregateId,
             repositories::{ReadRepository, Repository, RowToRoot, WriteRepository},
@@ -174,6 +188,13 @@ pub mod in_memory_repository {
 
         async fn find_view_by_id(&self, _id: &str) -> Result<Option<WorkspaceRow>, StubError> {
             Ok(None)
+        }
+
+        async fn find_members(
+            &self,
+            _workspace_id: &WorkspaceId,
+        ) -> Result<Vec<MemberRow>, StubError> {
+            Ok(vec![])
         }
     }
 }

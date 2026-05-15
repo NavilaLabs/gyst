@@ -159,7 +159,7 @@ impl RowToRoot<AnyRow, User> for UserRepository {
             user
         };
         let user = if is_verified {
-            User::apply(Some(user), UserEvent::Verified)
+            User::apply(Some(user), UserEvent::Verified {})
                 .expect("Verified event on Some state is infallible")
         } else {
             user

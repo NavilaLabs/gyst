@@ -36,7 +36,10 @@ pub fn Activities() -> Element {
         .cloned()
         .collect();
 
-    let columns = vec![ColumnDef::new(tid!("common-name")), ColumnDef::new("").width("80px")];
+    let columns = vec![
+        ColumnDef::new(tid!("common-name")),
+        ColumnDef::new("").width("80px"),
+    ];
     let col_count = columns.len();
 
     rsx! {

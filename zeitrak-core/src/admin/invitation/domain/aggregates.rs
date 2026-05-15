@@ -105,7 +105,7 @@ impl Aggregate for Invitation {
                 inv.status = InvitationStatus::Accepted;
                 Ok(inv)
             }
-            (Some(mut inv), InvitationEvent::Revoked) => {
+            (Some(mut inv), InvitationEvent::Revoked {}) => {
                 inv.status = InvitationStatus::Revoked;
                 Ok(inv)
             }
@@ -161,7 +161,7 @@ mod tests {
     #[test]
     fn apply_revoked_event_transitions_to_revoked() {
         let inv = Invitation::apply(None, test_created_event()).unwrap();
-        let inv = Invitation::apply(Some(inv), InvitationEvent::Revoked).unwrap();
+        let inv = Invitation::apply(Some(inv), InvitationEvent::Revoked {}).unwrap();
         assert!(matches!(inv.status, InvitationStatus::Revoked));
     }
 

@@ -51,24 +51,33 @@ fn fmt_hours_axis(v: f32) -> String {
 }
 
 fn nice_max(v: f32) -> f32 {
-    if v <= 1.0 { 1.0 }
-    else if v <= 2.0 { 2.0 }
-    else if v <= 4.0 { 4.0 }
-    else if v <= 6.0 { 6.0 }
-    else if v <= 8.0 { 8.0 }
-    else if v <= 12.0 { 12.0 }
-    else if v <= 16.0 { 16.0 }
-    else if v <= 24.0 { 24.0 }
-    else { (v / 8.0).ceil() * 8.0 }
+    if v <= 1.0 {
+        1.0
+    } else if v <= 2.0 {
+        2.0
+    } else if v <= 4.0 {
+        4.0
+    } else if v <= 6.0 {
+        6.0
+    } else if v <= 8.0 {
+        8.0
+    } else if v <= 12.0 {
+        12.0
+    } else if v <= 16.0 {
+        16.0
+    } else if v <= 24.0 {
+        24.0
+    } else {
+        (v / 8.0).ceil() * 8.0
+    }
 }
 
 // ── Hours bar chart with hover tooltip ───────────────────────────────────────
 
 #[component]
-fn HoursBarChart(bars: Vec<f32>, labels: Vec<String>) -> Element {
+fn HoursBarChart(bars: Vec<Vec<BarSegment>>, labels: Vec<String>) -> Element {
     let mut hovered: Signal<Option<usize>> = use_signal(|| None);
 
-    // SVG geometry (matches previous BarChart configuration)
     let vw = 560i32;
     let vh = 240i32;
     let chart_left = 50.0f32;
@@ -82,10 +91,12 @@ fn HoursBarChart(bars: Vec<f32>, labels: Vec<String>) -> Element {
     let slot_w = chart_w / n as f32;
     let bar_w = (slot_w * 0.55).clamp(4.0, 60.0);
 
-    let max_val = bars.iter().cloned().fold(0.0f32, f32::max);
+    let max_val = bars
+        .iter()
+        .map(|segs| segs.iter().map(|s| s.hours).sum::<f32>())
+        .fold(0.0f32, f32::max);
     let y_max = nice_max(max_val);
 
-    // Five evenly-spaced horizontal grid ticks (0 .. y_max)
     let ticks: Vec<f32> = (0..5).map(|i| i as f32 * y_max / 4.0).collect();
 
     let val_to_y = |v: f32| chart_bottom - (v / y_max) * chart_h;
@@ -130,26 +141,46 @@ fn HoursBarChart(bars: Vec<f32>, labels: Vec<String>) -> Element {
                 }
             }
 
-            // ── Bar visuals (pointer-events: none so hit areas work) ───────
-            for (i, v) in bars.iter().copied().enumerate() {
+            // ── Stacked bar visuals (pointer-events: none so hit areas work) ──
+            for (i, segs) in bars.iter().enumerate() {
                 {
-                    let top_y = val_to_y(v);
+                    let total_v: f32 = segs.iter().map(|s| s.hours).sum();
+                    let top_y = val_to_y(total_v);
                     let bar_h = chart_bottom - top_y;
                     let bx = cx_of(i) - bar_w / 2.0;
                     let is_hov = hov == Some(i);
                     let opacity = if is_hov { "1" } else { "0.85" };
+                    let single = segs.len() == 1;
+
+                    // Precompute (y, height, color, rx) for each segment stacked bottom→top
+                    let seg_data: Vec<(f32, f32, String, &str)> = segs
+                        .iter()
+                        .enumerate()
+                        .scan(0.0f32, |acc, (k, seg)| {
+                            let h = (seg.hours / total_v) * bar_h;
+                            let y = chart_bottom - *acc - h;
+                            *acc += h;
+                            let rx = if single || k == segs.len() - 1 { "3" } else { "0" };
+                            Some((y, h, seg.color.clone(), rx))
+                        })
+                        .collect();
+
                     rsx! {
                         if bar_h > 0.5 {
-                            rect {
+                            g {
                                 key: "bar-{i}",
-                                x: "{bx:.1}",
-                                y: "{top_y:.1}",
-                                width: "{bar_w:.1}",
-                                height: "{bar_h:.1}",
-                                rx: "3",
-                                class: "dx-bar",
                                 opacity: "{opacity}",
                                 pointer_events: "none",
+                                for (sy, sh, sc, srx) in seg_data {
+                                    rect {
+                                        x: "{bx:.1}",
+                                        y: "{sy:.1}",
+                                        width: "{bar_w:.1}",
+                                        height: "{sh:.1}",
+                                        rx: "{srx}",
+                                        fill: "{sc}",
+                                    }
+                                }
                             }
                         }
                     }
@@ -188,14 +219,15 @@ fn HoursBarChart(bars: Vec<f32>, labels: Vec<String>) -> Element {
             if let Some(idx) = hov {
                 if idx < bars.len() {
                     {
-                        let v = bars[idx];
+                        let segs = &bars[idx];
+                        let total_v: f32 = segs.iter().map(|s| s.hours).sum();
                         let cx = cx_of(idx);
-                        let top_y = val_to_y(v);
+                        let top_y = val_to_y(total_v);
                         let label = &labels[idx];
-                        let value_str = fmt_hours(v);
 
-                        let tw = 64.0f32;
-                        let th = 36.0f32;
+                        let n_rows = segs.len().max(1);
+                        let tw = 150.0f32;
+                        let th = 20.0 + 16.0 * n_rows as f32 + 8.0;
                         let tx = (cx - tw / 2.0).max(chart_left).min(chart_right - tw);
                         let ty = (top_y - th - 8.0).max(chart_top);
 
@@ -205,25 +237,84 @@ fn HoursBarChart(bars: Vec<f32>, labels: Vec<String>) -> Element {
                                     x: "{tx:.1}",
                                     y: "{ty:.1}",
                                     width: "{tw}",
-                                    height: "{th}",
+                                    height: "{th:.1}",
                                     rx: "5",
                                     class: "dx-tooltip-bg",
                                 }
                                 text {
                                     x: "{tx + tw / 2.0:.1}",
-                                    y: "{ty + 13.0:.1}",
+                                    y: "{ty + 14.0:.1}",
                                     text_anchor: "middle",
                                     alignment_baseline: "middle",
                                     class: "dx-tooltip-label",
                                     "{label}"
                                 }
-                                text {
-                                    x: "{tx + tw / 2.0:.1}",
-                                    y: "{ty + 27.0:.1}",
-                                    text_anchor: "middle",
-                                    alignment_baseline: "middle",
-                                    class: "dx-tooltip-value",
-                                    "{value_str}"
+                                if segs.is_empty() {
+                                    text {
+                                        x: "{tx + tw / 2.0:.1}",
+                                        y: "{ty + 30.0:.1}",
+                                        text_anchor: "middle",
+                                        alignment_baseline: "middle",
+                                        class: "dx-tooltip-value",
+                                        "0h"
+                                    }
+                                }
+                                for (k, seg) in segs.iter().enumerate() {
+                                    {
+                                        let row_cy = ty + 23.5 + 16.0 * k as f32;
+                                        let dot_x = tx + 10.0;
+                                        let color = seg.color.clone();
+                                        let pct = if total_v > 0.0 {
+                                            seg.hours / total_v * 100.0
+                                        } else {
+                                            0.0
+                                        };
+                                        let name: String = if seg.name.chars().count() > 13 {
+                                            let t: String = seg.name.chars().take(12).collect();
+                                            format!("{t}…")
+                                        } else {
+                                            seg.name.clone()
+                                        };
+                                        let hours_str = fmt_hours(seg.hours);
+                                        let pct_str = format!("{pct:.0}%");
+                                        rsx! {
+                                            rect {
+                                                x: "{dot_x:.1}",
+                                                y: "{row_cy - 3.5:.1}",
+                                                width: "7",
+                                                height: "7",
+                                                rx: "2",
+                                                fill: "{color}",
+                                            }
+                                            text {
+                                                x: "{dot_x + 10.0:.1}",
+                                                y: "{row_cy:.1}",
+                                                text_anchor: "start",
+                                                alignment_baseline: "middle",
+                                                font_size: "9",
+                                                class: "dx-tooltip-label",
+                                                "{name}"
+                                            }
+                                            text {
+                                                x: "{tx + tw - 38.0:.1}",
+                                                y: "{row_cy:.1}",
+                                                text_anchor: "end",
+                                                alignment_baseline: "middle",
+                                                font_size: "9",
+                                                class: "dx-tooltip-value",
+                                                "{hours_str}"
+                                            }
+                                            text {
+                                                x: "{tx + tw - 4.0:.1}",
+                                                y: "{row_cy:.1}",
+                                                text_anchor: "end",
+                                                alignment_baseline: "middle",
+                                                font_size: "9",
+                                                class: "dx-tooltip-label",
+                                                "{pct_str}"
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -238,6 +329,13 @@ fn HoursBarChart(bars: Vec<f32>, labels: Vec<String>) -> Element {
 
 #[derive(Clone, PartialEq)]
 struct ActivityMixItem {
+    name: String,
+    color: String,
+    hours: f32,
+}
+
+#[derive(Clone, PartialEq)]
+struct BarSegment {
     name: String,
     color: String,
     hours: f32,
@@ -312,7 +410,11 @@ fn compute_stats(
             ActivityMixItem { name, color, hours }
         })
         .collect();
-    activity_mix.sort_by(|a, b| b.hours.partial_cmp(&a.hours).unwrap_or(std::cmp::Ordering::Equal));
+    activity_mix.sort_by(|a, b| {
+        b.hours
+            .partial_cmp(&a.hours)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     DashStats {
         today_hours,
@@ -322,24 +424,59 @@ fn compute_stats(
     }
 }
 
+fn bucket_to_segments(
+    timesheets: &[&api::timesheet::TimesheetDto],
+    activities: &[api::activity::ActivityDto],
+) -> Vec<BarSegment> {
+    let mut map: std::collections::HashMap<String, f32> = std::collections::HashMap::new();
+    for ts in timesheets {
+        if let Some(dur) = ts.duration {
+            if dur > 0 {
+                let key = ts.activity_id.clone().unwrap_or_default();
+                *map.entry(key).or_insert(0.0) += dur as f32 / 3600.0;
+            }
+        }
+    }
+    let mut segs: Vec<BarSegment> = map
+        .into_iter()
+        .map(|(aid, hours)| {
+            let activity = activities.iter().find(|a| a.id == aid);
+            let name = activity
+                .map(|a| a.name.clone())
+                .unwrap_or_else(|| "—".to_string());
+            let color = activity
+                .map(|a| a.color.clone())
+                .unwrap_or_else(|| "#6c6c76".to_string());
+            BarSegment { name, color, hours }
+        })
+        .collect();
+    segs.sort_by(|a, b| {
+        b.hours
+            .partial_cmp(&a.hours)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    segs
+}
+
 fn compute_chart_data(
     timesheets: &[api::timesheet::TimesheetDto],
+    activities: &[api::activity::ActivityDto],
     period: &ChartPeriod,
-) -> (Vec<f32>, Vec<String>) {
+) -> (Vec<Vec<BarSegment>>, Vec<String>) {
     let today = Utc::now().date_naive();
 
     match period {
         ChartPeriod::Week => {
-            let bars: Vec<f32> = (0..7)
+            let bars: Vec<Vec<BarSegment>> = (0..7)
                 .map(|i| {
                     let day = today - Duration::days(6 - i as i64);
-                    timesheets
+                    let bucket: Vec<&api::timesheet::TimesheetDto> = timesheets
                         .iter()
                         .filter(|ts| {
                             ts.duration.is_some() && parse_date(&ts.start_time) == Some(day)
                         })
-                        .map(|ts| ts.duration.unwrap_or(0) as f32 / 3600.0)
-                        .sum::<f32>()
+                        .collect();
+                    bucket_to_segments(&bucket, activities)
                 })
                 .collect();
             let labels: Vec<String> = (0..7)
@@ -352,11 +489,11 @@ fn compute_chart_data(
         }
         ChartPeriod::Month => {
             // 4 weekly buckets covering the last 28 days
-            let bars: Vec<f32> = (0..4)
+            let bars: Vec<Vec<BarSegment>> = (0..4)
                 .map(|w| {
                     let week_end = today - Duration::days((3 - w as i64) * 7);
                     let week_start = week_end - Duration::days(6);
-                    timesheets
+                    let bucket: Vec<&api::timesheet::TimesheetDto> = timesheets
                         .iter()
                         .filter(|ts| {
                             ts.duration.is_some()
@@ -364,8 +501,8 @@ fn compute_chart_data(
                                     .map(|d| d >= week_start && d <= week_end)
                                     .unwrap_or(false)
                         })
-                        .map(|ts| ts.duration.unwrap_or(0) as f32 / 3600.0)
-                        .sum::<f32>()
+                        .collect();
+                    bucket_to_segments(&bucket, activities)
                 })
                 .collect();
             let labels: Vec<String> = (0..4)
@@ -379,14 +516,14 @@ fn compute_chart_data(
         }
         ChartPeriod::Year => {
             // 12 monthly bars
-            let bars: Vec<f32> = (0..12)
+            let bars: Vec<Vec<BarSegment>> = (0..12)
                 .map(|m| {
                     let month_offset = 11 - m;
-                    let target_year = today.year()
-                        - (month_offset + 12 - today.month() as i32).max(0) / 12;
-                    let target_month = ((today.month() as i32 - month_offset - 1).rem_euclid(12)
-                        + 1) as u32;
-                    timesheets
+                    let target_year =
+                        today.year() - (month_offset + 12 - today.month() as i32).max(0) / 12;
+                    let target_month =
+                        ((today.month() as i32 - month_offset - 1).rem_euclid(12) + 1) as u32;
+                    let bucket: Vec<&api::timesheet::TimesheetDto> = timesheets
                         .iter()
                         .filter(|ts| {
                             ts.duration.is_some()
@@ -394,15 +531,15 @@ fn compute_chart_data(
                                     .map(|d| d.year() == target_year && d.month() == target_month)
                                     .unwrap_or(false)
                         })
-                        .map(|ts| ts.duration.unwrap_or(0) as f32 / 3600.0)
-                        .sum::<f32>()
+                        .collect();
+                    bucket_to_segments(&bucket, activities)
                 })
                 .collect();
             let labels: Vec<String> = (0..12)
                 .map(|m| {
                     let month_offset = 11 - m;
-                    let target_month = ((today.month() as i32 - month_offset - 1).rem_euclid(12)
-                        + 1) as u32;
+                    let target_month =
+                        ((today.month() as i32 - month_offset - 1).rem_euclid(12) + 1) as u32;
                     let date =
                         chrono::NaiveDate::from_ymd_opt(today.year(), target_month, 1).unwrap();
                     date.format("%b").to_string()
@@ -445,9 +582,7 @@ fn DonutChart(mix: Vec<ActivityMixItem>) -> Element {
             let y2 = cy + r * end_angle.sin();
             let large_arc = if end_frac - start_frac > 0.5 { 1 } else { 0 };
 
-            let d = format!(
-                "M {x1:.2} {y1:.2} A {r:.0} {r:.0} 0 {large_arc} 1 {x2:.2} {y2:.2}"
-            );
+            let d = format!("M {x1:.2} {y1:.2} A {r:.0} {r:.0} 0 {large_arc} 1 {x2:.2} {y2:.2}");
             (d, item.color.clone())
         })
         .collect();
@@ -571,8 +706,9 @@ pub fn Dashboard() -> Element {
     };
 
     let stats = compute_stats(&recent.read(), &activities.read());
-    let (chart_bars, chart_labels) = compute_chart_data(&recent.read(), &chart_period.read());
-    let has_data = chart_bars.iter().any(|&v| v > 0.0);
+    let (chart_bars, chart_labels) =
+        compute_chart_data(&recent.read(), &activities.read(), &chart_period.read());
+    let has_data = chart_bars.iter().any(|segs| !segs.is_empty());
 
     let activity_colors: std::collections::HashMap<String, String> = activities
         .read()

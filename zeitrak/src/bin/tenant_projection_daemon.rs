@@ -6,6 +6,7 @@ use zeitrak::infrastructure::{
     BackoffConfig, Pool, ProjectionDaemon, ProjectionRunner, ProjectionSource, SqlCheckpoint,
     tenant::projectors::TenantProjector,
 };
+use zeitrak::Migrate as _;
 use zeitrak_core::admin::workspace::{WorkspaceQuery, WorkspaceQueryTrait};
 use zeitrak_infrastructure_impl::ConnectedAdminPool;
 
@@ -88,6 +89,15 @@ async fn main() -> Result<()> {
                 continue;
             }
         };
+
+        if let Err(e) = pool.migrate_database().await {
+            tracing::error!(
+                tenant_token = %tenant_token,
+                error = %e,
+                "Failed to migrate tenant database — skipping."
+            );
+            continue;
+        }
 
         // Run the projection runner migrations once per tenant database so the
         // `global_position` column and trigger are in place before we start.

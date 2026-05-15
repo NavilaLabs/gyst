@@ -217,6 +217,33 @@ impl Projector for WorkspaceProjector {
                     .execute(self.pool.as_ref())
                     .await?;
             }
+            "WorkspaceUserRemoved" => {
+                let WorkspaceEvent::UserRemoved { user_id } =
+                    serde_json::from_slice(&event.payload_bytes)?
+                else {
+                    return Ok(());
+                };
+
+                let user_id_str = user_id.to_string();
+                let workspace_id = &event.stream_id;
+                let pool = self.pool.as_ref();
+
+                sqlx::query(
+                    "DELETE FROM projections__workspace_user_roles WHERE workspace_id = ? AND user_id = ?",
+                )
+                .bind(workspace_id)
+                .bind(&user_id_str)
+                .execute(pool)
+                .await?;
+
+                sqlx::query(
+                    "DELETE FROM projections__workspace_user_permissions WHERE workspace_id = ? AND user_id = ?",
+                )
+                .bind(workspace_id)
+                .bind(&user_id_str)
+                .execute(pool)
+                .await?;
+            }
             _ => {}
         }
 

@@ -24,6 +24,10 @@ pub const TAG_MANAGE: &str = "tag.manage";
 
 // Member management
 pub const MEMBER_INVITE: &str = "member.invite";
+pub const MEMBER_MANAGE: &str = "member.manage";
+
+// Role management
+pub const ROLE_MANAGE: &str = "role.manage";
 
 /// Every built-in permission that must be seeded in the database.
 /// Used by migrations and initial setup logic.
@@ -37,6 +41,8 @@ pub const ALL: &[&str] = &[
     TIMESHEET_CANCEL,
     TAG_MANAGE,
     MEMBER_INVITE,
+    MEMBER_MANAGE,
+    ROLE_MANAGE,
 ];
 
 // ── Plugin-extensible registry ────────────────────────────────────────────────

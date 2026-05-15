@@ -170,6 +170,19 @@ settings-invitation-pending = Pending
 settings-revoke-invitation = Revoke
 settings-workspace-title = Workspace Settings
 settings-workspace-name-placeholder = My Workspace
+
+settings-roles-title = Roles
+settings-roles-permissions-btn = Permissions
+settings-roles-rename-title = Rename
+settings-roles-delete-title = Delete role
+settings-roles-no-permissions = No permissions available.
+settings-roles-new-placeholder = New role name
+
+settings-members-title = Members
+settings-members-empty = No members yet.
+settings-members-revoke-role-title = Revoke role
+settings-members-remove-title = Remove from workspace
+settings-members-remove-btn = Remove
 settings-currency-label = Currency
 settings-currency-placeholder = Select currency
 settings-week-starts-label = Week Starts On

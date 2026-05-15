@@ -6,7 +6,7 @@ pub use application::{
     commands::{WorkspaceCommand, WorkspaceCommandTrait},
     inputs::CreateWorkspaceInput,
     queries::{WorkspaceQuery, WorkspaceQueryTrait},
-    rows::WorkspaceRow,
+    rows::{MemberRow, WorkspaceRow},
 };
 pub use domain::{
     aggregates::{Workspace, WorkspaceId},

@@ -34,6 +34,9 @@ pub enum WorkspaceEvent {
         currency: String,
         week_start: String,
     },
+    UserRemoved {
+        user_id: UserId,
+    },
 }
 
 impl Message for WorkspaceEvent {
@@ -45,6 +48,7 @@ impl Message for WorkspaceEvent {
             Self::UserPermissionGranted { .. } => "WorkspaceUserPermissionGranted",
             Self::UserPermissionRevoked { .. } => "WorkspaceUserPermissionRevoked",
             Self::SettingsUpdated { .. } => "WorkspaceSettingsUpdated",
+            Self::UserRemoved { .. } => "WorkspaceUserRemoved",
         }
     }
 }
