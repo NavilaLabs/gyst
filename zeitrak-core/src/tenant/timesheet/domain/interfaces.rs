@@ -33,4 +33,14 @@ pub trait TimesheetRepository<R>: Repository<Timesheet, R> + Send + Sync {
         &self,
         user_id: &str,
     ) -> Result<Option<TimesheetRow>, <Self as TimesheetRepository<R>>::Error>;
+
+    /// Returns the most-recent 50 non-cancelled timesheets across all users in
+    /// the workspace, newest first.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    async fn recent_for_workspace(
+        &self,
+    ) -> Result<Vec<TimesheetRow>, <Self as TimesheetRepository<R>>::Error>;
 }

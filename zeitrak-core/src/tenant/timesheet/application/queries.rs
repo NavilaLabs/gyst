@@ -17,6 +17,7 @@ pub trait TimesheetQueryTrait<R> {
     async fn find_all(&self) -> Result<Vec<Root<Timesheet>>, Self::Error>;
     async fn recent_for_user(&self, user_id: &str) -> Result<Vec<TimesheetRow>, Self::Error>;
     async fn running_for_user(&self, user_id: &str) -> Result<Option<TimesheetRow>, Self::Error>;
+    async fn recent_for_workspace(&self) -> Result<Vec<TimesheetRow>, Self::Error>;
 }
 
 #[derive(Debug, Clone)]
@@ -51,5 +52,9 @@ where
 
     async fn running_for_user(&self, user_id: &str) -> Result<Option<TimesheetRow>, Self::Error> {
         self.repository.running_for_user(user_id).await
+    }
+
+    async fn recent_for_workspace(&self) -> Result<Vec<TimesheetRow>, Self::Error> {
+        self.repository.recent_for_workspace().await
     }
 }

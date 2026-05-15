@@ -178,11 +178,28 @@ fn row_to_dto(
 #[cfg(feature = "server")]
 async fn _list_timesheets() -> Result<Vec<TimesheetDto>, ServerFnError> {
     use crate::session;
+    use zeitrak::authentication::CurrentUser;
+    use zeitrak::authorization::AuthorizationService;
 
     let (user, workspace_id) = session::session_workspace().await?;
-    let rows = zeitrak::tenant::timesheet::recent(&workspace_id, &user.id)
+
+    let current_user = CurrentUser {
+        id: user.id.clone(),
+        email: user.email.clone(),
+    };
+    let is_admin = AuthorizationService::is_admin(&current_user.id)
         .await
         .map_err(session::internal)?;
+
+    let rows = if is_admin {
+        zeitrak::tenant::timesheet::recent_all(&workspace_id)
+            .await
+            .map_err(session::internal)?
+    } else {
+        zeitrak::tenant::timesheet::recent(&workspace_id, &user.id)
+            .await
+            .map_err(session::internal)?
+    };
 
     let ids: Vec<String> = rows.iter().map(|r| r.id().to_string()).collect();
     let id_refs: Vec<&str> = ids.iter().map(String::as_str).collect();

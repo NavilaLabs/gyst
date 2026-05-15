@@ -76,6 +76,23 @@ impl TimesheetRepository {
         rows.into_iter().map(|r| Self::map_row(&r)).collect()
     }
 
+    /// Most-recent 50 non-cancelled timesheets across all users, newest first.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    pub async fn recent_for_workspace(&self) -> Result<Vec<TimesheetRow>, crate::Error> {
+        let rm = self.read_model();
+        let stmt = rm
+            .select()
+            .cond_where(Expr::col("cancelled_at").is_null())
+            .order_by(Alias::new("start_time"), Order::Desc)
+            .limit(50)
+            .to_owned();
+        let rows = rm.fetch_all_rows(&stmt).await?;
+        rows.into_iter().map(|r| Self::map_row(&r)).collect()
+    }
+
     /// Returns the running timesheet for a user (`end_time` IS NULL), if any.
     ///
     /// # Errors
@@ -264,5 +281,9 @@ impl TimesheetRepositoryTrait<AnyRow> for TimesheetRepository {
 
     async fn running_for_user(&self, user_id: &str) -> Result<Option<TimesheetRow>, crate::Error> {
         self.running_for_user(user_id).await
+    }
+
+    async fn recent_for_workspace(&self) -> Result<Vec<TimesheetRow>, crate::Error> {
+        self.recent_for_workspace().await
     }
 }

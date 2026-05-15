@@ -21,6 +21,15 @@ pub async fn recent(workspace_id: &str, user_id: &str) -> Result<Vec<TimesheetRo
         .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
+pub async fn recent_all(workspace_id: &str) -> Result<Vec<TimesheetRow>> {
+    let pool = super::tenant_pool(workspace_id).await?;
+    let repo = TimesheetRepository::from_pool(pool).await?;
+    TimesheetQuery::new(repo)
+        .recent_for_workspace()
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
+}
+
 pub async fn running(workspace_id: &str, user_id: &str) -> Result<Option<TimesheetRow>> {
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = TimesheetRepository::from_pool(pool).await?;
