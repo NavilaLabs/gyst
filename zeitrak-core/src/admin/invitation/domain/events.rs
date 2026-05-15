@@ -53,9 +53,23 @@ impl<'de> Deserialize<'de> for InvitationEvent {
         }
         let inner: InvitationEventDe = serde_json::from_value(v).map_err(de::Error::custom)?;
         Ok(match inner {
-            InvitationEventDe::Created { id, workspace_id, invited_by, email, workspace_role_id, token, expires_at } => {
-                Self::Created { id, workspace_id, invited_by, email, workspace_role_id, token, expires_at }
-            }
+            InvitationEventDe::Created {
+                id,
+                workspace_id,
+                invited_by,
+                email,
+                workspace_role_id,
+                token,
+                expires_at,
+            } => Self::Created {
+                id,
+                workspace_id,
+                invited_by,
+                email,
+                workspace_role_id,
+                token,
+                expires_at,
+            },
             InvitationEventDe::Accepted { accepted_by } => Self::Accepted { accepted_by },
             InvitationEventDe::Revoked {} => Self::Revoked {},
         })

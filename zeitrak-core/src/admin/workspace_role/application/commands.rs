@@ -39,11 +39,7 @@ pub trait WorkspaceRoleCommandTrait<R> {
         permission_id: PermissionId,
     ) -> Result<(), Self::Error>;
 
-    async fn rename(
-        &self,
-        role_id: WorkspaceRoleId,
-        name: String,
-    ) -> Result<(), Self::Error>;
+    async fn rename(&self, role_id: WorkspaceRoleId, name: String) -> Result<(), Self::Error>;
 
     async fn delete(&self, role_id: WorkspaceRoleId) -> Result<(), Self::Error>;
 }

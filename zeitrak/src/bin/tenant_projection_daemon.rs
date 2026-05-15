@@ -2,11 +2,11 @@ use std::time::Duration;
 
 use anyhow::{Result, anyhow};
 use tracing::warn;
+use zeitrak::Migrate as _;
 use zeitrak::infrastructure::{
     BackoffConfig, Pool, ProjectionDaemon, ProjectionRunner, ProjectionSource, SqlCheckpoint,
     tenant::projectors::TenantProjector,
 };
-use zeitrak::Migrate as _;
 use zeitrak_core::admin::workspace::{WorkspaceQuery, WorkspaceQueryTrait};
 use zeitrak_infrastructure_impl::ConnectedAdminPool;
 

@@ -186,9 +186,10 @@ async fn _list_timesheets() -> Result<Vec<TimesheetDto>, ServerFnError> {
 
     let ids: Vec<String> = rows.iter().map(|r| r.id().to_string()).collect();
     let id_refs: Vec<&str> = ids.iter().map(String::as_str).collect();
-    let mut tags_map = zeitrak::tenant::timesheet_tag::for_timesheets_batch(&workspace_id, &id_refs)
-        .await
-        .map_err(session::internal)?;
+    let mut tags_map =
+        zeitrak::tenant::timesheet_tag::for_timesheets_batch(&workspace_id, &id_refs)
+            .await
+            .map_err(session::internal)?;
 
     Ok(rows
         .into_iter()

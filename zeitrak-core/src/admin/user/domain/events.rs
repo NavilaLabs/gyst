@@ -55,8 +55,26 @@ impl<'de> Deserialize<'de> for UserEvent {
         }
         let inner: UserEventDe = serde_json::from_value(v).map_err(de::Error::custom)?;
         Ok(match inner {
-            UserEventDe::Created { id, name, email, password } => Self::Created { id, name, email, password },
-            UserEventDe::SettingsUpdated { timezone, date_format, language } => Self::SettingsUpdated { timezone, date_format, language },
+            UserEventDe::Created {
+                id,
+                name,
+                email,
+                password,
+            } => Self::Created {
+                id,
+                name,
+                email,
+                password,
+            },
+            UserEventDe::SettingsUpdated {
+                timezone,
+                date_format,
+                language,
+            } => Self::SettingsUpdated {
+                timezone,
+                date_format,
+                language,
+            },
             UserEventDe::VerificationRequested { token } => Self::VerificationRequested { token },
             UserEventDe::Verified {} => Self::Verified {},
         })

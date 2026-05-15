@@ -10,8 +10,7 @@ use sqlx::{Row, any::AnyRow};
 use zeitrak_core::admin::workspace::WorkspaceId;
 use zeitrak_core::admin::workspace_role::{
     WorkspaceRole, WorkspaceRoleEvent, WorkspaceRoleId,
-    WorkspaceRoleRepository as WorkspaceRoleRepositoryTrait,
-    WorkspaceRoleWithPermissionsRow,
+    WorkspaceRoleRepository as WorkspaceRoleRepositoryTrait, WorkspaceRoleWithPermissionsRow,
 };
 use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 

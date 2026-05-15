@@ -338,7 +338,13 @@ impl WorkspaceRepositoryTrait<AnyRow> for WorkspaceRepository {
                     .filter(|s| !s.is_empty())
                     .map(ToOwned::to_owned)
                     .collect();
-                Ok(MemberRow::new(user_id, email, name, role_ids, permission_ids))
+                Ok(MemberRow::new(
+                    user_id,
+                    email,
+                    name,
+                    role_ids,
+                    permission_ids,
+                ))
             })
             .collect::<Result<Vec<_>, crate::Error>>()
     }

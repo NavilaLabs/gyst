@@ -228,7 +228,9 @@ impl InvitationRepositoryTrait<AnyRow> for InvitationRepository {
         })?;
         match &row {
             Some(_) => tracing::debug!(token = %token, "raw DB row found for token"),
-            None => tracing::warn!(token = %token, "no raw DB row found for token — token not in projections__invitations"),
+            None => {
+                tracing::warn!(token = %token, "no raw DB row found for token — token not in projections__invitations")
+            }
         }
         let result = row.map(|r| self.row_to_invitation_row(&r)).transpose();
         if let Err(ref e) = result {

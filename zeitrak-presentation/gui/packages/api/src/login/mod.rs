@@ -29,12 +29,13 @@ async fn _login(email: String, password: String) -> Result<(), ServerFnError> {
             details: None,
         })?;
 
-    let current_user =
-        zeitrak::authentication::validate_token(&token).map_err(|e| ServerFnError::ServerError {
+    let current_user = zeitrak::authentication::validate_token(&token).map_err(|e| {
+        ServerFnError::ServerError {
             message: e.to_string(),
             code: 401,
             details: None,
-        })?;
+        }
+    })?;
 
     let is_admin = zeitrak::authorization::AuthorizationService::is_admin(&current_user.id)
         .await

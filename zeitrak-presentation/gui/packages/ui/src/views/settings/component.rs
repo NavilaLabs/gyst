@@ -10,8 +10,8 @@ use api::workspace_role::WorkspaceRoleDto;
 use chrono::NaiveDate;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{
-    HiBell, HiCheck, HiDownload, HiOfficeBuilding, HiPencil, HiPlus, HiSave, HiShieldCheck,
-    HiTag, HiTrash, HiUser, HiUsers, HiX,
+    HiBell, HiCheck, HiDownload, HiOfficeBuilding, HiPencil, HiPlus, HiSave, HiShieldCheck, HiTag,
+    HiTrash, HiUser, HiUsers, HiX,
 };
 use dioxus_free_icons::Icon;
 use dioxus_i18n::{prelude::i18n, tid};

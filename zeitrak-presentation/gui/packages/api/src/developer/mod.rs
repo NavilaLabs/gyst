@@ -16,6 +16,7 @@ pub async fn migrate_database() -> Result<(), ServerFnError> {
 #[cfg(feature = "server")]
 async fn _migrate_database() -> Result<(), ServerFnError> {
     use dioxus::fullstack::extract;
+    use tower_sessions::Session;
     use zeitrak::{
         authorization::AuthorizationService,
         infrastructure::{
@@ -24,7 +25,6 @@ async fn _migrate_database() -> Result<(), ServerFnError> {
         },
         Migrate,
     };
-    use tower_sessions::Session;
 
     // Require admin — only admins may trigger migrations.
     let session: Session = extract().await?;
@@ -110,6 +110,7 @@ pub async fn migrate_tenant_database() -> Result<(), ServerFnError> {
 #[cfg(feature = "server")]
 async fn _migrate_tenant_database() -> Result<(), ServerFnError> {
     use dioxus::fullstack::extract;
+    use tower_sessions::Session;
     use zeitrak::{
         authorization::AuthorizationService,
         infrastructure::{
@@ -118,7 +119,6 @@ async fn _migrate_tenant_database() -> Result<(), ServerFnError> {
         },
         Migrate,
     };
-    use tower_sessions::Session;
 
     let session: Session = extract().await?;
     let user: Option<crate::auth::UserInfo> =

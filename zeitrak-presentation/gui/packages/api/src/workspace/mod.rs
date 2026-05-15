@@ -19,7 +19,10 @@ pub async fn create_workspace(workspace_name: String) -> Result<WorkspaceDto, Se
     #[cfg(not(feature = "server"))]
     {
         let _ = workspace_name;
-        Ok(WorkspaceDto { id: String::new(), name: None })
+        Ok(WorkspaceDto {
+            id: String::new(),
+            name: None,
+        })
     }
 }
 
@@ -63,9 +66,10 @@ async fn _create_workspace(workspace_name: String) -> Result<WorkspaceDto, Serve
         details: None,
     })?;
 
-    let workspace_id = zeitrak::workspace::create_workspace_for_user(user_id, workspace_name.clone())
-        .await
-        .map_err(internal)?;
+    let workspace_id =
+        zeitrak::workspace::create_workspace_for_user(user_id, workspace_name.clone())
+            .await
+            .map_err(internal)?;
 
     user.workspace_id = Some(workspace_id.to_string());
     let session: Session = extract().await?;

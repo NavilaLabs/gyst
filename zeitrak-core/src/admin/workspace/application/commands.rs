@@ -65,11 +65,7 @@ pub trait WorkspaceCommandTrait<R> {
         week_start: String,
     ) -> Result<(), Self::Error>;
 
-    async fn remove_member(
-        &self,
-        id: WorkspaceId,
-        user_id: UserId,
-    ) -> Result<(), Self::Error>;
+    async fn remove_member(&self, id: WorkspaceId, user_id: UserId) -> Result<(), Self::Error>;
 }
 
 #[derive(Debug)]
