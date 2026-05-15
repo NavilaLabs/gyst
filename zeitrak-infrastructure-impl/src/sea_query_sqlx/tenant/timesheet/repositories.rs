@@ -5,7 +5,7 @@ use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::aggregate::{Aggregate, Root};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
-use sea_query::{Condition, Expr, ExprTrait};
+use sea_query::{Alias, Condition, Expr, ExprTrait, Order};
 use sqlx::{Row, any::AnyRow};
 use zeitrak_core::admin::user::UserId;
 use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
@@ -55,23 +55,24 @@ impl TimesheetRepository {
         SeaQueryReadModel::new(&self.store.pool, TABLE)
     }
 
-    const SELECT: &'static str = "SELECT id, user_id, activity_id, start_time, end_time, duration, description, timezone \
-         FROM projections__timesheets";
-
     /// Most-recent 50 non-cancelled timesheets for a user, newest first.
     ///
     /// # Errors
     ///
     /// Returns an error if the database query fails.
     pub async fn recent_for_user(&self, user_id: &str) -> Result<Vec<TimesheetRow>, crate::Error> {
-        let sql = format!(
-            "{} WHERE user_id = ? AND cancelled_at IS NULL ORDER BY start_time DESC LIMIT 50",
-            Self::SELECT
-        );
-        let rows = sqlx::query(&sql)
-            .bind(user_id)
-            .fetch_all(self.store.pool.as_ref())
-            .await?;
+        let rm = self.read_model();
+        let stmt = rm
+            .select()
+            .cond_where(
+                Condition::all()
+                    .add(Expr::col("user_id").eq(user_id))
+                    .add(Expr::col("cancelled_at").is_null()),
+            )
+            .order_by(Alias::new("start_time"), Order::Desc)
+            .limit(50)
+            .to_owned();
+        let rows = rm.fetch_all_rows(&stmt).await?;
         rows.into_iter().map(|r| Self::map_row(&r)).collect()
     }
 
@@ -84,14 +85,19 @@ impl TimesheetRepository {
         &self,
         user_id: &str,
     ) -> Result<Option<TimesheetRow>, crate::Error> {
-        let sql = format!(
-            "{} WHERE user_id = ? AND end_time IS NULL AND cancelled_at IS NULL ORDER BY start_time DESC LIMIT 1",
-            Self::SELECT
-        );
-        let row = sqlx::query(&sql)
-            .bind(user_id)
-            .fetch_optional(self.store.pool.as_ref())
-            .await?;
+        let rm = self.read_model();
+        let stmt = rm
+            .select()
+            .cond_where(
+                Condition::all()
+                    .add(Expr::col("user_id").eq(user_id))
+                    .add(Expr::col("end_time").is_null())
+                    .add(Expr::col("cancelled_at").is_null()),
+            )
+            .order_by(Alias::new("start_time"), Order::Desc)
+            .limit(1)
+            .to_owned();
+        let row = rm.fetch_optional_row(&stmt).await?;
         row.map(|r| Self::map_row(&r)).transpose()
     }
 

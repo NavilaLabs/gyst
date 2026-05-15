@@ -14,6 +14,9 @@ zeitrak-core = { path = "../zeitrak-core" }
 zeitrak-infrastructure = { path = "../zeitrak-infrastructure" }
 zeitrak-infrastructure-impl = { path = "../zeitrak-infrastructure-impl" }
 tempfile = "3"
+tokio = { workspace = true, optional = true }
+testcontainers = { version = "0.27", optional = true }
+testcontainers-modules = { version = "0.15", features = ["postgres"], optional = true }
 url = { workspace = true }
 sqlx = { workspace = true, features = ["any"] }
 tracing = { workspace = true }
@@ -21,7 +24,13 @@ tracing = { workspace = true }
 [features]
 default = []
 sqlite = ["zeitrak-infrastructure-impl/sqlite", "eventually-projection/sqlite"]
-postgres = ["zeitrak-infrastructure-impl/postgres", "eventually-projection/postgres"]
+postgres = [
+    "dep:tokio",
+    "dep:testcontainers",
+    "dep:testcontainers-modules",
+    "zeitrak-infrastructure-impl/postgres",
+    "eventually-projection/postgres",
+]
 
 [lints]
 workspace = true

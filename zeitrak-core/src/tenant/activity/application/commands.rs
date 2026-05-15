@@ -30,7 +30,12 @@ pub trait ActivityCommandTrait<T> {
     /// # Errors
     ///
     /// Returns an error if the event cannot be applied to the aggregate.
-    fn update(&mut self, name: String, color: String, comment: Option<String>) -> Result<(), Self::Error>;
+    fn update(
+        &mut self,
+        name: String,
+        color: String,
+        comment: Option<String>,
+    ) -> Result<(), Self::Error>;
 
     /// # Errors
     ///
@@ -52,13 +57,31 @@ impl ActivityCommandTrait<Self> for ActivityCommand {
         comment: Option<String>,
     ) -> Result<Self, Self::Error> {
         Ok(aggregate::Root::<Activity>::record_new(
-            ActivityEvent::Created { id, name, color, comment }.into(),
+            ActivityEvent::Created {
+                id,
+                name,
+                color,
+                comment,
+            }
+            .into(),
         )?
         .into())
     }
 
-    fn update(&mut self, name: String, color: String, comment: Option<String>) -> Result<(), Self::Error> {
-        self.record_that(ActivityEvent::Updated { name, color, comment }.into())
+    fn update(
+        &mut self,
+        name: String,
+        color: String,
+        comment: Option<String>,
+    ) -> Result<(), Self::Error> {
+        self.record_that(
+            ActivityEvent::Updated {
+                name,
+                color,
+                comment,
+            }
+            .into(),
+        )
     }
 
     fn delete(&mut self) -> Result<(), Self::Error> {
@@ -77,7 +100,13 @@ impl ActivityCommand {
         comment: Option<String>,
     ) -> Result<Self, activity::Error> {
         Ok(aggregate::Root::<Activity>::record_new(
-            ActivityEvent::Created { id, name, color, comment }.into(),
+            ActivityEvent::Created {
+                id,
+                name,
+                color,
+                comment,
+            }
+            .into(),
         )?
         .into())
     }
@@ -212,8 +241,12 @@ mod tests {
     fn create_returns_root_with_applied_state() {
         let id: ActivityId = "019d0ce8-facb-7c90-b9d7-287ae4f17c92".parse().unwrap();
 
-        let result =
-            ActivityCommand::create(id.clone(), "Stand-up".to_string(), "#3b82f6".to_string(), None);
+        let result = ActivityCommand::create(
+            id.clone(),
+            "Stand-up".to_string(),
+            "#3b82f6".to_string(),
+            None,
+        );
 
         assert!(result.is_ok());
         let cmd = result.unwrap();
@@ -243,8 +276,12 @@ mod tests {
         let id = test_id();
         let mut cmd = make_shell(id);
 
-        cmd.update("Renamed".to_string(), "#a855f7".to_string(), Some("a note".to_string()))
-            .expect("update must succeed");
+        cmd.update(
+            "Renamed".to_string(),
+            "#a855f7".to_string(),
+            Some("a note".to_string()),
+        )
+        .expect("update must succeed");
 
         assert_eq!(cmd.version(), 2);
         assert_eq!(cmd.name(), "Renamed");

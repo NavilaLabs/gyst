@@ -43,6 +43,7 @@ const CSS_DASHBOARD: Asset = asset!("./views/dashboard/style.css");
 const CSS_SETTINGS: Asset = asset!("./views/settings/style.css");
 const CSS_SELECT_WORKSPACE: Asset = asset!("./views/select_workspace/style.css");
 const CSS_LOGIN: Asset = asset!("./views/login/style.css");
+const CSS_LANDING: Asset = asset!("./views/landing/style.css");
 
 /// Inject all stylesheets into the document head in dependency order.
 ///
@@ -82,6 +83,7 @@ pub fn GlobalStyles() -> Element {
         document::Link { rel: "stylesheet", href: CSS_SETTINGS }
         document::Link { rel: "stylesheet", href: CSS_SELECT_WORKSPACE }
         document::Link { rel: "stylesheet", href: CSS_LOGIN }
+        document::Link { rel: "stylesheet", href: CSS_LANDING }
     }
 }
 

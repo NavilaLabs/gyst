@@ -32,6 +32,7 @@ mod tests {
     fn valid_input_produces_no_errors() {
         let input = CreateActivityInput {
             name: "Stand-up".to_string(),
+            color: "#3B82F6".to_string(),
         };
         assert!(input.validate().is_ok());
     }
@@ -40,6 +41,7 @@ mod tests {
     fn empty_name_produces_validation_error() {
         let input = CreateActivityInput {
             name: String::new(),
+            color: "#3B82F6".to_string(),
         };
         assert!(input.validate().is_err());
     }
@@ -48,6 +50,7 @@ mod tests {
     fn summary_extracts_message_from_failing_field() {
         let input = CreateActivityInput {
             name: String::new(),
+            color: "#3B82F6".to_string(),
         };
         let errors = input.validate().expect_err("must fail");
         let summary = validation_summary(&errors);

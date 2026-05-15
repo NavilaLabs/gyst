@@ -272,7 +272,7 @@ pub struct Initializer<T> {
 }
 
 impl<T: InitializationStrategy + Debug + Send + Sync> Initializer<T> {
-    pub fn new(strategy: T) -> Self {
+    pub const fn new(strategy: T) -> Self {
         Self { strategy }
     }
 

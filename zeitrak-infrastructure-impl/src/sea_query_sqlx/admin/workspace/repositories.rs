@@ -5,7 +5,7 @@ use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::aggregate::{Aggregate, Root};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
-use sea_query::{Alias, Condition, Expr, ExprTrait};
+use sea_query::{Alias, Condition, Expr, ExprTrait, JoinType, Order};
 use sqlx::{Row, any::AnyRow};
 use zeitrak_core::admin::workspace::{
     Workspace, WorkspaceEvent, WorkspaceId, WorkspaceRepository as WorkspaceRepositoryTrait,
@@ -90,15 +90,26 @@ impl WorkspaceRepository {
         &self,
         user_id: &str,
     ) -> Result<Vec<(String, Option<String>)>, crate::Error> {
-        let rows = sqlx::query(
-            "SELECT DISTINCT w.id, w.name \
-             FROM projections__workspaces w \
-             INNER JOIN projections__workspace_user_roles r ON w.id = r.workspace_id \
-             WHERE r.user_id = ?",
-        )
-        .bind(user_id)
-        .fetch_all(self.store.pool.as_ref())
-        .await?;
+        const ROLES_TABLE: &str = "projections__workspace_user_roles";
+        let stmt = sea_query::Query::select()
+            .distinct()
+            .column((Alias::new("w"), Alias::new("id")))
+            .column((Alias::new("w"), Alias::new("name")))
+            .from_as(Alias::new(TABLE), Alias::new("w"))
+            .join_as(
+                JoinType::InnerJoin,
+                Alias::new(ROLES_TABLE),
+                Alias::new("r"),
+                Expr::col((Alias::new("w"), Alias::new("id")))
+                    .equals((Alias::new("r"), Alias::new("workspace_id"))),
+            )
+            .and_where(Expr::col((Alias::new("r"), Alias::new("user_id"))).eq(user_id))
+            .order_by((Alias::new("w"), Alias::new("id")), Order::Asc)
+            .to_owned();
+        let (sql, values) = self.store.pool.build_query(&stmt);
+        let rows = sqlx::query_with(&sql, values)
+            .fetch_all(self.store.pool.as_ref())
+            .await?;
 
         rows.into_iter()
             .map(|row| -> Result<_, crate::Error> {

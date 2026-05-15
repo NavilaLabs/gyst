@@ -1,7 +1,10 @@
 use validator::Validate;
 
 fn validate_hex_color(color: &str) -> Result<(), validator::ValidationError> {
-    if color.len() == 7 && color.starts_with('#') && color[1..].chars().all(|c| c.is_ascii_hexdigit()) {
+    if color.len() == 7
+        && color.starts_with('#')
+        && color[1..].chars().all(|c| c.is_ascii_hexdigit())
+    {
         return Ok(());
     }
     let mut e = validator::ValidationError::new("hex_color");

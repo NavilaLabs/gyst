@@ -175,3 +175,59 @@
     border-radius: 2px;
     flex-shrink: 0;
 }
+
+/* ── Light theme: explicit user selection ── */
+html[data-theme="light"] {
+    --color-background:         #fafaf5;
+    --color-surface:            #f4f4ef;
+    --color-surface-raised:     #ffffff;
+    --color-surface-tonal:      #eeeee9;
+    --color-foreground:         #1a1c19;
+    --color-muted-foreground:   #5c6057;
+    --color-subtle-foreground:  #7a7e79;
+    --color-faint-foreground:   #a0a49f;
+    --color-border:             #d5d8d0;
+    --color-border-soft:        #e4e8df;
+    --color-border-strong:      #bfcaba;
+    --color-accent:             #16a34a;
+    --color-accent-hover:       #15803d;
+    --color-accent-tint:        rgba(22, 163, 74, 0.10);
+    --color-accent-tint-strong: rgba(22, 163, 74, 0.18);
+    --color-accent-foreground:  #ffffff;
+    --color-accent-ring:        rgba(22, 163, 74, 0.30);
+    --color-danger:             #dc2626;
+    --color-danger-tint:        rgba(220, 38, 38, 0.10);
+    --color-warning:            #d97706;
+    --color-info:               #2563eb;
+    --shadow-card:              0 1px 3px rgba(0, 0, 0, 0.08);
+    --shadow-raised:            0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* ── Light theme: system preference (no explicit override set) ── */
+@media (prefers-color-scheme: light) {
+    html:not([data-theme]) {
+        --color-background:         #fafaf5;
+        --color-surface:            #f4f4ef;
+        --color-surface-raised:     #ffffff;
+        --color-surface-tonal:      #eeeee9;
+        --color-foreground:         #1a1c19;
+        --color-muted-foreground:   #5c6057;
+        --color-subtle-foreground:  #7a7e79;
+        --color-faint-foreground:   #a0a49f;
+        --color-border:             #d5d8d0;
+        --color-border-soft:        #e4e8df;
+        --color-border-strong:      #bfcaba;
+        --color-accent:             #16a34a;
+        --color-accent-hover:       #15803d;
+        --color-accent-tint:        rgba(22, 163, 74, 0.10);
+        --color-accent-tint-strong: rgba(22, 163, 74, 0.18);
+        --color-accent-foreground:  #ffffff;
+        --color-accent-ring:        rgba(22, 163, 74, 0.30);
+        --color-danger:             #dc2626;
+        --color-danger-tint:        rgba(220, 38, 38, 0.10);
+        --color-warning:            #d97706;
+        --color-info:               #2563eb;
+        --shadow-card:              0 1px 3px rgba(0, 0, 0, 0.08);
+        --shadow-raised:            0 4px 16px rgba(0, 0, 0, 0.12);
+    }
+}

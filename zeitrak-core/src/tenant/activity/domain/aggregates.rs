@@ -53,12 +53,30 @@ impl Aggregate for Activity {
 
     fn apply(state: Option<Self>, event: Self::Event) -> Result<Self, Self::Error> {
         match (state, event) {
-            (None, ActivityEvent::Created { id, name, color, comment }) => {
-                Ok(Self { id, name, color, comment })
-            }
+            (
+                None,
+                ActivityEvent::Created {
+                    id,
+                    name,
+                    color,
+                    comment,
+                },
+            ) => Ok(Self {
+                id,
+                name,
+                color,
+                comment,
+            }),
             (Some(_), ActivityEvent::Created { .. }) => Err(Error::AlreadyExists),
             (None, _) => Err(Error::NotFound),
-            (Some(mut a), ActivityEvent::Updated { name, color, comment }) => {
+            (
+                Some(mut a),
+                ActivityEvent::Updated {
+                    name,
+                    color,
+                    comment,
+                },
+            ) => {
                 a.name = name;
                 a.color = color;
                 a.comment = comment;

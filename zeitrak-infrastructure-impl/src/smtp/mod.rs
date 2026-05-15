@@ -13,7 +13,7 @@ pub struct SmtpConfig {
     pub username: String,
     pub password: String,
     pub from_address: String,
-    /// When `false`, connect over plain SMTP without TLS (e.g. MailHog).
+    /// When `false`, connect over plain SMTP without TLS (e.g. `MailHog`).
     pub use_tls: bool,
 }
 

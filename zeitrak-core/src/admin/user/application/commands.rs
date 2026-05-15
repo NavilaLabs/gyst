@@ -136,10 +136,7 @@ where
     /// # Errors
     ///
     /// Returns an error if the domain event cannot be applied or the root cannot be saved.
-    async fn verify_email(
-        &self,
-        id: UserId,
-    ) -> Result<(), <Self as UserCommandTrait<R>>::Error> {
+    async fn verify_email(&self, id: UserId) -> Result<(), <Self as UserCommandTrait<R>>::Error> {
         let mut root: UserRoot = self
             .repository
             .get(&id)

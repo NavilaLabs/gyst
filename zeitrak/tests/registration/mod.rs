@@ -1,7 +1,6 @@
 use zeitrak::registration::{register_user_on, verify_email_by_token_on};
 use zeitrak_tests::{
-    RecordingEmailSender, SentEmailKind, TestFixture, flush_user_projector,
-    is_user_email_verified,
+    RecordingEmailSender, SentEmailKind, TestFixture, flush_user_projector, is_user_email_verified,
 };
 
 /// `register_user_on` must send exactly one verification email to the
@@ -24,7 +23,11 @@ async fn register_user_sends_verification_email() {
     assert!(result.is_ok(), "register_user_on must succeed: {result:?}");
 
     let sent = sender.sent();
-    assert_eq!(sent.len(), 1, "exactly one email must be sent on registration");
+    assert_eq!(
+        sent.len(),
+        1,
+        "exactly one email must be sent on registration"
+    );
     assert_eq!(sent[0].to, "alice@example.com");
 
     let SentEmailKind::Verification { verification_link } = &sent[0].kind else {
@@ -75,7 +78,11 @@ async fn register_user_unverified_duplicate_resends_verification_email() {
     );
 
     let sent = sender2.sent();
-    assert_eq!(sent.len(), 1, "exactly one new verification email must be sent");
+    assert_eq!(
+        sent.len(),
+        1,
+        "exactly one new verification email must be sent"
+    );
     assert_eq!(sent[0].to, "alice@example.com");
 
     let SentEmailKind::Verification { verification_link } = &sent[0].kind else {
@@ -135,8 +142,15 @@ async fn register_user_verified_duplicate_sends_no_email() {
     )
     .await;
 
-    assert!(result.is_err(), "re-registration of a verified account must fail");
-    assert_eq!(sender2.sent().len(), 0, "no email must be sent on verified duplicate");
+    assert!(
+        result.is_err(),
+        "re-registration of a verified account must fail"
+    );
+    assert_eq!(
+        sender2.sent().len(),
+        0,
+        "no email must be sent on verified duplicate"
+    );
 }
 
 /// Full registration flow: register → receive verification email → click the
