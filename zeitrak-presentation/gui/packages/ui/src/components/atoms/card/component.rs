@@ -9,7 +9,7 @@ pub fn Card(
     #[props(into, default)] data_size: Option<String>,
 ) -> Element {
     let base = attributes!(div {
-        class: "card flex flex-col bg-surface border border-border-soft rounded-lg overflow-hidden text-foreground h-fit",
+        class: "card flex flex-col bg-surface border border-border-soft rounded-lg text-foreground h-fit",
         "data-slot": "card",
     });
     let merged = merge_attributes(vec![base, attributes]);

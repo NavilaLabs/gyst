@@ -1,6 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
+use zeitrak_core::admin::workspace_role::WorkspaceRoleRepository as WorkspaceRoleRepositoryTrait;
 use zeitrak_core::admin::{
     permission::{PermissionId, PermissionRow},
     user::UserId,
@@ -13,7 +14,6 @@ use zeitrak_core::admin::{
         WorkspaceRoleWithPermissionsRow,
     },
 };
-use zeitrak_core::admin::workspace_role::WorkspaceRoleRepository as WorkspaceRoleRepositoryTrait;
 use zeitrak_core::shared::repositories::ReadRepository;
 use zeitrak_infrastructure::database::Migrate;
 use zeitrak_infrastructure_impl::{
@@ -69,7 +69,8 @@ pub async fn create_workspace_for_user(
 
     // --- Admin role: all permissions ---
     let admin_role_id = WorkspaceRoleId::new();
-    let role_cmd = WorkspaceRoleCommand::new(WorkspaceRoleRepository::from_pool(pool.clone()).await?);
+    let role_cmd =
+        WorkspaceRoleCommand::new(WorkspaceRoleRepository::from_pool(pool.clone()).await?);
     let _ = role_cmd
         .create(
             admin_role_id.clone(),
@@ -261,9 +262,7 @@ pub async fn delete_role(role_id: &str) -> Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
     if count > 0 {
-        anyhow::bail!(
-            "cannot delete role: {count} member(s) still assigned — reassign them first"
-        );
+        anyhow::bail!("cannot delete role: {count} member(s) still assigned — reassign them first");
     }
     WorkspaceRoleCommand::new(repo)
         .delete(id)
@@ -315,11 +314,7 @@ pub async fn list_workspace_members(workspace_id: &str) -> Result<Vec<MemberRow>
 }
 
 /// Assigns a role to a workspace member.
-pub async fn assign_member_role(
-    workspace_id: &str,
-    user_id: &str,
-    role_id: &str,
-) -> Result<()> {
+pub async fn assign_member_role(workspace_id: &str, user_id: &str, role_id: &str) -> Result<()> {
     let pool = Pool::connect_admin().await?;
     let ws_id: WorkspaceId = workspace_id.parse()?;
     let uid: UserId = user_id.parse()?;
@@ -331,11 +326,7 @@ pub async fn assign_member_role(
 }
 
 /// Revokes a role from a workspace member.
-pub async fn revoke_member_role(
-    workspace_id: &str,
-    user_id: &str,
-    role_id: &str,
-) -> Result<()> {
+pub async fn revoke_member_role(workspace_id: &str, user_id: &str, role_id: &str) -> Result<()> {
     let pool = Pool::connect_admin().await?;
     let ws_id: WorkspaceId = workspace_id.parse()?;
     let uid: UserId = user_id.parse()?;
