@@ -20,6 +20,8 @@ mod m20260410_000005_add_aggregate_type_to_event_streams;
 mod m20260509_000001_create_invitations_projection_table;
 mod m20260512_000001_add_email_verification;
 mod m20260515_000001_seed_member_and_role_manage_permissions;
+mod m20260515_000002_seed_standard_role_for_existing_workspaces;
+mod m20260515_000003_cleanup_permissions;
 
 pub struct Migrator;
 
@@ -52,6 +54,10 @@ impl MigratorTrait for Migrator {
             Box::new(
                 m20260515_000001_seed_member_and_role_manage_permissions::Migration,
             ),
+            Box::new(
+                m20260515_000002_seed_standard_role_for_existing_workspaces::Migration,
+            ),
+            Box::new(m20260515_000003_cleanup_permissions::Migration),
         ]
     }
 }

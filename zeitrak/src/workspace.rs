@@ -107,8 +107,6 @@ pub async fn create_workspace_for_user(
         zeitrak_core::permissions::TIMESHEET_UPDATE,
         zeitrak_core::permissions::TIMESHEET_EXPORT,
         zeitrak_core::permissions::TIMESHEET_CANCEL,
-        zeitrak_core::permissions::ACTIVITY_CREATE,
-        zeitrak_core::permissions::ACTIVITY_UPDATE,
     ];
 
     for perm_name in standard_permissions {
