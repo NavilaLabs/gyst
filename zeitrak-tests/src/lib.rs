@@ -363,6 +363,10 @@ pub enum SentEmailKind {
     Verification {
         verification_link: String,
     },
+    WaitlistNotification {
+        subscriber_email: String,
+    },
+    WaitlistConfirmation,
 }
 
 /// An [`EmailSender`] that records every outbound email in memory.
@@ -440,6 +444,34 @@ impl EmailSender for RecordingEmailSender {
                 kind: SentEmailKind::Verification {
                     verification_link: verification_link.to_string(),
                 },
+            });
+        Ok(())
+    }
+
+    async fn send_waitlist_notification(
+        &self,
+        owner_email: &str,
+        subscriber_email: &str,
+    ) -> anyhow::Result<()> {
+        self.sent
+            .lock()
+            .expect("mutex must not be poisoned")
+            .push(SentEmail {
+                to: owner_email.to_string(),
+                kind: SentEmailKind::WaitlistNotification {
+                    subscriber_email: subscriber_email.to_string(),
+                },
+            });
+        Ok(())
+    }
+
+    async fn send_waitlist_confirmation(&self, to: &str) -> anyhow::Result<()> {
+        self.sent
+            .lock()
+            .expect("mutex must not be poisoned")
+            .push(SentEmail {
+                to: to.to_string(),
+                kind: SentEmailKind::WaitlistConfirmation,
             });
         Ok(())
     }

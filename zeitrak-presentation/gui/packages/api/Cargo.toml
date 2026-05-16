@@ -16,3 +16,4 @@ tracing = { workspace = true, optional = true }
 server = ["dioxus/server", "dep:anyhow", "dep:zeitrak", "dep:tower-sessions", "dep:tracing", "sqlite"]
 postgres = ["zeitrak/postgres"]
 sqlite = ["zeitrak/sqlite"]
+landing = ["zeitrak?/landing"]

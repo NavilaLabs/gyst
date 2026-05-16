@@ -1,7 +1,23 @@
+use api::waitlist::join_waitlist;
 use dioxus::prelude::*;
 
 #[component]
 pub fn LandingPage() -> Element {
+    let mut email = use_signal(String::new);
+    let mut submitted = use_signal(|| false);
+    let mut error_msg = use_signal(String::new);
+
+    let on_submit = move |_| async move {
+        let addr = email.read().trim().to_string();
+        if addr.is_empty() {
+            return;
+        }
+        match join_waitlist(addr).await {
+            Ok(()) => submitted.set(true),
+            Err(e) => error_msg.set(e.to_string()),
+        }
+    };
+
     rsx! {
         div { class: "lp",
 
@@ -679,9 +695,26 @@ pub fn LandingPage() -> Element {
                         "Join the early access list. Get notified when Zeitrak opens.
                         No spam — just one email when we're ready."
                     }
-                    div { class: "lp-cta-actions",
-                        a { class: "lp-btn-primary", href: "/register", "Request early access" }
-                        a { class: "lp-btn-secondary", href: "/login", "Sign in" }
+                    if *submitted.read() {
+                        p { class: "lp-cta-success", "You're on the list! We'll be in touch." }
+                    } else {
+                        div { class: "lp-cta-form",
+                            input {
+                                class: "lp-cta-input",
+                                r#type: "email",
+                                placeholder: "your@email.com",
+                                value: "{email}",
+                                oninput: move |e| email.set(e.value()),
+                            }
+                            button {
+                                class: "lp-btn-primary",
+                                onclick: on_submit,
+                                "Notify me"
+                            }
+                        }
+                        if !error_msg.read().is_empty() {
+                            p { class: "lp-cta-error", "{error_msg}" }
+                        }
                     }
                     p { class: "lp-cta-note", "Free forever · No credit card required" }
                 }

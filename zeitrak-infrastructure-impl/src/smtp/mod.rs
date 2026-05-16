@@ -98,4 +98,38 @@ impl EmailSender for SmtpEmailSender {
         self.transport.send(email).await?;
         Ok(())
     }
+
+    async fn send_waitlist_notification(
+        &self,
+        owner_email: &str,
+        subscriber_email: &str,
+    ) -> anyhow::Result<()> {
+        let body = format!("Someone joined the Zeitrak early access waitlist: {subscriber_email}");
+
+        let email = Message::builder()
+            .from(self.from_address.parse()?)
+            .to(owner_email.parse()?)
+            .subject("New Zeitrak waitlist sign-up")
+            .header(ContentType::TEXT_PLAIN)
+            .body(body)?;
+
+        self.transport.send(email).await?;
+        Ok(())
+    }
+
+    async fn send_waitlist_confirmation(&self, to: &str) -> anyhow::Result<()> {
+        let body = "Thanks for your interest in Zeitrak!\n\n\
+             We'll reach out as soon as early access opens.\n\n\
+             The Zeitrak team";
+
+        let email = Message::builder()
+            .from(self.from_address.parse()?)
+            .to(to.parse()?)
+            .subject("You're on the Zeitrak early access list")
+            .header(ContentType::TEXT_PLAIN)
+            .body(body.to_string())?;
+
+        self.transport.send(email).await?;
+        Ok(())
+    }
 }

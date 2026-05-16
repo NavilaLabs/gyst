@@ -29,3 +29,9 @@ pub fn email_sender_from_config() -> Result<impl EmailSender> {
 pub fn base_url() -> &'static str {
     CONFIG.application().base_url()
 }
+
+/// Returns the owner email address for waitlist notifications.
+#[must_use]
+pub fn owner_email() -> &'static str {
+    CONFIG.application().owner_email()
+}

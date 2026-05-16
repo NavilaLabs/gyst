@@ -30,4 +30,22 @@ pub trait EmailSender: Send + Sync {
         to: &str,
         verification_link: &str,
     ) -> anyhow::Result<()>;
+
+    /// Notifies the application owner that a new address joined the waitlist.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying transport fails.
+    async fn send_waitlist_notification(
+        &self,
+        owner_email: &str,
+        subscriber_email: &str,
+    ) -> anyhow::Result<()>;
+
+    /// Sends a confirmation email to a waitlist subscriber.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying transport fails.
+    async fn send_waitlist_confirmation(&self, to: &str) -> anyhow::Result<()>;
 }

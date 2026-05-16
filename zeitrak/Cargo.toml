@@ -50,6 +50,7 @@ default = ["sea-query-sqlx"]
 sea-query-sqlx = ["zeitrak-infrastructure-impl/sea-query-sqlx"]
 sqlite = ["zeitrak-infrastructure-impl/sqlite", "zeitrak-tests/sqlite"]
 postgres = ["zeitrak-infrastructure-impl/postgres", "zeitrak-tests/postgres"]
+landing = []
 
 [lints]
 workspace = true

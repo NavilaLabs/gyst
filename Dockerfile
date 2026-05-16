@@ -13,11 +13,18 @@ ENV ZK_PROJECT_ROOT="/app"
 
 COPY . .
 
+ARG WITH_LANDING=false
+
 # Build the whole workspace and then the Dioxus web package
 RUN cd zeitrak && cargo build --release --bin admin-projection-daemon
 RUN cd zeitrak && cargo build --release --bin tenant-projection-daemon
 RUN cd zeitrak-presentation/gui && cargo build --release
-RUN cd zeitrak-presentation/gui && dx build --package web --release
+RUN cd zeitrak-presentation/gui && \
+    if [ "$WITH_LANDING" = "true" ]; then \
+        dx build --package web --release --features landing; \
+    else \
+        dx build --package web --release; \
+    fi
 
 # ----------------------------------------------------------
 # Stage 2: Runtime

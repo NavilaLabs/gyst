@@ -8,6 +8,9 @@ pub struct Application {
     security: SecurityConfig,
     base_url: String,
     smtp: SmtpConfig,
+    /// Email address that receives waitlist sign-up notifications.
+    #[serde(default)]
+    owner_email: String,
 }
 
 impl Default for Application {
@@ -19,6 +22,7 @@ impl Default for Application {
             security: SecurityConfig::default(),
             base_url: "http://localhost:8080".to_string(),
             smtp: SmtpConfig::default(),
+            owner_email: String::new(),
         }
     }
 }
@@ -58,6 +62,12 @@ impl Application {
     #[must_use]
     pub const fn smtp(&self) -> &SmtpConfig {
         &self.smtp
+    }
+
+    /// Email address that receives waitlist sign-up notifications.
+    #[must_use]
+    pub fn owner_email(&self) -> &str {
+        &self.owner_email
     }
 }
 

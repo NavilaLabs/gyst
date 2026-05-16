@@ -402,6 +402,7 @@ test(authorization): add cross-workspace isolation tests
 - Do not use raw SQL strings in repository implementations — use `sea-query`.
 - Do not hardcode permission strings — use the constants from `zeitrak-core::permissions`.
 - Do not add `#[serial]` to integration tests — fix isolation instead by using `TestFixture`.
+- Do not commit personal data (email addresses, names, credentials) anywhere in the repository — this is a public repo. Sensitive values belong in environment variables only.
 
 ---
 

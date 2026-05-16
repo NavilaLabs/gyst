@@ -14,4 +14,6 @@ pub mod setup;
 pub mod timesheet;
 pub mod timesheet_tag;
 pub mod workspace;
+#[cfg(feature = "landing")]
+pub mod waitlist;
 pub mod workspace_role;

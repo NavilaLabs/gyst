@@ -7,6 +7,11 @@ serve:
     cd /workspaces/zeitrak/zeitrak-presentation/gui/packages/web && \
     dx serve --fullstack --port 8080 --addr 0.0.0.0
 
+serve-lp:
+    just update && \
+    cd /workspaces/zeitrak/zeitrak-presentation/gui/packages/web && \
+    dx serve --fullstack --port 8080 --addr 0.0.0.0 --features landing
+
 project-admin:
     just update && \
     cargo run -p zeitrak --bin admin-projection-daemon

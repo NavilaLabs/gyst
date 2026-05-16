@@ -26,4 +26,4 @@ js-sys = "0.3"
 # default = ["server"]
 web = ["dioxus/web"]
 server = ["dioxus/server", "axum", "api/server", "dep:zeitrak", "zeitrak/sqlite", "dep:tokio", "dep:tower-sessions", "ui/server"]
-landing = ["ui/landing"]
+landing = ["ui/landing", "api/landing"]

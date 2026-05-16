@@ -12,6 +12,8 @@ pub mod registration;
 pub mod setup;
 pub mod tenant;
 pub mod user_settings;
+#[cfg(feature = "landing")]
+pub mod waitlist;
 pub mod workspace;
 
 pub use tenant::user;
