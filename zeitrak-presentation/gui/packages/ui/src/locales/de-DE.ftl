@@ -286,3 +286,39 @@ login-heading = Willkommen zurück.
 login-subheading = Melde dich an, um deine Zeit weiter zu erfassen.
 login-email-placeholder = du@beispiel.de
 login-no-account = Noch kein Konto?
+
+# ── Setup — SMTP-Tab ───────────────────────────────────────────────────────────
+
+setup-tab-smtp = E-Mail / SMTP
+setup-smtp-description = Konfiguriere, wie Zeitrak transaktionale E-Mails versendet (Einladungen, Verifizierungen). Du kannst diesen Schritt überspringen und ihn später in den Einstellungen nachholen.
+setup-smtp-auth-method-label = Authentifizierungsmethode
+setup-smtp-auth-method-none = Kein E-Mail (überspringen)
+setup-smtp-auth-method-password = Benutzername / Passwort
+setup-smtp-auth-method-xoauth2 = Microsoft 365 (OAuth2)
+setup-smtp-host-label = SMTP-Host
+setup-smtp-port-label = Port
+setup-smtp-username-label = Benutzername
+setup-smtp-from-address-label = Absenderadresse
+setup-smtp-use-tls-label = STARTTLS verwenden
+setup-smtp-password-label = Passwort
+setup-smtp-password-keep-placeholder = ••••••• (leer lassen zum Beibehalten)
+setup-smtp-client-id-label = Anwendungs-ID (Client-ID)
+setup-smtp-tenant-id-label = Verzeichnis-ID (Tenant-ID)
+setup-smtp-client-secret-label = Clientgeheimnis
+setup-smtp-client-secret-keep-placeholder = ••••••• (leer lassen zum Beibehalten)
+setup-smtp-oauth2-email-label = Microsoft 365 Postfachadresse
+setup-smtp-authorize-button = Mit Microsoft autorisieren
+setup-smtp-open-link = Microsoft-Login öffnen →
+setup-smtp-authorizing = Autorisierungsstatus prüfen
+setup-smtp-authorized = Autorisiert
+setup-smtp-skip = Vorerst überspringen
+setup-smtp-finish = Setup abschließen
+
+# ── Einstellungen — SMTP-Tab ───────────────────────────────────────────────────
+
+settings-tab-smtp = SMTP / E-Mail
+settings-smtp-save = SMTP-Einstellungen speichern
+settings-smtp-test-label = Test-E-Mail senden an
+settings-smtp-test-button = Test senden
+settings-smtp-test-success = Test-E-Mail erfolgreich versendet
+settings-smtp-test-error = Fehler beim Versenden der Test-E-Mail

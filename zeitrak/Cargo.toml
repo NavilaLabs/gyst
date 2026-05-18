@@ -37,6 +37,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 zeitrak-core = { path = "../zeitrak-core" }
 zeitrak-infrastructure = { path = "../zeitrak-infrastructure" }
 zeitrak-infrastructure-impl = { path = "../zeitrak-infrastructure-impl" }
+rand = "0.8"
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+urlencoding = "2"
 
 [dev-dependencies]
 jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }

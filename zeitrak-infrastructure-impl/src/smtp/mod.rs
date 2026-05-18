@@ -5,6 +5,14 @@ use lettre::{
 };
 use zeitrak_infrastructure::email::EmailSender;
 
+pub mod encryption;
+pub mod oauth2_cache;
+pub mod oauth2_sender;
+pub mod repository;
+
+pub use oauth2_sender::OAuth2SmtpEmailSender;
+pub use repository::SmtpConfigRepositoryImpl;
+
 /// Configuration for the SMTP email transport.
 #[derive(Debug, Clone)]
 pub struct SmtpConfig {

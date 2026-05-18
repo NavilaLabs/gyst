@@ -110,6 +110,32 @@ fn main() {
     dioxus::launch(App);
 }
 
+/// Handles the Microsoft OAuth2 callback for SMTP configuration.
+///
+/// Microsoft redirects here after the user grants SMTP.Send permission.
+/// The handler exchanges the authorization `code` for a refresh token and
+/// stores it in the admin database, then redirects back to the settings page.
+#[cfg(feature = "server")]
+async fn oauth2_callback_handler(
+    axum::extract::Query(params): axum::extract::Query<
+        std::collections::HashMap<String, String>,
+    >,
+) -> axum::response::Response {
+    use axum::response::IntoResponse as _;
+
+    let code = params.get("code").cloned().unwrap_or_default();
+    let state = params.get("state").cloned().unwrap_or_default();
+
+    match zeitrak::smtp_oauth2::complete_microsoft_oauth2(code, state).await {
+        Ok(()) => axum::response::Redirect::to("/settings?smtp=authorized").into_response(),
+        Err(e) => {
+            let msg = urlencoding::encode(&e.to_string()).into_owned();
+            axum::response::Redirect::to(&format!("/settings?smtp=error&msg={msg}"))
+                .into_response()
+        }
+    }
+}
+
 #[cfg(feature = "server")]
 #[tokio::main]
 async fn main() {
@@ -128,6 +154,10 @@ async fn main() {
         .with_same_site(tower_sessions::cookie::SameSite::Lax);
 
     let router = axum::Router::new()
+        .route(
+            "/api/smtp/oauth2/callback",
+            axum::routing::get(oauth2_callback_handler),
+        )
         .serve_dioxus_application(dioxus_server::ServeConfig::new(), App)
         .layer(session_layer);
 

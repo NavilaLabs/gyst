@@ -1,6 +1,7 @@
 mod activity;
 mod database;
 mod permission;
+mod smtp;
 mod timesheet;
 mod timesheet_tag;
 mod user;

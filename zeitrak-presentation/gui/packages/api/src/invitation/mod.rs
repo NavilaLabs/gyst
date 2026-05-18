@@ -16,21 +16,47 @@ pub struct InvitationDto {
 ///
 /// Requires the `member.invite` permission in the current workspace.
 /// Returns the new invitation ID on success.
+#[server]
 #[post("/api/invitations/send")]
 pub async fn send_invitation(
     email: String,
     workspace_role_id: String,
     ttl_days: u32,
 ) -> Result<String, ServerFnError> {
-    #[cfg(feature = "server")]
-    {
-        _send_invitation(email, workspace_role_id, ttl_days).await
-    }
-    #[cfg(not(feature = "server"))]
-    {
-        let _ = (email, workspace_role_id, ttl_days);
-        Ok(String::new())
-    }
+    use crate::session::{internal, require_permission, session_workspace};
+
+    let (user, workspace_id) = session_workspace().await?;
+    require_permission(&user, zeitrak::core::permissions::MEMBER_INVITE).await?;
+
+    let role_id: zeitrak::core::admin::workspace_role::WorkspaceRoleId = workspace_role_id
+        .parse()
+        .map_err(|_| ServerFnError::ServerError {
+            message: "invalid workspace_role_id".into(),
+            code: 400,
+            details: None,
+        })?;
+
+    let email_sender = zeitrak::email::email_sender_from_config().await.map_err(internal)?;
+    let base_url = zeitrak::email::base_url();
+
+    let current_user = zeitrak::auth::CurrentUser {
+        id: user.id,
+        email: user.email,
+    };
+
+    let invitation_id = zeitrak::invitation::invite_member(
+        &workspace_id,
+        &current_user,
+        email,
+        role_id,
+        ttl_days,
+        &*email_sender,
+        base_url,
+    )
+    .await
+    .map_err(internal)?;
+
+    Ok(invitation_id.to_string())
 }
 
 /// Returns invitation details for the given token.
@@ -197,7 +223,7 @@ async fn _send_invitation(
             details: None,
         })?;
 
-    let email_sender = zeitrak::email::email_sender_from_config().map_err(internal)?;
+    let email_sender = zeitrak::email::email_sender_from_config().await.map_err(internal)?;
     let base_url = zeitrak::email::base_url();
 
     let current_user = zeitrak::auth::CurrentUser {
@@ -211,7 +237,7 @@ async fn _send_invitation(
         email,
         role_id,
         ttl_days,
-        &email_sender,
+        &*email_sender,
         base_url,
     )
     .await
@@ -276,13 +302,13 @@ async fn _register_and_accept(
 
     let email = invitation.email().to_string();
 
-    let email_sender = zeitrak::email::email_sender_from_config().map_err(internal)?;
+    let email_sender = zeitrak::email::email_sender_from_config().await.map_err(internal)?;
     let base_url = zeitrak::email::base_url();
     let user_id = zeitrak::registration::register_user(
         name,
         email.clone(),
         password,
-        &email_sender,
+        &*email_sender,
         base_url,
     )
     .await

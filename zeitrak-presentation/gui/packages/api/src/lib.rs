@@ -11,6 +11,7 @@ pub mod registration;
 pub mod session;
 pub mod settings;
 pub mod setup;
+pub mod smtp;
 pub mod timesheet;
 pub mod timesheet_tag;
 pub mod workspace;

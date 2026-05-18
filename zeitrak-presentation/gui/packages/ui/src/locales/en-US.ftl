@@ -286,3 +286,39 @@ login-heading = Welcome back.
 login-subheading = Sign in to continue tracking your time.
 login-email-placeholder = you@example.com
 login-no-account = Don't have an account?
+
+# ── Setup — SMTP tab ───────────────────────────────────────────────────────────
+
+setup-tab-smtp = Email / SMTP
+setup-smtp-description = Configure how Zeitrak sends transactional emails (invitations, verifications). You can skip this step and configure it later in Settings.
+setup-smtp-auth-method-label = Authentication method
+setup-smtp-auth-method-none = No email (skip)
+setup-smtp-auth-method-password = Username / Password
+setup-smtp-auth-method-xoauth2 = Microsoft 365 (OAuth2)
+setup-smtp-host-label = SMTP host
+setup-smtp-port-label = Port
+setup-smtp-username-label = Username
+setup-smtp-from-address-label = From address
+setup-smtp-use-tls-label = Use STARTTLS
+setup-smtp-password-label = Password
+setup-smtp-password-keep-placeholder = ••••••• (leave blank to keep)
+setup-smtp-client-id-label = Application (client) ID
+setup-smtp-tenant-id-label = Directory (tenant) ID
+setup-smtp-client-secret-label = Client secret
+setup-smtp-client-secret-keep-placeholder = ••••••• (leave blank to keep)
+setup-smtp-oauth2-email-label = Microsoft 365 mailbox address
+setup-smtp-authorize-button = Authorize with Microsoft
+setup-smtp-open-link = Open Microsoft login →
+setup-smtp-authorizing = Check authorization status
+setup-smtp-authorized = Authorized
+setup-smtp-skip = Skip for now
+setup-smtp-finish = Finish setup
+
+# ── Settings — SMTP tab ────────────────────────────────────────────────────────
+
+settings-tab-smtp = SMTP / Email
+settings-smtp-save = Save SMTP settings
+settings-smtp-test-label = Send test email to
+settings-smtp-test-button = Send test
+settings-smtp-test-success = Test email sent successfully
+settings-smtp-test-error = Failed to send test email

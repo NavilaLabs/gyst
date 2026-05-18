@@ -10,8 +10,8 @@ use api::workspace_role::WorkspaceRoleDto;
 use chrono::NaiveDate;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{
-    HiBell, HiCheck, HiDownload, HiOfficeBuilding, HiPencil, HiPlus, HiSave, HiShieldCheck, HiTag,
-    HiTrash, HiUser, HiUsers, HiX,
+    HiBadgeCheck, HiBell, HiCheck, HiDownload, HiMail, HiOfficeBuilding, HiPencil, HiPlus,
+    HiRefresh, HiSave, HiShieldCheck, HiTag, HiTrash, HiUser, HiUsers, HiX,
 };
 use dioxus_free_icons::Icon;
 use dioxus_i18n::{prelude::i18n, tid};
@@ -101,6 +101,7 @@ enum Tab {
     User,
     Workspace,
     Members,
+    Smtp,
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -187,6 +188,27 @@ pub fn Settings() -> Element {
     let mut invite_ttl = use_signal(|| 7u32);
     let mut invite_sending = use_signal(|| false);
 
+    // ── SMTP settings state ───────────────────────────────────────────────────
+    let is_admin = auth.cloned().flatten().map(|u| u.is_admin).unwrap_or(false);
+    let mut smtp_auth_method = use_signal(|| "password".to_string());
+    let mut smtp_host = use_signal(String::new);
+    let mut smtp_port = use_signal(|| 587_u32);
+    let mut smtp_username = use_signal(String::new);
+    let mut smtp_from_address = use_signal(String::new);
+    let mut smtp_use_tls = use_signal(|| true);
+    let mut smtp_password = use_signal(String::new);
+    let mut smtp_password_is_set = use_signal(|| false);
+    let mut smtp_client_id = use_signal(String::new);
+    let mut smtp_tenant_id = use_signal(String::new);
+    let mut smtp_client_secret = use_signal(String::new);
+    let mut smtp_client_secret_is_set = use_signal(|| false);
+    let mut smtp_oauth2_email = use_signal(String::new);
+    let mut smtp_oauth2_authorized = use_signal(|| false);
+    let mut smtp_oauth2_url = use_signal(|| Option::<String>::None);
+    let mut smtp_saving = use_signal(|| false);
+    let mut smtp_test_to = use_signal(String::new);
+    let mut smtp_testing = use_signal(|| false);
+
     // ── Data loading ──────────────────────────────────────────────────────────
     use_resource(move || async move {
         match api::settings::get_user_settings().await {
@@ -240,6 +262,65 @@ pub fn Settings() -> Element {
             workspace_invitations.set(list);
         }
     });
+
+    use_resource(move || async move {
+        if !is_admin {
+            return;
+        }
+        if let Ok(dto) = api::smtp::get_smtp_config().await {
+            smtp_auth_method.set(dto.auth_method);
+            smtp_host.set(dto.host);
+            smtp_port.set(u32::from(dto.port));
+            smtp_username.set(dto.username);
+            smtp_from_address.set(dto.from_address);
+            smtp_use_tls.set(dto.use_tls);
+            smtp_password_is_set.set(dto.password_is_set);
+            smtp_client_id.set(dto.client_id.unwrap_or_default());
+            smtp_tenant_id.set(dto.tenant_id.unwrap_or_default());
+            smtp_client_secret_is_set.set(dto.client_secret_is_set);
+            smtp_oauth2_email.set(dto.oauth2_smtp_email.unwrap_or_default());
+            smtp_oauth2_authorized.set(dto.oauth2_authorized);
+        }
+    });
+
+    let on_save_smtp = move |_| {
+        let auth_method = smtp_auth_method.read().clone();
+        let host = smtp_host.read().clone();
+        let port = *smtp_port.read();
+        let username = smtp_username.read().clone();
+        let from_address = smtp_from_address.read().clone();
+        let use_tls = *smtp_use_tls.read();
+        let pw = smtp_password.read().clone();
+        let client_id = smtp_client_id.read().clone();
+        let tenant_id = smtp_tenant_id.read().clone();
+        let secret = smtp_client_secret.read().clone();
+        let oauth2_email = smtp_oauth2_email.read().clone();
+
+        async move {
+            smtp_saving.set(true);
+            let pw_opt = if pw.is_empty() { None } else { Some(pw) };
+            let secret_opt = if secret.is_empty() { None } else { Some(secret) };
+            match api::smtp::save_smtp_config(
+                auth_method,
+                host,
+                u16::try_from(port).unwrap_or(587),
+                username,
+                from_address,
+                use_tls,
+                pw_opt,
+                if client_id.is_empty() { None } else { Some(client_id) },
+                secret_opt,
+                if tenant_id.is_empty() { None } else { Some(tenant_id) },
+                if oauth2_email.is_empty() { None } else { Some(oauth2_email) },
+            )
+            .await
+            {
+                Ok(()) => toasts.push_success("SMTP settings saved"),
+                Err(e) => toasts.push_error(e.to_string()),
+            }
+            smtp_saving.set(false);
+        }
+    };
 
     let on_save_user = move |_| async move {
         let timezone = user_timezone.peek().clone();
@@ -339,6 +420,14 @@ pub fn Settings() -> Element {
                         onclick: move |_| active_tab.set(Tab::Members),
                         Icon { icon: HiUsers, width: 14, height: 14 }
                         {tid!("settings-tab-members")}
+                    }
+                    if is_admin {
+                        button {
+                            class: if *active_tab.read() == Tab::Smtp { "tab-pill tab-pill--active" } else { "tab-pill" },
+                            onclick: move |_| active_tab.set(Tab::Smtp),
+                            Icon { icon: HiMail, width: 14, height: 14 }
+                            {tid!("settings-tab-smtp")}
+                        }
                     }
                 }
 
@@ -1171,6 +1260,286 @@ pub fn Settings() -> Element {
                                                     }
                                                 }
                                             }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── SMTP tab ──────────────────────────────────────────────────
+                if *active_tab.read() == Tab::Smtp {
+                    {
+                        let is_xoauth2 = *smtp_auth_method.read() == "xoauth2";
+                        let show_common = *smtp_auth_method.read() != "none";
+                        let auth_method_options = vec![
+                            crate::components::atoms::SelectOption::new("none".to_string(), "No email (disabled)"),
+                            crate::components::atoms::SelectOption::new("password".to_string(), "Username / Password"),
+                            crate::components::atoms::SelectOption::new("xoauth2".to_string(), "Microsoft 365 (OAuth2)"),
+                        ];
+
+                        rsx! {
+                            // SMTP configuration card
+                            Card { data_size: "md",
+                                CardHeader {
+                                    CardTitle {
+                                        div { class: "flex items-center gap-2",
+                                            Icon { icon: HiMail, width: 16, height: 16 }
+                                            {tid!("settings-tab-smtp")}
+                                        }
+                                    }
+                                }
+                                CardContent {
+                                    div { class: "space-y-4",
+                                        div { class: "form-field",
+                                            label { class: "form-label", {tid!("setup-smtp-auth-method-label")} }
+                                            Select::<String> {
+                                                options: auth_method_options,
+                                                value: Some(smtp_auth_method.read().clone()),
+                                                on_change: move |v: String| smtp_auth_method.set(v),
+                                            }
+                                        }
+
+                                        if show_common {
+                                            div { class: "form-field",
+                                                label { class: "form-label", r#for: "s_smtp_host",
+                                                    {tid!("setup-smtp-host-label")}
+                                                }
+                                                Input {
+                                                    id: "s_smtp_host",
+                                                    value: smtp_host.read().clone(),
+                                                    oninput: move |e: FormEvent| smtp_host.set(e.value()),
+                                                }
+                                            }
+                                            div { class: "form-field",
+                                                label { class: "form-label", r#for: "s_smtp_port",
+                                                    {tid!("setup-smtp-port-label")}
+                                                }
+                                                Input {
+                                                    id: "s_smtp_port",
+                                                    r#type: "number",
+                                                    value: smtp_port.read().to_string(),
+                                                    oninput: move |e: FormEvent| {
+                                                        if let Ok(p) = e.value().parse::<u32>() { smtp_port.set(p); }
+                                                    },
+                                                }
+                                            }
+                                            div { class: "form-field",
+                                                label { class: "form-label", r#for: "s_smtp_from",
+                                                    {tid!("setup-smtp-from-address-label")}
+                                                }
+                                                Input {
+                                                    id: "s_smtp_from",
+                                                    r#type: "email",
+                                                    value: smtp_from_address.read().clone(),
+                                                    oninput: move |e: FormEvent| smtp_from_address.set(e.value()),
+                                                }
+                                            }
+
+                                            div { class: "flex items-center gap-2",
+                                                input {
+                                                    id: "s_smtp_tls", r#type: "checkbox", class: "cursor-pointer",
+                                                    checked: *smtp_use_tls.read(),
+                                                    onchange: move |e: FormEvent| smtp_use_tls.set(e.checked()),
+                                                }
+                                                label { r#for: "s_smtp_tls", class: "text-sm cursor-pointer",
+                                                    {tid!("setup-smtp-use-tls-label")}
+                                                }
+                                            }
+
+                                            if !is_xoauth2 {
+                                                div { class: "form-field",
+                                                    label { class: "form-label", r#for: "s_smtp_user",
+                                                        {tid!("setup-smtp-username-label")}
+                                                    }
+                                                    Input {
+                                                        id: "s_smtp_user",
+                                                        value: smtp_username.read().clone(),
+                                                        oninput: move |e: FormEvent| smtp_username.set(e.value()),
+                                                    }
+                                                }
+                                                div { class: "form-field",
+                                                    label { class: "form-label", r#for: "s_smtp_pw",
+                                                        {tid!("setup-smtp-password-label")}
+                                                    }
+                                                    Input {
+                                                        id: "s_smtp_pw",
+                                                        r#type: "password",
+                                                        placeholder: if *smtp_password_is_set.read() {
+                                                            tid!("setup-smtp-password-keep-placeholder")
+                                                        } else {
+                                                            String::new()
+                                                        },
+                                                        oninput: move |e: FormEvent| smtp_password.set(e.value()),
+                                                    }
+                                                }
+                                            }
+
+                                            if is_xoauth2 {
+                                                div { class: "form-field",
+                                                    label { class: "form-label", r#for: "s_smtp_cid",
+                                                        {tid!("setup-smtp-client-id-label")}
+                                                    }
+                                                    Input {
+                                                        id: "s_smtp_cid",
+                                                        value: smtp_client_id.read().clone(),
+                                                        oninput: move |e: FormEvent| smtp_client_id.set(e.value()),
+                                                    }
+                                                }
+                                                div { class: "form-field",
+                                                    label { class: "form-label", r#for: "s_smtp_tid",
+                                                        {tid!("setup-smtp-tenant-id-label")}
+                                                    }
+                                                    Input {
+                                                        id: "s_smtp_tid",
+                                                        value: smtp_tenant_id.read().clone(),
+                                                        oninput: move |e: FormEvent| smtp_tenant_id.set(e.value()),
+                                                    }
+                                                }
+                                                div { class: "form-field",
+                                                    label { class: "form-label", r#for: "s_smtp_sec",
+                                                        {tid!("setup-smtp-client-secret-label")}
+                                                    }
+                                                    Input {
+                                                        id: "s_smtp_sec",
+                                                        r#type: "password",
+                                                        placeholder: if *smtp_client_secret_is_set.read() {
+                                                            tid!("setup-smtp-client-secret-keep-placeholder")
+                                                        } else {
+                                                            String::new()
+                                                        },
+                                                        oninput: move |e: FormEvent| smtp_client_secret.set(e.value()),
+                                                    }
+                                                }
+                                                div { class: "form-field",
+                                                    label { class: "form-label", r#for: "s_smtp_oemail",
+                                                        {tid!("setup-smtp-oauth2-email-label")}
+                                                    }
+                                                    Input {
+                                                        id: "s_smtp_oemail",
+                                                        r#type: "email",
+                                                        value: smtp_oauth2_email.read().clone(),
+                                                        oninput: move |e: FormEvent| smtp_oauth2_email.set(e.value()),
+                                                    }
+                                                }
+
+                                                // OAuth2 authorization row
+                                                div { class: "flex flex-wrap items-center gap-3 mt-2",
+                                                    if *smtp_oauth2_authorized.read() {
+                                                        span { class: "flex items-center gap-1 text-sm text-green-600",
+                                                            Icon { icon: HiBadgeCheck, width: 16, height: 16 }
+                                                            {tid!("setup-smtp-authorized")}
+                                                        }
+                                                    } else {
+                                                        Button {
+                                                            r#type: "button",
+                                                            variant: ButtonVariant::Outline,
+                                                            onclick: move |_| {
+                                                                let client_id = smtp_client_id.read().clone();
+                                                                let tenant_id = smtp_tenant_id.read().clone();
+                                                                let secret_v = smtp_client_secret.read().clone();
+                                                                let oauth2_email_v = smtp_oauth2_email.read().clone();
+                                                                async move {
+                                                                    let secret_opt = if secret_v.is_empty() { None } else { Some(secret_v) };
+                                                                    let email_opt = if oauth2_email_v.is_empty() { None } else { Some(oauth2_email_v) };
+                                                                    let _ = api::smtp::save_smtp_config(
+                                                                        "xoauth2".to_string(),
+                                                                        smtp_host.read().clone(),
+                                                                        u16::try_from(*smtp_port.read()).unwrap_or(587),
+                                                                        smtp_username.read().clone(),
+                                                                        smtp_from_address.read().clone(),
+                                                                        *smtp_use_tls.read(),
+                                                                        None,
+                                                                        if client_id.is_empty() { None } else { Some(client_id.clone()) },
+                                                                        secret_opt,
+                                                                        if tenant_id.is_empty() { None } else { Some(tenant_id.clone()) },
+                                                                        email_opt,
+                                                                    )
+                                                                    .await;
+                                                                    if let Ok(url) = api::smtp::start_microsoft_oauth2(client_id, tenant_id).await {
+                                                                        smtp_oauth2_url.set(Some(url));
+                                                                    }
+                                                                }
+                                                            },
+                                                            {tid!("setup-smtp-authorize-button")}
+                                                        }
+                                                        if let Some(url) = smtp_oauth2_url.read().clone() {
+                                                            a {
+                                                                href: "{url}",
+                                                                target: "_blank",
+                                                                rel: "noopener noreferrer",
+                                                                class: "text-sm underline text-primary",
+                                                                {tid!("setup-smtp-open-link")}
+                                                            }
+                                                        }
+                                                        Button {
+                                                            r#type: "button",
+                                                            variant: ButtonVariant::Secondary,
+                                                            onclick: move |_| async move {
+                                                                if let Ok(true) = api::smtp::oauth2_status().await {
+                                                                    smtp_oauth2_authorized.set(true);
+                                                                    toasts.push_success("OAuth2 authorization confirmed");
+                                                                }
+                                                            },
+                                                            Icon { icon: HiRefresh, width: 14, height: 14 }
+                                                            {tid!("setup-smtp-authorizing")}
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                CardFooter {
+                                    Button {
+                                        disabled: *smtp_saving.read(),
+                                        onclick: on_save_smtp,
+                                        Icon { icon: HiSave, width: 16, height: 16 }
+                                        if *smtp_saving.read() { {tid!("common-saving")} } else { {tid!("settings-smtp-save")} }
+                                    }
+                                }
+                            }
+
+                            // Test email card
+                            Card { data_size: "md",
+                                CardHeader {
+                                    CardTitle {
+                                        div { class: "flex items-center gap-2",
+                                            Icon { icon: HiCheck, width: 16, height: 16 }
+                                            {tid!("settings-smtp-test-label")}
+                                        }
+                                    }
+                                }
+                                CardContent {
+                                    div { class: "flex items-end gap-3",
+                                        div { class: "form-field flex-1",
+                                            label { class: "form-label", r#for: "smtp_test_to",
+                                                {tid!("settings-smtp-test-label")}
+                                            }
+                                            Input {
+                                                id: "smtp_test_to",
+                                                r#type: "email",
+                                                placeholder: "recipient@example.com",
+                                                value: smtp_test_to.read().clone(),
+                                                oninput: move |e: FormEvent| smtp_test_to.set(e.value()),
+                                            }
+                                        }
+                                        Button {
+                                            disabled: *smtp_testing.read() || smtp_test_to.read().is_empty(),
+                                            onclick: move |_| {
+                                                let to = smtp_test_to.read().clone();
+                                                async move {
+                                                    smtp_testing.set(true);
+                                                    match api::smtp::test_smtp_connection(to).await {
+                                                        Ok(()) => toasts.push_success(tid!("settings-smtp-test-success")),
+                                                        Err(e) => toasts.push_error(e.to_string()),
+                                                    }
+                                                    smtp_testing.set(false);
+                                                }
+                                            },
+                                            Icon { icon: HiMail, width: 14, height: 14 }
+                                            if *smtp_testing.read() { {tid!("common-saving")} } else { {tid!("settings-smtp-test-button")} }
                                         }
                                     }
                                 }

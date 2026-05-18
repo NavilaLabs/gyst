@@ -23,6 +23,7 @@ mod m20260515_000001_seed_member_and_role_manage_permissions;
 mod m20260515_000002_seed_standard_role_for_existing_workspaces;
 mod m20260515_000003_cleanup_permissions;
 mod m20260516_000001_create_waitlist_signups;
+mod m20260518_000001_create_smtp_config;
 
 pub struct Migrator;
 
@@ -56,6 +57,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260515_000002_seed_standard_role_for_existing_workspaces::Migration),
             Box::new(m20260515_000003_cleanup_permissions::Migration),
             Box::new(m20260516_000001_create_waitlist_signups::Migration),
+            Box::new(m20260518_000001_create_smtp_config::Migration),
         ]
     }
 }
