@@ -2,21 +2,9 @@ use dioxus::prelude::*;
 
 /// Validates credentials and creates a server-side session.
 /// Returns `()` on success — no token is ever sent to the client.
+#[server]
 #[post("/api/login")]
 pub async fn login(email: String, password: String) -> Result<(), ServerFnError> {
-    #[cfg(feature = "server")]
-    {
-        _login(email, password).await
-    }
-    #[cfg(not(feature = "server"))]
-    {
-        let _ = (email, password);
-        Ok(())
-    }
-}
-
-#[cfg(feature = "server")]
-async fn _login(email: String, password: String) -> Result<(), ServerFnError> {
     use crate::auth::UserInfo;
     use dioxus::fullstack::extract;
     use tower_sessions::Session;

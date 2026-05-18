@@ -14,20 +14,9 @@ pub struct UserInfo {
 }
 
 /// Returns the currently authenticated user, or `None` if not logged in.
+#[server]
 #[get("/api/auth/me")]
 pub async fn get_current_user() -> Result<Option<UserInfo>, ServerFnError> {
-    #[cfg(feature = "server")]
-    {
-        _get_current_user().await
-    }
-    #[cfg(not(feature = "server"))]
-    {
-        Ok(None)
-    }
-}
-
-#[cfg(feature = "server")]
-async fn _get_current_user() -> Result<Option<UserInfo>, ServerFnError> {
     use dioxus::fullstack::extract;
     use tower_sessions::Session;
 
@@ -45,20 +34,9 @@ async fn _get_current_user() -> Result<Option<UserInfo>, ServerFnError> {
 }
 
 /// Destroys the current session, logging the user out.
+#[server]
 #[post("/api/auth/logout")]
 pub async fn logout() -> Result<(), ServerFnError> {
-    #[cfg(feature = "server")]
-    {
-        _logout().await
-    }
-    #[cfg(not(feature = "server"))]
-    {
-        Ok(())
-    }
-}
-
-#[cfg(feature = "server")]
-async fn _logout() -> Result<(), ServerFnError> {
     use dioxus::fullstack::extract;
     use tower_sessions::Session;
 

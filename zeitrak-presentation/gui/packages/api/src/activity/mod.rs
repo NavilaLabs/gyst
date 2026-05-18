@@ -9,76 +9,9 @@ pub struct ActivityDto {
     pub comment: Option<String>,
 }
 
+#[server]
 #[get("/api/activities")]
 pub async fn list_activities() -> Result<Vec<ActivityDto>, ServerFnError> {
-    #[cfg(feature = "server")]
-    {
-        _list_activities().await
-    }
-    #[cfg(not(feature = "server"))]
-    {
-        Err(ServerFnError::ServerError {
-            message: "server only".into(),
-            code: 500,
-            details: None,
-        })
-    }
-}
-
-#[post("/api/activities")]
-pub async fn create_activity(name: String, color: String) -> Result<ActivityDto, ServerFnError> {
-    #[cfg(feature = "server")]
-    {
-        _create_activity(name, color).await
-    }
-    #[cfg(not(feature = "server"))]
-    {
-        let _ = (name, color);
-        Err(ServerFnError::ServerError {
-            message: "server only".into(),
-            code: 500,
-            details: None,
-        })
-    }
-}
-
-#[post("/api/activities/delete")]
-pub async fn delete_activity(id: String) -> Result<(), ServerFnError> {
-    #[cfg(feature = "server")]
-    {
-        _delete_activity(id).await
-    }
-    #[cfg(not(feature = "server"))]
-    {
-        let _ = id;
-        Ok(())
-    }
-}
-
-#[post("/api/activities/update")]
-pub async fn update_activity(
-    id: String,
-    name: String,
-    color: String,
-    comment: Option<String>,
-) -> Result<(), ServerFnError> {
-    #[cfg(feature = "server")]
-    {
-        _update_activity(id, name, color, comment).await
-    }
-    #[cfg(not(feature = "server"))]
-    {
-        let _ = (id, name, color, comment);
-        Err(ServerFnError::ServerError {
-            message: "server only".into(),
-            code: 500,
-            details: None,
-        })
-    }
-}
-
-#[cfg(feature = "server")]
-async fn _list_activities() -> Result<Vec<ActivityDto>, ServerFnError> {
     use crate::session;
 
     let (_, workspace_id) = session::session_workspace().await?;
@@ -96,8 +29,9 @@ async fn _list_activities() -> Result<Vec<ActivityDto>, ServerFnError> {
         .collect())
 }
 
-#[cfg(feature = "server")]
-async fn _create_activity(name: String, color: String) -> Result<ActivityDto, ServerFnError> {
+#[server]
+#[post("/api/activities")]
+pub async fn create_activity(name: String, color: String) -> Result<ActivityDto, ServerFnError> {
     use crate::session;
     use zeitrak::core::permissions;
 
@@ -115,8 +49,23 @@ async fn _create_activity(name: String, color: String) -> Result<ActivityDto, Se
     })
 }
 
-#[cfg(feature = "server")]
-async fn _update_activity(
+#[server]
+#[post("/api/activities/delete")]
+pub async fn delete_activity(id: String) -> Result<(), ServerFnError> {
+    use crate::session;
+    use zeitrak::core::permissions;
+
+    let (user, workspace_id) = session::session_workspace().await?;
+    session::require_permission(&user, permissions::ACTIVITY_DELETE).await?;
+
+    zeitrak::tenant::activity::delete(&workspace_id, &id)
+        .await
+        .map_err(session::internal)
+}
+
+#[server]
+#[post("/api/activities/update")]
+pub async fn update_activity(
     id: String,
     name: String,
     color: String,
@@ -129,19 +78,6 @@ async fn _update_activity(
     session::require_permission(&user, permissions::ACTIVITY_UPDATE).await?;
 
     zeitrak::tenant::activity::update(&workspace_id, &id, name, color, comment)
-        .await
-        .map_err(session::internal)
-}
-
-#[cfg(feature = "server")]
-async fn _delete_activity(id: String) -> Result<(), ServerFnError> {
-    use crate::session;
-    use zeitrak::core::permissions;
-
-    let (user, workspace_id) = session::session_workspace().await?;
-    session::require_permission(&user, permissions::ACTIVITY_DELETE).await?;
-
-    zeitrak::tenant::activity::delete(&workspace_id, &id)
         .await
         .map_err(session::internal)
 }

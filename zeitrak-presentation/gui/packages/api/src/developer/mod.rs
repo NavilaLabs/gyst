@@ -1,20 +1,9 @@
 use dioxus::prelude::*;
 
 /// Migrates the admin database. Admin-only.
+#[server]
 #[post("/api/database/migrate")]
 pub async fn migrate_database() -> Result<(), ServerFnError> {
-    #[cfg(feature = "server")]
-    {
-        _migrate_database().await
-    }
-    #[cfg(not(feature = "server"))]
-    {
-        Ok(())
-    }
-}
-
-#[cfg(feature = "server")]
-async fn _migrate_database() -> Result<(), ServerFnError> {
     use dioxus::fullstack::extract;
     use tower_sessions::Session;
     use zeitrak::{
@@ -95,20 +84,9 @@ async fn _migrate_database() -> Result<(), ServerFnError> {
 }
 
 /// Migrates the tenant database for the currently selected workspace. Admin-only.
+#[server]
 #[post("/api/database/migrate-tenant")]
 pub async fn migrate_tenant_database() -> Result<(), ServerFnError> {
-    #[cfg(feature = "server")]
-    {
-        _migrate_tenant_database().await
-    }
-    #[cfg(not(feature = "server"))]
-    {
-        Ok(())
-    }
-}
-
-#[cfg(feature = "server")]
-async fn _migrate_tenant_database() -> Result<(), ServerFnError> {
     use dioxus::fullstack::extract;
     use tower_sessions::Session;
     use zeitrak::{

@@ -2,9 +2,7 @@ use anyhow::Result;
 use zeitrak_core::admin::user::{UserCommand, UserCommandTrait, UserId, UserQuery, UserQueryTrait};
 use zeitrak_infrastructure::database::Migrate;
 use zeitrak_infrastructure_impl::{
-    Pool, ScopeDefault, StateDisconnected,
-    admin::{authentication::hash_password, user::repositories::UserRepository},
-    database::{Initializer, SqliteInitializationStrategy},
+    Pool, ScopeDefault, StateDisconnected, admin::{authentication::hash_password, user::repositories::UserRepository}, database::{Initializer, SqliteInitializationStrategy}
 };
 
 use crate::workspace::create_workspace_for_user;
@@ -40,6 +38,9 @@ pub async fn setup_application(
     password: String,
     workspace_name: String,
 ) -> Result<()> {
+    if is_setup_complete().await? {
+        anyhow::bail!("application is already set up");
+    }
     let pool = Pool::connect_admin().await?;
 
     let user_repo = UserRepository::from_pool(pool.clone()).await?;
