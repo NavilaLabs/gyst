@@ -100,6 +100,8 @@ impl Aggregate for User {
     }
 }
 
+impl crate::snapshot_policy::SnapshotPolicy for User {}
+
 #[cfg(test)]
 mod tests {
     use super::*;

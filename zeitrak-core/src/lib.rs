@@ -9,6 +9,7 @@ pub mod event_upcaster;
 pub mod permissions;
 pub mod plugin;
 pub mod shared;
+pub mod snapshot_policy;
 pub mod tenant;
 pub mod validation;
 

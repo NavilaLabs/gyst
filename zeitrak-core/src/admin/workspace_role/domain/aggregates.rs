@@ -91,6 +91,8 @@ impl Aggregate for WorkspaceRole {
     }
 }
 
+impl crate::snapshot_policy::SnapshotPolicy for WorkspaceRole {}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -16,6 +16,7 @@ use eventually_any::upcasting::{UpcasterChain, Upcaster};
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::Value;
 use zeitrak_core::event_upcaster::{EventUpcaster, UpcastError};
+use zeitrak_core::snapshot_policy::SnapshotPolicy;
 
 /// Bundles a snapshot-capable event-store repository with the pool it was
 /// constructed from.
@@ -44,19 +45,22 @@ where
 
 impl<A, P> SnapshotRepository<A, P>
 where
-    A: Aggregate + Serialize + DeserializeOwned + Send + Sync,
+    A: Aggregate + Serialize + DeserializeOwned + Send + Sync + SnapshotPolicy,
     A::Id: ToString,
     A::Event: Serialize + DeserializeOwned + Send + Sync + Clone,
     P: AsRef<sqlx::AnyPool>,
 {
     /// Build a new repository, running any pending event-store migrations.
     ///
+    /// The snapshot interval is taken from [`SnapshotPolicy::SNAPSHOT_EVERY`] on `A`.
+    ///
     /// # Errors
     ///
     /// Returns an error if migrations fail.
     pub async fn from_pool(pool: P) -> Result<Self, sqlx::migrate::MigrateError> {
-        let store =
-            Repository::new(pool.as_ref().clone(), Json::default(), Json::default()).await?;
+        let store = Repository::new(pool.as_ref().clone(), Json::default(), Json::default())
+            .await?
+            .with_snapshot_every(A::SNAPSHOT_EVERY as usize);
         Ok(Self { pool, store })
     }
 
@@ -64,6 +68,7 @@ where
     ///
     /// `upcasters` are applied in registration order; register lower `source_version`
     /// upcasters first. `schema_version` is stamped on every newly written event.
+    /// The snapshot interval is taken from [`SnapshotPolicy::SNAPSHOT_EVERY`] on `A`.
     ///
     /// # Errors
     ///
@@ -79,7 +84,8 @@ where
         let store = Repository::new(pool.as_ref().clone(), Json::default(), Json::default())
             .await?
             .with_upcaster_chain(chain)
-            .with_schema_version(schema_version);
+            .with_schema_version(schema_version)
+            .with_snapshot_every(A::SNAPSHOT_EVERY as usize);
         Ok(Self { pool, store })
     }
 

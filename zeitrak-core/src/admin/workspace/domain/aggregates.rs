@@ -84,6 +84,8 @@ impl Aggregate for Workspace {
     }
 }
 
+impl crate::snapshot_policy::SnapshotPolicy for Workspace {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
