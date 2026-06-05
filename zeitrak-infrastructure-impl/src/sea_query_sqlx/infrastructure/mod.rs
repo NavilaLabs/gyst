@@ -1,4 +1,5 @@
 pub mod database;
+pub(crate) mod event_stream;
 mod pool;
 pub mod read_model;
 

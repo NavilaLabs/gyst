@@ -19,7 +19,9 @@ use zeitrak_core::admin::{
 use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 
 use crate::{
-    ConnectedAdminPool, infrastructure::read_model::SeaQueryReadModel, snapshot::SnapshotRepository,
+    ConnectedAdminPool,
+    infrastructure::{event_stream::current_stream_version, read_model::SeaQueryReadModel},
+    snapshot::SnapshotRepository,
 };
 
 const TABLE: &str = "projections__invitations";
@@ -129,6 +131,21 @@ impl RowToRoot<AnyRow, Invitation> for InvitationRepository {
     }
 }
 
+impl InvitationRepository {
+    async fn row_to_root_versioned(
+        &self,
+        row: AnyRow,
+    ) -> Result<Root<Invitation>, crate::Error> {
+        let root = self.row_to_root(row)?;
+        let version =
+            current_stream_version(&self.store.pool, &root.aggregate_id().to_string()).await?;
+        Ok(Root::rehydrate_from_state(
+            version,
+            root.to_aggregate_type::<Invitation>(),
+        ))
+    }
+}
+
 impl zeitrak_core::shared::repositories::Repository<Invitation, AnyRow> for InvitationRepository {}
 
 #[async_trait]
@@ -145,7 +162,11 @@ impl ReadRepository<Invitation, AnyRow> for InvitationRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
-        row.map(|r| self.row_to_root(r)).transpose()
+        if let Some(row) = row {
+            Ok(Some(self.row_to_root_versioned(row).await?))
+        } else {
+            Ok(None)
+        }
     }
 
     async fn find_many(
@@ -164,14 +185,22 @@ impl ReadRepository<Invitation, AnyRow> for InvitationRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.row_to_root(row)).collect()
+        let mut roots = Vec::with_capacity(rows.len());
+        for row in rows {
+            roots.push(self.row_to_root_versioned(row).await?);
+        }
+        Ok(roots)
     }
 
     async fn all(&self) -> Result<Vec<Root<Invitation>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.row_to_root(row)).collect()
+        let mut roots = Vec::with_capacity(rows.len());
+        for row in rows {
+            roots.push(self.row_to_root_versioned(row).await?);
+        }
+        Ok(roots)
     }
 
     async fn count_by(&self, filter: Condition) -> Result<u64, crate::Error> {

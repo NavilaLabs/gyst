@@ -16,7 +16,8 @@ use zeitrak_core::tenant::timesheet::{
 };
 
 use crate::{
-    ConnectedTenantPool, infrastructure::read_model::SeaQueryReadModel,
+    ConnectedTenantPool,
+    infrastructure::{event_stream::current_stream_version, read_model::SeaQueryReadModel},
     snapshot::SnapshotRepository,
 };
 
@@ -197,6 +198,18 @@ impl RowToRoot<AnyRow, Timesheet> for TimesheetRepository {
     }
 }
 
+impl TimesheetRepository {
+    async fn row_to_root_versioned(&self, row: AnyRow) -> Result<Root<Timesheet>, crate::Error> {
+        let root = self.row_to_root(row)?;
+        let version =
+            current_stream_version(&self.store.pool, &root.aggregate_id().to_string()).await?;
+        Ok(Root::rehydrate_from_state(
+            version,
+            root.to_aggregate_type::<Timesheet>(),
+        ))
+    }
+}
+
 impl zeitrak_core::shared::repositories::Repository<Timesheet, AnyRow> for TimesheetRepository {}
 
 #[async_trait]
@@ -213,7 +226,11 @@ impl ReadRepository<Timesheet, AnyRow> for TimesheetRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
-        row.map(|r| self.row_to_root(r)).transpose()
+        if let Some(row) = row {
+            Ok(Some(self.row_to_root_versioned(row).await?))
+        } else {
+            Ok(None)
+        }
     }
 
     async fn find_many(&self, ids: Vec<TimesheetId>) -> Result<Vec<Root<Timesheet>>, crate::Error> {
@@ -229,14 +246,22 @@ impl ReadRepository<Timesheet, AnyRow> for TimesheetRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.row_to_root(row)).collect()
+        let mut roots = Vec::with_capacity(rows.len());
+        for row in rows {
+            roots.push(self.row_to_root_versioned(row).await?);
+        }
+        Ok(roots)
     }
 
     async fn all(&self) -> Result<Vec<Root<Timesheet>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.row_to_root(row)).collect()
+        let mut roots = Vec::with_capacity(rows.len());
+        for row in rows {
+            roots.push(self.row_to_root_versioned(row).await?);
+        }
+        Ok(roots)
     }
 
     async fn count_by(&self, filter: Condition) -> Result<u64, crate::Error> {
