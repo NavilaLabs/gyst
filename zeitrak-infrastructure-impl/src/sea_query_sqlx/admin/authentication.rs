@@ -18,11 +18,23 @@ pub mod jwt {
     /// Maximum age of a JWT issued by this server, in seconds.
     ///
     /// Kept short (1 hour) to limit the blast radius of a stolen token.
-    /// Pair with refresh-token logic on the client when sessions need to
-    /// outlive this window.
     ///
-    /// The compile-time assertion below ensures this value is never
-    /// accidentally increased beyond one hour.
+    /// # Accepted constraint (F6)
+    ///
+    /// Zeitrak intentionally does **not** implement a refresh-token endpoint for
+    /// user sessions at this time.  The trade-off was evaluated as part of the
+    /// plugin-platform prerequisite review (Phase A, F6) and accepted:
+    ///
+    /// - The primary clients (web SPA, iOS, Android) handle silent re-login via
+    ///   secure storage of the user's credentials or platform SSO, which is
+    ///   sufficient for the current user base.
+    /// - Adding a refresh-token table, rotation logic, and revocation surface
+    ///   would take 4–6 h and is not required before the plugin platform ships.
+    /// - This decision will be revisited for Phase B once the plugin system is
+    ///   stable.  Track under: "Refresh token endpoint — deferred post-plugins".
+    ///
+    /// The compile-time assertion below ensures this value is never accidentally
+    /// increased beyond one hour.
     pub const JWT_LIFETIME_SECS: usize = 3_600;
 
     // Compile-time regression guard: fail the build if JWT_LIFETIME_SECS is
