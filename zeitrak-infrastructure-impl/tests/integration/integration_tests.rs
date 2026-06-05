@@ -1,5 +1,6 @@
 mod activity;
 mod database;
+mod invitation;
 mod permission;
 mod smtp;
 mod timesheet;
