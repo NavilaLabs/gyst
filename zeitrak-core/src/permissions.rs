@@ -1,12 +1,20 @@
 //! Permission name constants following the `<aggregate>.<action>` convention.
 //!
 //! These are the canonical string keys stored in the `permissions` table.
-//! The "admin" workspace role bypasses all permission checks — only regular
-//! users with an explicit role or direct grant need these constants.
+//! A user holding the [`ADMIN_BYPASS`] permission bypasses all other permission
+//! checks — only regular users with an explicit role or direct grant need the
+//! remaining constants.
 //!
 //! Naming rule: `<aggregate>.<action>`, e.g. `customer.create`.
 //! Event names are internal implementation details and are intentionally
 //! kept separate from permission names.
+
+// Admin / cross-cutting
+/// Grants unconditional access to every operation across all workspaces.
+///
+/// Assign this permission to an admin workspace role instead of hardcoding
+/// role names in the authorization service.
+pub const ADMIN_BYPASS: &str = "admin.bypass";
 
 // Activity domain
 pub const ACTIVITY_CREATE: &str = "activity.create";
@@ -32,6 +40,7 @@ pub const ROLE_MANAGE: &str = "role.manage";
 /// Every built-in permission that must be seeded in the database.
 /// Used by migrations and initial setup logic.
 pub const ALL: &[&str] = &[
+    ADMIN_BYPASS,
     ACTIVITY_CREATE,
     ACTIVITY_UPDATE,
     ACTIVITY_DELETE,

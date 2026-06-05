@@ -1,6 +1,7 @@
 use anyhow::{Result, bail};
 use async_trait::async_trait;
 use sqlx::AnyPool;
+use zeitrak_core::permissions;
 use zeitrak_infrastructure_impl::Pool;
 
 use crate::authentication::CurrentUser;
@@ -40,26 +41,11 @@ pub trait AuthorizationPolicy: Send + Sync {
 
 /// Role-based policy backed by projection tables.
 ///
-/// `admin_role_name` is the role name that grants unconditional access.
-/// Override via [`RoleBasedPolicy::with_admin_role`] for custom setups.
-pub struct RoleBasedPolicy {
-    admin_role_name: &'static str,
-}
-
-impl Default for RoleBasedPolicy {
-    fn default() -> Self {
-        Self {
-            admin_role_name: "admin",
-        }
-    }
-}
-
-impl RoleBasedPolicy {
-    #[must_use]
-    pub const fn with_admin_role(admin_role_name: &'static str) -> Self {
-        Self { admin_role_name }
-    }
-}
+/// A user is considered an admin if any workspace role they hold carries the
+/// [`permissions::ADMIN_BYPASS`] permission.  This avoids hardcoding role
+/// names in the authorization service.
+#[derive(Default)]
+pub struct RoleBasedPolicy;
 
 #[async_trait]
 impl AuthorizationPolicy for RoleBasedPolicy {
@@ -67,13 +53,15 @@ impl AuthorizationPolicy for RoleBasedPolicy {
         let count: i64 = sqlx::query_scalar(
             "SELECT COUNT(*)
              FROM projections__workspace_user_roles wur
-             JOIN projections__workspace_roles wr
-               ON wur.workspace_role_id = wr.id
+             JOIN projections__workspace_role_permissions wrp
+               ON wur.workspace_role_id = wrp.workspace_role_id
+             JOIN permissions p
+               ON wrp.permission_id = p.id
              WHERE wur.user_id = $1
-               AND wr.name = $2",
+               AND p.name = $2",
         )
         .bind(user_id)
-        .bind(self.admin_role_name)
+        .bind(permissions::ADMIN_BYPASS)
         .fetch_one(pool)
         .await?;
         Ok(count > 0)
@@ -152,8 +140,8 @@ impl AuthorizationService {
         Ok(Pool::connect_admin().await?.into_pool())
     }
 
-    fn policy() -> RoleBasedPolicy {
-        RoleBasedPolicy::default()
+    const fn policy() -> RoleBasedPolicy {
+        RoleBasedPolicy
     }
 
     // ── is_admin ──────────────────────────────────────────────────────────────
