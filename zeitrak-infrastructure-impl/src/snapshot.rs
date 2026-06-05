@@ -5,13 +5,17 @@
 //! `{ database, repository }` pair found in every concrete repository struct.
 
 use std::ops::Deref;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::aggregate::{Aggregate, Root};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
+use eventually_any::upcasting::{UpcasterChain, Upcaster};
 use serde::{Serialize, de::DeserializeOwned};
+use serde_json::Value;
+use zeitrak_core::event_upcaster::{EventUpcaster, UpcastError};
 
 /// Bundles a snapshot-capable event-store repository with the pool it was
 /// constructed from.
@@ -56,11 +60,70 @@ where
         Ok(Self { pool, store })
     }
 
+    /// Build a new repository with an [`UpcasterChain`] applied at event read time.
+    ///
+    /// `upcasters` are applied in registration order; register lower `source_version`
+    /// upcasters first. `schema_version` is stamped on every newly written event.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if migrations fail.
+    pub async fn from_pool_with_upcasters(
+        pool: P,
+        upcasters: Vec<Arc<dyn EventUpcaster>>,
+        schema_version: u32,
+    ) -> Result<Self, sqlx::migrate::MigrateError> {
+        let chain = upcasters
+            .into_iter()
+            .fold(UpcasterChain::new(), |c, u| c.register(ZeitrakUpcasterBridge(u)));
+        let store = Repository::new(pool.as_ref().clone(), Json::default(), Json::default())
+            .await?
+            .with_upcaster_chain(chain)
+            .with_schema_version(schema_version);
+        Ok(Self { pool, store })
+    }
+
     /// Direct access to the inner event store, useful when callers need
     /// lower-level event-store operations.
     #[must_use]
     pub const fn event_store(&self) -> &Repository<A, Json<A>, Json<A::Event>> {
         &self.store
+    }
+}
+
+// ── Upcaster bridge ───────────────────────────────────────────────────────────
+
+/// Adapts a [`zeitrak_core::event_upcaster::EventUpcaster`] to the
+/// `eventually_any` [`Upcaster`] contract, which is infallible.
+///
+/// On upcast failure the error is logged and `Value::Null` is returned so the
+/// caller receives a clear JSON deserialisation error rather than silently
+/// incorrect data.
+struct ZeitrakUpcasterBridge(Arc<dyn EventUpcaster>);
+
+impl Upcaster for ZeitrakUpcasterBridge {
+    fn event_type(&self) -> &str {
+        self.0.event_type()
+    }
+
+    fn from_version(&self) -> u32 {
+        self.0.source_version()
+    }
+
+    fn to_version(&self) -> u32 {
+        self.0.target_version()
+    }
+
+    fn upcast(&self, payload: Value) -> Value {
+        self.0.upcast(payload).unwrap_or_else(|e: UpcastError| {
+            tracing::error!(
+                event_type = self.0.event_type(),
+                source_version = self.0.source_version(),
+                error = %e,
+                "upcaster failed; returning null to surface as a deserialisation error"
+            );
+            Value::Null
+        })
     }
 }
 

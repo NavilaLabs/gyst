@@ -9,7 +9,7 @@ async fn build_repo() -> Result<SmtpConfigRepositoryImpl> {
     Ok(SmtpConfigRepositoryImpl::new(pool, secret))
 }
 
-/// Initiates the Microsoft OAuth2 authorization code flow.
+/// Initiates the Microsoft `OAuth2` authorization code flow.
 ///
 /// Stores a random CSRF state in the admin database and returns the full
 /// authorization URL for the user to open in their browser.
@@ -53,7 +53,7 @@ struct TokenResponse {
     refresh_token: String,
 }
 
-/// Handles the OAuth2 authorization callback.
+/// Handles the `OAuth2` authorization callback.
 ///
 /// Exchanges `code` for tokens and persists the `refresh_token` in the admin
 /// database.  The CSRF `state` is validated against the stored value.
@@ -125,12 +125,12 @@ pub async fn complete_microsoft_oauth2(code: String, state: String) -> Result<()
     Ok(())
 }
 
-/// Returns `true` if the OAuth2 authorization flow has completed successfully.
+/// Returns `true` if the `OAuth2` authorization flow has completed successfully.
 ///
 /// # Errors
 ///
 /// Returns an error if the admin database cannot be reached.
 pub async fn oauth2_status() -> Result<bool> {
     let repo = build_repo().await?;
-    Ok(repo.get().await?.map_or(false, |c| c.oauth2_authorized))
+    Ok(repo.get().await?.is_some_and(|c| c.oauth2_authorized))
 }

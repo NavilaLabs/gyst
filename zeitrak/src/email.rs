@@ -12,7 +12,7 @@ use zeitrak_infrastructure_impl::{
 ///
 /// Resolution order:
 /// 1. Admin-database row (`smtp_config` table) — includes encrypted password
-///    or OAuth2 refresh token.
+///    or `OAuth2` refresh token.
 /// 2. Static `CONFIG` (env vars / YAML files).
 ///
 /// # Errors

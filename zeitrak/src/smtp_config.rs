@@ -10,6 +10,7 @@ use zeitrak_infrastructure_impl::{Pool, smtp::SmtpConfigRepositoryImpl};
 /// Sensitive fields (passwords, secrets) are masked — only their presence is
 /// indicated via boolean flags.
 #[derive(Debug, Clone)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct SmtpConfigDto {
     /// `"password"` or `"xoauth2"`.
     pub auth_method: String,
@@ -25,7 +26,7 @@ pub struct SmtpConfigDto {
     /// `true` if a client secret is stored.
     pub client_secret_is_set: bool,
     pub oauth2_smtp_email: Option<String>,
-    /// `true` once the OAuth2 authorization code flow has completed.
+    /// `true` once the `OAuth2` authorization code flow has completed.
     pub oauth2_authorized: bool,
 }
 
@@ -74,6 +75,7 @@ pub async fn get_smtp_config_dto() -> Result<SmtpConfigDto> {
 /// # Errors
 ///
 /// Returns an error if the admin database cannot be reached or encryption fails.
+#[allow(clippy::too_many_arguments)]
 pub async fn save_smtp_config(
     auth_method: String,
     host: String,
@@ -93,14 +95,10 @@ pub async fn save_smtp_config(
     // Load existing row to preserve encrypted secrets when callers send None.
     let existing = repo.get().await?;
 
-    let resolved_password = match password {
-        Some(p) => Some(p),
-        None => existing.as_ref().and_then(|e| e.password.clone()),
-    };
-    let resolved_secret = match client_secret {
-        Some(s) => Some(s),
-        None => existing.as_ref().and_then(|e| e.client_secret.clone()),
-    };
+    let resolved_password =
+        password.map_or_else(|| existing.as_ref().and_then(|e| e.password.clone()), Some);
+    let resolved_secret =
+        client_secret.map_or_else(|| existing.as_ref().and_then(|e| e.client_secret.clone()), Some);
 
     let parsed_auth_method = if auth_method == "xoauth2" {
         SmtpAuthMethod::XOAuth2
@@ -112,7 +110,7 @@ pub async fn save_smtp_config(
     // the caller does not clear them.
     let oauth2_authorized = existing
         .as_ref()
-        .map_or(false, |e| e.oauth2_authorized);
+        .is_some_and(|e| e.oauth2_authorized);
     let refresh_token = existing.as_ref().and_then(|e| e.refresh_token.clone());
 
     let config = PersistedSmtpConfig {
@@ -155,7 +153,6 @@ pub async fn test_smtp_connection(to_address: String) -> Result<()> {
 fn persisted_to_dto(p: PersistedSmtpConfig) -> SmtpConfigDto {
     SmtpConfigDto {
         auth_method: match p.auth_method {
-            SmtpAuthMethod::Password => "password".to_string(),
             SmtpAuthMethod::XOAuth2 => "xoauth2".to_string(),
             _ => "password".to_string(),
         },

@@ -24,6 +24,7 @@ impl WorkspaceRoleProjector {
 }
 
 #[async_trait]
+#[allow(clippy::too_many_lines)]
 impl Projector for WorkspaceRoleProjector {
     type Error = crate::Error;
 

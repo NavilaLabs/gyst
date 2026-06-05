@@ -5,6 +5,7 @@ use eventually::aggregate::Aggregate;
 use crate::shared::repositories::{ReadRepository, WriteRepository};
 
 pub mod admin;
+pub mod event_upcaster;
 pub mod permissions;
 pub mod plugin;
 pub mod shared;

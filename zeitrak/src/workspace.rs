@@ -36,7 +36,7 @@ pub struct WorkspaceInfo {
 ///
 /// Creates the workspace, default roles (admin + standard), seeds all permissions onto
 /// the admin role, seeds the standard set of permissions onto the standard role, and
-/// initialises the tenant SQLite database.
+/// initialises the tenant `SQLite` database.
 pub async fn create_workspace_for_user(
     user_id: UserId,
     workspace_name: String,

@@ -184,7 +184,7 @@ impl WorkspaceRoleRepositoryTrait<AnyRow> for WorkspaceRoleRepository {
         .fetch_one(self.store.pool.as_ref())
         .await?;
         let count: i64 = row.try_get(0)?;
-        Ok(count as u64)
+        Ok(count.cast_unsigned())
     }
 
     async fn find_with_permissions(

@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use chrono::Utc;
+use sqlx::Row as _;
 use zeitrak_infrastructure::email::{PersistedSmtpConfig, SmtpAuthMethod, SmtpConfigRepository};
 
 use crate::{ConnectedAdminPool, smtp::encryption};
@@ -45,8 +46,6 @@ impl SmtpConfigRepository for SmtpConfigRepositoryImpl {
         let Some(row) = row else {
             return Ok(None);
         };
-
-        use sqlx::Row as _;
 
         let auth_method_str: String = row.try_get("auth_method")?;
         let auth_method = if auth_method_str == "xoauth2" {
@@ -96,7 +95,6 @@ impl SmtpConfigRepository for SmtpConfigRepositoryImpl {
 
     async fn save(&self, config: &PersistedSmtpConfig) -> anyhow::Result<()> {
         let auth_method = match config.auth_method {
-            SmtpAuthMethod::Password => "password",
             SmtpAuthMethod::XOAuth2 => "xoauth2",
             _ => "password",
         };
@@ -178,7 +176,6 @@ impl SmtpConfigRepository for SmtpConfigRepositoryImpl {
 
         let row = row.ok_or_else(|| anyhow::anyhow!("no smtp_config row exists"))?;
 
-        use sqlx::Row as _;
         let stored_state: Option<String> = row.try_get("oauth2_state")?;
         let stored_state = stored_state.ok_or_else(|| anyhow::anyhow!("no OAuth2 state set"))?;
 

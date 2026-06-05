@@ -12,7 +12,7 @@ pub struct MemberRow {
 
 impl MemberRow {
     #[must_use]
-    pub fn new(
+    pub const fn new(
         user_id: String,
         email: String,
         name: String,

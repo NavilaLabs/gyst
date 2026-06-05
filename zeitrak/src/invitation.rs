@@ -129,15 +129,16 @@ pub async fn get_invitation_by_token(token: &str) -> Result<Option<InvitationRow
             tracing::error!(token = %token, error = %e, "find_by_token query failed");
             anyhow::anyhow!("{e}")
         })?;
-    match &result {
-        Some(row) => tracing::debug!(
+    if let Some(row) = &result {
+        tracing::debug!(
             token = %token,
             invitation_id = %row.id(),
             status = ?row.status,
             expires_at = %row.expires_at,
             "invitation row found in projection"
-        ),
-        None => tracing::warn!(token = %token, "invitation not found in projections__invitations"),
+        );
+    } else {
+        tracing::warn!(token = %token, "invitation not found in projections__invitations");
     }
     Ok(result)
 }

@@ -10,7 +10,7 @@ use zeitrak_infrastructure::email::{EmailSender, PersistedSmtpConfig};
 
 use crate::smtp::oauth2_cache::{CachedToken, TOKEN_CACHE};
 
-/// Microsoft OAuth2 token endpoint response (subset of fields we use).
+/// Microsoft `OAuth2` token endpoint response (subset of fields we use).
 #[derive(Deserialize)]
 struct TokenResponse {
     access_token: String,
@@ -38,7 +38,7 @@ impl OAuth2SmtpEmailSender {
     ///
     /// # Errors
     ///
-    /// Returns an error if any required OAuth2 field is missing.
+    /// Returns an error if any required `OAuth2` field is missing.
     pub fn new(config: PersistedSmtpConfig) -> anyhow::Result<Self> {
         Ok(Self {
             host: config.host,
@@ -122,6 +122,7 @@ impl OAuth2SmtpEmailSender {
             token: token_resp.access_token.clone(),
             expires_at,
         });
+        drop(cache);
 
         Ok(token_resp.access_token)
     }

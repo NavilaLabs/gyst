@@ -89,7 +89,7 @@ async fn smtp_config_null_password_clears_it() {
     assert_eq!(loaded.password, None);
 }
 
-/// The OAuth2 state flow: set state → complete with correct state → refresh_token stored.
+/// The `OAuth2` state flow: set state → complete with correct state → `refresh_token` stored.
 #[tokio::test]
 async fn oauth2_state_flow_succeeds() {
     let fixture = TestFixture::setup().await;
@@ -107,7 +107,7 @@ async fn oauth2_state_flow_succeeds() {
     assert_eq!(loaded.refresh_token.as_deref(), Some(refresh));
 }
 
-/// Completing OAuth2 with the wrong state must fail (CSRF protection).
+/// Completing `OAuth2` with the wrong state must fail (CSRF protection).
 #[tokio::test]
 async fn oauth2_state_mismatch_fails() {
     let fixture = TestFixture::setup().await;

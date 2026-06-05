@@ -12,7 +12,7 @@ pub struct WorkspaceRoleWithPermissionsRow {
 
 impl WorkspaceRoleWithPermissionsRow {
     #[must_use]
-    pub fn new(
+    pub const fn new(
         id: String,
         workspace_id: String,
         name: Option<String>,
