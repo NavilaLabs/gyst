@@ -1,213 +1,152 @@
+use std::collections::HashSet;
+use std::sync::Arc;
+
 use anyhow::{Result, bail};
-use async_trait::async_trait;
-use sqlx::AnyPool;
-use zeitrak_core::permissions;
-use zeitrak_infrastructure_impl::Pool;
+use zeitrak_infrastructure::authorization::AuthorizationRepository;
+use zeitrak_infrastructure_impl::{Pool, SqlAuthorizationRepository};
 
 use crate::authentication::CurrentUser;
 
-// ── Policy trait ─────────────────────────────────────────────────────────────
-
-/// Pluggable authorization strategy.
-///
-/// Implement this trait to replace or extend the default role-based logic
-/// without touching the rest of the authorization service.  The pool is passed
-/// on each call so that the same policy can be reused across admin and test
-/// pools without holding state.
-#[async_trait]
-pub trait AuthorizationPolicy: Send + Sync {
-    /// Returns `true` if `user_id` should be treated as a global admin.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the query fails.
-    async fn is_admin(&self, pool: &AnyPool, user_id: &str) -> Result<bool>;
-
-    /// Returns `true` if `user_id` has `permission` in `workspace_id`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the query fails.
-    async fn has_permission(
-        &self,
-        pool: &AnyPool,
-        user_id: &str,
-        workspace_id: &str,
-        permission: &str,
-    ) -> Result<bool>;
-}
-
-// ── Default implementation ────────────────────────────────────────────────────
-
-/// Role-based policy backed by projection tables.
-///
-/// A user is considered an admin if any workspace role they hold carries the
-/// [`permissions::ADMIN_BYPASS`] permission.  This avoids hardcoding role
-/// names in the authorization service.
-#[derive(Default)]
-pub struct RoleBasedPolicy;
-
-#[async_trait]
-impl AuthorizationPolicy for RoleBasedPolicy {
-    async fn is_admin(&self, pool: &AnyPool, user_id: &str) -> Result<bool> {
-        let count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*)
-             FROM projections__workspace_user_roles wur
-             JOIN projections__workspace_role_permissions wrp
-               ON wur.workspace_role_id = wrp.workspace_role_id
-             JOIN permissions p
-               ON wrp.permission_id = p.id
-             WHERE wur.user_id = $1
-               AND p.name = $2",
-        )
-        .bind(user_id)
-        .bind(permissions::ADMIN_BYPASS)
-        .fetch_one(pool)
-        .await?;
-        Ok(count > 0)
-    }
-
-    async fn has_permission(
-        &self,
-        pool: &AnyPool,
-        user_id: &str,
-        workspace_id: &str,
-        permission: &str,
-    ) -> Result<bool> {
-        let via_role: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*)
-             FROM projections__workspace_user_roles wur
-             JOIN projections__workspace_role_permissions wrp
-               ON wur.workspace_role_id = wrp.workspace_role_id
-             JOIN permissions p
-               ON wrp.permission_id = p.id
-             WHERE wur.user_id = $1
-               AND wur.workspace_id = $2
-               AND p.name = $3",
-        )
-        .bind(user_id)
-        .bind(workspace_id)
-        .bind(permission)
-        .fetch_one(pool)
-        .await?;
-
-        if via_role > 0 {
-            return Ok(true);
-        }
-
-        let direct: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*)
-             FROM projections__workspace_user_permissions wup
-             JOIN permissions p
-               ON wup.permission_id = p.id
-             WHERE wup.user_id = $1
-               AND wup.workspace_id = $2
-               AND p.name = $3",
-        )
-        .bind(user_id)
-        .bind(workspace_id)
-        .bind(permission)
-        .fetch_one(pool)
-        .await?;
-
-        Ok(direct > 0)
-    }
-}
-
 // ── Service ───────────────────────────────────────────────────────────────────
 
-/// Live permission checks against the projection tables.
+/// Live permission checks against the admin projection tables.
 ///
 /// ## Production API (static methods)
 ///
 /// The static methods (`is_admin`, `has_permission`, `require_admin`,
-/// `require_permission`) each open a fresh connection from the shared admin
-/// pool, run a single parameterised SQL query, and return immediately — they
-/// never touch the event store.  Use these in server functions and middleware.
+/// `require_permission`) each acquire a fresh pool from global config, delegate
+/// to [`SqlAuthorizationRepository`], and return immediately — they never touch
+/// the event store.  Use these in server functions and middleware.
 ///
 /// ## Test API (`_on` methods)
 ///
-/// The `_on` counterparts accept a `&AnyPool` argument so that tests can pass
-/// an isolated in-memory pool instead of relying on the global `CONFIG`-driven
-/// pool.  This makes each test fully self-contained and allows them to run in
-/// parallel without `#[serial]`.
+/// The `_on` counterparts accept a `&sqlx::AnyPool` argument so that tests can
+/// pass an isolated pool instead of relying on the global config-driven pool.
+/// This makes each test fully self-contained and allows them to run in parallel
+/// without `#[serial]`.
 pub struct AuthorizationService;
 
 impl AuthorizationService {
     // ── internal helpers ──────────────────────────────────────────────────────
 
-    async fn admin_pool() -> Result<AnyPool> {
-        Ok(Pool::connect_admin().await?.into_pool())
+    async fn repo() -> Result<SqlAuthorizationRepository> {
+        Ok(SqlAuthorizationRepository::new(
+            Pool::connect_admin().await?.into_pool(),
+        ))
     }
 
-    const fn policy() -> RoleBasedPolicy {
-        RoleBasedPolicy
+    fn repo_on(pool: &sqlx::AnyPool) -> SqlAuthorizationRepository {
+        SqlAuthorizationRepository::new(pool.clone())
     }
 
     // ── is_admin ──────────────────────────────────────────────────────────────
 
-    /// Returns `true` if the user holds an "admin" role in any workspace.
+    /// Returns `true` if the user holds the admin-bypass permission in any workspace.
     ///
-    /// Admins implicitly have every permission; call this before any
-    /// fine-grained [`has_permission`] check to implement a short-circuit.
+    /// # Errors
+    ///
+    /// Returns an error if the pool cannot be acquired or the query fails.
     pub async fn is_admin(user_id: &str) -> Result<bool> {
-        Self::is_admin_on(&Self::admin_pool().await?, user_id).await
+        Ok(Self::repo().await?.is_admin(user_id).await?)
     }
 
-    /// Pool-injected version of [`is_admin`] — use this in tests.
-    pub async fn is_admin_on(pool: &AnyPool, user_id: &str) -> Result<bool> {
-        Self::policy().is_admin(pool, user_id).await
+    /// Pool-injected version of [`is_admin`] — use in tests.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the query fails.
+    pub async fn is_admin_on(pool: &sqlx::AnyPool, user_id: &str) -> Result<bool> {
+        Ok(Self::repo_on(pool).is_admin(user_id).await?)
     }
 
     // ── has_permission ────────────────────────────────────────────────────────
 
-    /// Returns `true` if the user has the named permission **in the given
-    /// workspace**, either through a workspace role or a directly-granted
-    /// individual permission.
+    /// Returns `true` if the user has `permission` in `workspace_id`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the pool cannot be acquired or the query fails.
     pub async fn has_permission(
         user_id: &str,
         workspace_id: &str,
         permission: &str,
     ) -> Result<bool> {
-        Self::has_permission_on(
-            &Self::admin_pool().await?,
-            user_id,
-            workspace_id,
-            permission,
-        )
-        .await
+        Ok(Self::repo()
+            .await?
+            .has_permission(user_id, workspace_id, permission)
+            .await?)
     }
 
-    /// Pool-injected version of [`has_permission`] — use this in tests.
+    /// Pool-injected version of [`has_permission`] — use in tests.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the query fails.
     pub async fn has_permission_on(
-        pool: &AnyPool,
+        pool: &sqlx::AnyPool,
         user_id: &str,
         workspace_id: &str,
         permission: &str,
     ) -> Result<bool> {
-        Self::policy()
-            .has_permission(pool, user_id, workspace_id, permission)
-            .await
+        Ok(Self::repo_on(pool)
+            .has_permission(user_id, workspace_id, permission)
+            .await?)
+    }
+
+    // ── user_permissions ──────────────────────────────────────────────────────
+
+    /// Returns all permissions held by `user_id` in `workspace_id`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the pool cannot be acquired or the query fails.
+    pub async fn user_permissions(
+        user_id: &str,
+        workspace_id: &str,
+    ) -> Result<HashSet<String>> {
+        Ok(Self::repo()
+            .await?
+            .user_permissions(user_id, workspace_id)
+            .await?)
+    }
+
+    /// Pool-injected version of [`user_permissions`] — use in tests.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the query fails.
+    pub async fn user_permissions_on(
+        pool: &sqlx::AnyPool,
+        user_id: &str,
+        workspace_id: &str,
+    ) -> Result<HashSet<String>> {
+        Ok(Self::repo_on(pool)
+            .user_permissions(user_id, workspace_id)
+            .await?)
     }
 
     // ── require_admin ─────────────────────────────────────────────────────────
 
-    /// Require that the requesting user is an admin, returning a generic
-    /// "forbidden" error if they are not.
+    /// Require that the requesting user is an admin.
     ///
     /// # Errors
     ///
-    /// Returns an error if the admin pool cannot be obtained or the query fails.
+    /// Returns an error if the pool cannot be acquired, the query fails, or the
+    /// user is not an admin.
     pub async fn require_admin(user: &CurrentUser) -> Result<()> {
-        Self::require_admin_on(&Self::admin_pool().await?, user).await
+        if Self::is_admin(&user.id).await? {
+            Ok(())
+        } else {
+            bail!("forbidden")
+        }
     }
 
-    /// Pool-injected version of [`require_admin`] — use this in tests.
+    /// Pool-injected version of [`require_admin`] — use in tests.
     ///
     /// # Errors
     ///
     /// Returns an error if the query fails or the user is not an admin.
-    pub async fn require_admin_on(pool: &AnyPool, user: &CurrentUser) -> Result<()> {
+    pub async fn require_admin_on(pool: &sqlx::AnyPool, user: &CurrentUser) -> Result<()> {
         if Self::is_admin_on(pool, &user.id).await? {
             Ok(())
         } else {
@@ -217,29 +156,36 @@ impl AuthorizationService {
 
     // ── require_permission ────────────────────────────────────────────────────
 
-    /// Require that the requesting user has the named permission in the given
-    /// workspace (or is a global admin), returning a generic "forbidden" error
-    /// otherwise.
+    /// Require that the requesting user has `permission` in `workspace_id` (or
+    /// is a global admin).
     ///
     /// # Errors
     ///
-    /// Returns an error if the admin pool cannot be obtained, the query fails, or the user lacks permission.
+    /// Returns an error if the pool cannot be acquired, the query fails, or the
+    /// user lacks permission.
     pub async fn require_permission(
         user: &CurrentUser,
         workspace_id: &str,
         permission: &str,
     ) -> Result<()> {
-        Self::require_permission_on(&Self::admin_pool().await?, user, workspace_id, permission)
-            .await
+        let repo = Self::repo().await?;
+        if repo.is_admin(&user.id).await? {
+            return Ok(());
+        }
+        if repo.has_permission(&user.id, workspace_id, permission).await? {
+            Ok(())
+        } else {
+            bail!("forbidden")
+        }
     }
 
-    /// Pool-injected version of [`require_permission`] — use this in tests.
+    /// Pool-injected version of [`require_permission`] — use in tests.
     ///
     /// # Errors
     ///
     /// Returns an error if the query fails or the user lacks the required permission.
     pub async fn require_permission_on(
-        pool: &AnyPool,
+        pool: &sqlx::AnyPool,
         user: &CurrentUser,
         workspace_id: &str,
         permission: &str,
@@ -253,4 +199,15 @@ impl AuthorizationService {
             bail!("forbidden")
         }
     }
+}
+
+// ── Arc<dyn AuthorizationRepository> helper ───────────────────────────────────
+
+/// Convenience constructor for tests and application setup.
+///
+/// Returns a heap-allocated [`SqlAuthorizationRepository`] wrapped in `Arc`
+/// and type-erased to `dyn AuthorizationRepository`.
+#[must_use]
+pub fn arc_authz(pool: sqlx::AnyPool) -> Arc<dyn AuthorizationRepository> {
+    Arc::new(SqlAuthorizationRepository::new(pool))
 }

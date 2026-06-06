@@ -1,3 +1,4 @@
+pub mod authorization;
 pub mod config;
 pub mod database;
 pub mod email;

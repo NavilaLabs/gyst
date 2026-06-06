@@ -1,3 +1,4 @@
+pub mod clock;
 pub mod event_bus;
 pub mod repositories;
 
