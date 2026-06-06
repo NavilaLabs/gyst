@@ -23,17 +23,21 @@
 pub mod capabilities;
 pub mod error;
 pub mod host_ctx;
+pub mod manifest;
+pub mod manifest_handlers;
 pub mod trust;
 
 pub use error::PluginHostError;
 pub use host_ctx::{PermissionSet, ZeitrakHostCtx};
 pub use trust::{InstallContext, Installer, ZeitrakTrustTier};
 
-use std::sync::Arc;
+use std::collections::HashSet;
+use std::sync::{Arc, RwLock};
 
 use dioxus_extism_host::{PluginRuntime, PluginRuntimeError};
 
 use crate::capabilities::build_permission_capability_check;
+use crate::manifest_handlers::{ZeitrakAppHandler, ZeitrakPermissionsHandler};
 
 /// Central facade for the zeitrak plugin system.
 ///
@@ -42,6 +46,8 @@ use crate::capabilities::build_permission_capability_check;
 /// it once at application startup and share it via `Arc`.
 pub struct PluginHost {
     runtime: Arc<PluginRuntime<ZeitrakHostCtx>>,
+    /// Permissions contributed by loaded plugins, registered during `on_load`.
+    contributed_permissions: Arc<RwLock<HashSet<String>>>,
 }
 
 impl PluginHost {
@@ -52,7 +58,20 @@ impl PluginHost {
     ///
     /// Returns an error if the underlying `PluginRuntime` fails to initialise.
     pub async fn new() -> Result<Self, PluginRuntimeError> {
+        let contributed_permissions: Arc<RwLock<HashSet<String>>> =
+            Arc::new(RwLock::new(HashSet::new()));
+
         let runtime = PluginRuntime::<ZeitrakHostCtx>::builder()
+            .with_manifest_extension(
+                "zeitrak.app",
+                Arc::new(ZeitrakAppHandler),
+            )
+            .with_manifest_extension(
+                "zeitrak.permissions",
+                Arc::new(ZeitrakPermissionsHandler::new(Arc::clone(
+                    &contributed_permissions,
+                ))),
+            )
             .with_capability_check_ctx(
                 "zeitrak.permission",
                 build_permission_capability_check(),
@@ -60,7 +79,10 @@ impl PluginHost {
             .build()
             .await?;
 
-        Ok(Self { runtime })
+        Ok(Self {
+            runtime,
+            contributed_permissions,
+        })
     }
 
     /// Returns a shared reference to the underlying `dioxus-extism` runtime.
@@ -69,6 +91,14 @@ impl PluginHost {
     #[must_use]
     pub const fn runtime(&self) -> &Arc<PluginRuntime<ZeitrakHostCtx>> {
         &self.runtime
+    }
+
+    /// Returns the shared set of permission names contributed by loaded plugins.
+    ///
+    /// The set grows as plugins are loaded via `zeitrak.permissions` extensions.
+    #[must_use]
+    pub fn contributed_permissions(&self) -> Arc<RwLock<HashSet<String>>> {
+        Arc::clone(&self.contributed_permissions)
     }
 }
 
