@@ -20,38 +20,60 @@
 //! zeitrak (facade)
 //! ```
 
+pub mod capabilities;
 pub mod error;
 pub mod host_ctx;
 pub mod trust;
 
 pub use error::PluginHostError;
 pub use host_ctx::{PermissionSet, ZeitrakHostCtx};
+pub use trust::{InstallContext, Installer, ZeitrakTrustTier};
+
+use std::sync::Arc;
+
+use dioxus_extism_host::{PluginRuntime, PluginRuntimeError};
+
+use crate::capabilities::build_permission_capability_check;
 
 /// Central facade for the zeitrak plugin system.
 ///
 /// `PluginHost` owns the `dioxus-extism` runtime wired with all zeitrak-specific
 /// extension handlers, capability policies, and the domain-event bus. Construct
 /// it once at application startup and share it via `Arc`.
-///
-/// Fields are added incrementally as sub-systems are introduced in Phase B–H.
-#[derive(Debug)]
 pub struct PluginHost {
-    _priv: (),
+    runtime: Arc<PluginRuntime<ZeitrakHostCtx>>,
 }
 
 impl PluginHost {
-    /// Creates a new, unconfigured `PluginHost`.
+    /// Build a new `PluginHost`, registering all zeitrak-specific policies with
+    /// the `dioxus-extism` runtime.
     ///
-    /// This constructor will grow as sub-systems are added in subsequent phases.
-    /// For now it returns a shell that can be held in `Arc<PluginHost>`.
+    /// # Errors
+    ///
+    /// Returns an error if the underlying `PluginRuntime` fails to initialise.
+    pub async fn new() -> Result<Self, PluginRuntimeError> {
+        let runtime = PluginRuntime::<ZeitrakHostCtx>::builder()
+            .with_capability_check_ctx(
+                "zeitrak.permission",
+                build_permission_capability_check(),
+            )
+            .build()
+            .await?;
+
+        Ok(Self { runtime })
+    }
+
+    /// Returns a shared reference to the underlying `dioxus-extism` runtime.
+    ///
+    /// Use this to load, unload, or call plugins.
     #[must_use]
-    pub const fn new() -> Self {
-        Self { _priv: () }
+    pub const fn runtime(&self) -> &Arc<PluginRuntime<ZeitrakHostCtx>> {
+        &self.runtime
     }
 }
 
-impl Default for PluginHost {
-    fn default() -> Self {
-        Self::new()
+impl std::fmt::Debug for PluginHost {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PluginHost").finish_non_exhaustive()
     }
 }

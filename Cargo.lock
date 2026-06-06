@@ -7267,6 +7267,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dioxus-extism-host",
+ "dioxus-extism-protocol",
  "eventually",
  "eventually-any",
  "eventually-projection",

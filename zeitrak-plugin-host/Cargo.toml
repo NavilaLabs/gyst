@@ -22,7 +22,8 @@ eventually-projection = { version = "0.1", git = "https://github.com/NavilaLabs/
   "tracing",
 ] }
 
-dioxus-extism-host = { path = "../../dioxus-extism/crates/dioxus-extism-host" }
+dioxus-extism-host     = { path = "../../dioxus-extism/crates/dioxus-extism-host" }
+dioxus-extism-protocol = { path = "../../dioxus-extism/crates/dioxus-extism-protocol" }
 
 zeitrak-core                = { path = "../zeitrak-core" }
 zeitrak-infrastructure      = { path = "../zeitrak-infrastructure" }
