@@ -28,6 +28,7 @@ eventually = { version = "0.5", git = "https://github.com/get-eventually/eventua
 eventually-macros = { version = "0.1", git = "https://github.com/get-eventually/eventually-rs" }
 jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
 serde = { workspace = true }
+serde_json = { workspace = true }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
@@ -37,6 +38,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 zeitrak-core = { path = "../zeitrak-core" }
 zeitrak-infrastructure = { path = "../zeitrak-infrastructure" }
 zeitrak-infrastructure-impl = { path = "../zeitrak-infrastructure-impl" }
+zeitrak-plugin-host = { path = "../zeitrak-plugin-host" }
+dioxus-extism-protocol = { path = "../../dioxus-extism/crates/dioxus-extism-protocol" }
 rand = "0.8"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 urlencoding = "2"

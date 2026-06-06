@@ -49,6 +49,12 @@ pub async fn invite_member(
     let invited_by_id = invited_by.id.parse()?;
     let invitation_id = InvitationId::new();
 
+    crate::plugin_hooks::run_pre(
+        "invitation.Create",
+        serde_json::json!({ "workspace_id": workspace_id, "email": email }),
+    )
+    .await?;
+
     let root = InvitationCommand::new(repo)
         .create(
             invitation_id.clone(),
@@ -109,6 +115,12 @@ pub async fn invite_member(
     email_sender
         .send_invitation(&email, &link, &workspace_name, &inviter_name, ttl_days)
         .await?;
+
+    crate::plugin_hooks::run_post(
+        "invitation.Create",
+        &serde_json::json!({ "workspace_id": workspace_id, "invitation_id": invitation_id.to_string() }),
+    )
+    .await;
 
     Ok(invitation_id)
 }
@@ -197,10 +209,23 @@ pub async fn revoke_invitation(token: &str, revoked_by: &CurrentUser) -> Result<
     )
     .await?;
 
+    crate::plugin_hooks::run_pre(
+        "invitation.Revoke",
+        serde_json::json!({ "token": token }),
+    )
+    .await?;
+
     InvitationCommand::new(InvitationRepository::from_pool(pool).await?)
         .revoke(row.id().clone())
         .await
-        .map_err(|e| anyhow::anyhow!("{e}"))
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    crate::plugin_hooks::run_post(
+        "invitation.Revoke",
+        &serde_json::json!({ "token": token }),
+    )
+    .await;
+    Ok(())
 }
 
 /// Declines a pending invitation on behalf of the invited user.
@@ -257,6 +282,12 @@ pub async fn accept_invitation(token: &str, user_id: &str) -> Result<WorkspaceId
     let workspace_role_id = row.workspace_role_id.clone();
 
     let accepted_by = user_id.parse()?;
+    crate::plugin_hooks::run_pre(
+        "invitation.Accept",
+        serde_json::json!({ "token": token, "user_id": user_id }),
+    )
+    .await?;
+
     InvitationCommand::new(InvitationRepository::from_pool(pool.clone()).await?)
         .accept(invitation_id, accepted_by)
         .await
@@ -267,6 +298,12 @@ pub async fn accept_invitation(token: &str, user_id: &str) -> Result<WorkspaceId
         .assign_user_role(workspace_id.clone(), user_id_parsed, workspace_role_id)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    crate::plugin_hooks::run_post(
+        "invitation.Accept",
+        &serde_json::json!({ "token": token, "user_id": user_id, "workspace_id": workspace_id.to_string() }),
+    )
+    .await;
 
     Ok(workspace_id)
 }
