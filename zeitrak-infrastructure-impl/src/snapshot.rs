@@ -8,14 +8,17 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use chrono::Utc;
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::aggregate::{Aggregate, Root};
+use eventually::message::Message as _;
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
 use eventually_any::upcasting::{UpcasterChain, Upcaster};
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::Value;
 use zeitrak_core::event_upcaster::{EventUpcaster, UpcastError};
+use zeitrak_core::shared::event_bus::{DomainEventEnvelope, DomainEventHandler};
 use zeitrak_core::snapshot_policy::SnapshotPolicy;
 
 /// Bundles a snapshot-capable event-store repository with the pool it was
@@ -41,6 +44,10 @@ where
     /// access it for bespoke projection queries without an extra accessor.
     pub pool: P,
     store: Repository<A, Json<A>, Json<A::Event>>,
+    /// Optional handler that receives each saved event as a `DomainEventEnvelope`
+    /// after a successful aggregate save.  Errors are logged and discarded so
+    /// they never cause a save failure.
+    event_publisher: Option<Arc<dyn DomainEventHandler>>,
 }
 
 impl<A, P> SnapshotRepository<A, P>
@@ -61,7 +68,21 @@ where
         let store = Repository::new(pool.as_ref().clone(), Json::default(), Json::default())
             .await?
             .with_snapshot_every(A::SNAPSHOT_EVERY as usize);
-        Ok(Self { pool, store })
+        Ok(Self {
+            pool,
+            store,
+            event_publisher: None,
+        })
+    }
+
+    /// Attach an event publisher that is called after every successful save.
+    ///
+    /// Errors returned by the publisher are logged and discarded — they do not
+    /// cause the save to fail.
+    #[must_use]
+    pub fn with_event_publisher(mut self, publisher: Arc<dyn DomainEventHandler>) -> Self {
+        self.event_publisher = Some(publisher);
+        self
     }
 
     /// Build a new repository with an [`UpcasterChain`] applied at event read time.
@@ -86,7 +107,11 @@ where
             .with_upcaster_chain(chain)
             .with_schema_version(schema_version)
             .with_snapshot_every(A::SNAPSHOT_EVERY as usize);
-        Ok(Self { pool, store })
+        Ok(Self {
+            pool,
+            store,
+            event_publisher: None,
+        })
     }
 
     /// Direct access to the inner event store, useful when callers need
@@ -163,13 +188,45 @@ where
 #[async_trait]
 impl<A, P> Saver<A> for SnapshotRepository<A, P>
 where
-    A: Aggregate + Serialize + DeserializeOwned,
-    A::Id: ToString,
-    A::Event: Serialize + DeserializeOwned,
+    A: Aggregate + Clone + Serialize + DeserializeOwned + Send + Sync,
+    A::Id: ToString + Send + Sync,
+    A::Event: Serialize + DeserializeOwned + Send + Sync + Clone,
     Repository<A, Json<A>, Json<A::Event>>: Saver<A>,
     P: Send + Sync,
 {
     async fn save(&self, root: &mut Root<A>) -> Result<(), SaveError> {
-        self.store.save(root).await
+        // Peek at pending events before the inner save drains them from root.
+        // Clone root only when a publisher is attached to avoid unnecessary work.
+        let pending = if self.event_publisher.is_some() {
+            root.clone().take_uncommitted_events()
+        } else {
+            vec![]
+        };
+
+        let aggregate_id = root.aggregate_id().to_string();
+        self.store.save(root).await?;
+
+        if let Some(publisher) = &self.event_publisher {
+            for event in pending {
+                let envelope = DomainEventEnvelope {
+                    aggregate_type: A::type_name(),
+                    aggregate_id: aggregate_id.clone(),
+                    event_name: event.message.name(),
+                    payload: serde_json::to_value(&event.message).unwrap_or_default(),
+                    occurred_at: Utc::now(),
+                };
+                if let Err(e) = publisher.on_event(&envelope).await {
+                    tracing::warn!(
+                        aggregate_type = A::type_name(),
+                        aggregate_id = %aggregate_id,
+                        event_name = event.message.name(),
+                        error = %e,
+                        "event publisher failed after save — discarding"
+                    );
+                }
+            }
+        }
+
+        Ok(())
     }
 }
