@@ -2,6 +2,7 @@
 
 pub mod authentication;
 pub mod authorization;
+pub mod plugin_aggregate;
 pub mod plugin_hooks;
 pub mod auth {
     pub use super::authentication::{CurrentUser, validate_token};
