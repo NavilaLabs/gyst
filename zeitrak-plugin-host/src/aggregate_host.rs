@@ -1,30 +1,34 @@
-//! WASM-backed aggregate wrapper for plugin-authored event-sourced aggregates.
+//! WASM-backed aggregate wrapper and repository host for plugin aggregates.
 //!
-//! Each plugin aggregate declared in `zeitrak.aggregates` gets a [`PluginAggregate`]
-//! runtime wrapper that implements [`eventually::aggregate::Aggregate`] and delegates
-//! to three WASM exports:
+//! Provides two public types:
 //!
-//! | Export | Signature |
-//! |---|---|
-//! | `<type>__apply` | `Json<(state, event)> -> Json<state>` |
-//! | `<type>__handle_command` | `Json<(state, command)> -> Json<HandleCommandOutput>` |
-//! | `<type>__initial_state` | `Json<()> -> Json<state>` |
+//! - [`PluginAggregate`] — an [`eventually::aggregate::Aggregate`] implementation
+//!   that delegates event-folding to the plugin's `<type>__apply` WASM export.
+//! - [`PluginAggregateHost`] — wraps `eventually-any`'s snapshot Repository and
+//!   orchestrates load / command / save for a single plugin aggregate type.
+//!
+//! ## Stream naming (§9.1)
+//!
+//! Every instance is identified by `plugin.<plugin_id>.<aggregate_type>.<uuid>`.
+//! This stream ID is stored in `PluginAggregate::stream_id` and used as the
+//! `aggregate_id` primary key in the event-store tables.
 //!
 //! ## Sync / async contract
 //!
-//! `eventually::aggregate::Aggregate::apply` is synchronous, but WASM calls via
-//! `PluginRuntime::call_plugin` are `async` (they use `spawn_blocking` internally).
-//! `apply` uses [`tokio::task::block_in_place`] to perform the blocking WASM call
-//! without blocking the async executor thread.
+//! `eventually::aggregate::Aggregate::apply` is synchronous, but WASM calls are
+//! `async`.  `apply` uses [`tokio::task::block_in_place`] to call the plugin's
+//! `__apply` export without blocking the async executor thread.
 //!
-//! This requires a **multi-threaded** Tokio runtime. Integration tests that exercise
-//! plugin aggregates must use `#[tokio::test(flavor = "multi_thread")]`.
+//! This requires a **multi-threaded** Tokio runtime.  Integration tests that
+//! exercise plugin aggregates must use `#[tokio::test(flavor = "multi_thread")]`.
 //!
-//! ## `None`-state guard
+//! ## Runtime registry
 //!
-//! `apply(None, event)` is never called in the normal command-handling path (Phase E
-//! uses [`PluginAggregateHost`] to pre-populate the runtime before recording events).
-//! If it is called, `apply` returns [`PluginAggregateError::NoState`].
+//! Because `eventually-any` deserialises the aggregate state via `serde` (which
+//! skips the `#[serde(skip)]` runtime field), `apply` falls back to a
+//! process-global runtime registry keyed by `plugin_id`.
+//! `PluginAggregateHost::new` registers the runtime at construction time so that
+//! every subsequent `apply` call can look it up even after a DB round-trip.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -32,8 +36,11 @@ use std::sync::{Arc, Mutex, OnceLock};
 use async_trait::async_trait;
 use dioxus_extism_host::PluginRuntime;
 use dioxus_extism_protocol::{PluginId, SessionCtx};
-use eventually::aggregate::Aggregate;
+use eventually::aggregate::{self, Aggregate, Root};
+use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::message::Message as EMessage;
+use eventually::serde::Json;
+use eventually_any::snapshot::Repository;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use zeitrak_core::shared::clock::SystemClock;
@@ -61,6 +68,29 @@ fn intern_event_name(name: &str) -> &'static str {
     leaked
 }
 
+// ── Global runtime registry ───────────────────────────────────────────────────
+
+/// Process-global map from `plugin_id` → `PluginRuntime`.
+///
+/// Populated by [`PluginAggregateHost::new`] so that `PluginAggregate::apply`
+/// can look up the runtime after the aggregate is deserialised from the DB
+/// (at which point the `#[serde(skip)]` field is `None`).
+static PLUGIN_RUNTIMES: OnceLock<Mutex<HashMap<String, Arc<PluginRuntime<ZeitrakHostCtx>>>>> =
+    OnceLock::new();
+
+/// Register a runtime for `plugin_id`.  Called at [`PluginAggregateHost`] construction.
+fn register_plugin_runtime(plugin_id: &str, runtime: Arc<PluginRuntime<ZeitrakHostCtx>>) {
+    let map = PLUGIN_RUNTIMES.get_or_init(|| Mutex::new(HashMap::new()));
+    map.lock()
+        .expect("plugin runtime registry poisoned")
+        .insert(plugin_id.to_string(), runtime);
+}
+
+/// Look up the runtime for `plugin_id`, returning `None` if not registered.
+fn lookup_plugin_runtime(plugin_id: &str) -> Option<Arc<PluginRuntime<ZeitrakHostCtx>>> {
+    PLUGIN_RUNTIMES.get()?.lock().ok()?.get(plugin_id).cloned()
+}
+
 // ── PluginEvent ────────────────────────────────────────────────────────────────
 
 /// A domain event emitted or applied by a plugin aggregate.
@@ -76,7 +106,7 @@ pub struct PluginEvent {
 }
 
 impl EMessage for PluginEvent {
-    /// Returns a `&'static str` event name, interned on first use.
+    /// Returns an interned `&'static str` for use in the event-store schema.
     fn name(&self) -> &'static str {
         intern_event_name(&self.event_type)
     }
@@ -107,21 +137,40 @@ pub enum PluginAggregateError {
     /// `apply(None, event)` was called; callers must pre-populate the state.
     #[error("plugin aggregate apply called with no prior state")]
     NoState,
-    /// The runtime reference was missing after deserialisation.
-    #[error("plugin aggregate has no runtime — call with_runtime() after loading")]
+    /// No runtime available — register via [`PluginAggregateHost::new`] first.
+    #[error("plugin aggregate has no runtime — register with PluginAggregateHost first")]
     NoRuntime,
     /// The `<type>__apply` WASM export returned an error.
     #[error("plugin WASM apply failed: {0}")]
     WasmCallFailed(String),
 }
 
+// ── PluginCommandError ────────────────────────────────────────────────────────
+
+/// Errors produced by [`PluginAggregateHost::execute_command`].
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum PluginCommandError {
+    /// Failed to load the aggregate from the event store.
+    #[error("aggregate load failed: {0}")]
+    LoadFailed(String),
+    /// The WASM call to `__handle_command` or `__initial_state` failed.
+    #[error("plugin WASM call failed: {0}")]
+    WasmCallFailed(String),
+    /// The plugin rejected the command with a domain error.
+    #[error("domain error: {0}")]
+    DomainError(String),
+    /// Applying an event produced by the command failed.
+    #[error("event apply failed: {0}")]
+    ApplyFailed(String),
+    /// Persisting the aggregate state failed.
+    #[error("aggregate save failed: {0}")]
+    SaveFailed(String),
+}
+
 // ── NoOpAuthorizationRepository ───────────────────────────────────────────────
 
-/// A zero-capability [`AuthorizationRepository`] for system-level apply calls.
-///
-/// Plugin aggregate apply calls run without a user session; permission checks
-/// inside `__apply` WASM exports are expected to be read-only or bypass
-/// authorisation entirely.
+/// A zero-capability [`AuthorizationRepository`] for system-level WASM calls.
 struct NoOpAuthorizationRepository;
 
 #[async_trait]
@@ -148,7 +197,7 @@ impl AuthorizationRepository for NoOpAuthorizationRepository {
     }
 }
 
-/// Builds a system-level [`ZeitrakHostCtx`] for use in plugin aggregate apply calls.
+/// Builds a system-level [`ZeitrakHostCtx`] for use in `__apply` WASM calls.
 fn system_host_ctx() -> ZeitrakHostCtx {
     ZeitrakHostCtx {
         user_id: None,
@@ -167,24 +216,26 @@ fn system_host_ctx() -> ZeitrakHostCtx {
 /// Implements [`eventually::aggregate::Aggregate`] so the state can be stored
 /// and loaded via `eventually-any`'s snapshot repository.
 ///
-/// All plugin aggregates share the same `type_name()` (`"plugin_aggregate"`);
-/// the stream ID carries the type information via the
-/// `plugin.<plugin_id>.<aggregate_type>.<uuid>` prefix (§9.1).
+/// The `aggregate_id()` returns `stream_id` — the full
+/// `plugin.<plugin_id>.<aggregate_type>.<uuid>` prefix (§9.1) — so that all
+/// plugin instances share the generic `type_name()` (`"plugin_aggregate"`) while
+/// remaining uniquely addressable in the event-store tables.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct PluginAggregate {
-    /// Aggregate instance identifier (stream UUID suffix, not the full stream ID).
-    pub id: String,
+    /// Full event-stream ID: `plugin.<plugin_id>.<aggregate_type>.<uuid>`.
+    pub stream_id: String,
+    /// UUID portion of the stream ID — the value exposed in the HTTP API.
+    pub uuid: String,
     /// Plugin that owns this aggregate type.
     pub plugin_id: String,
-    /// Aggregate type name, e.g. `"leave_request"`.
+    /// Aggregate type name (e.g. `"leave_request"`).
     pub aggregate_type: String,
     /// Current state, serialised as an opaque JSON value.
     pub state: serde_json::Value,
-
     /// Runtime reference used in [`Aggregate::apply`].
     ///
-    /// Not serialised — must be restored with [`PluginAggregate::with_runtime`]
-    /// after loading from the DB.
+    /// Not serialised — restored via the global runtime registry or
+    /// [`PluginAggregate::with_runtime`] after DB deserialisation.
     #[serde(skip)]
     pub runtime: Option<Arc<PluginRuntime<ZeitrakHostCtx>>>,
 }
@@ -192,7 +243,8 @@ pub struct PluginAggregate {
 impl std::fmt::Debug for PluginAggregate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PluginAggregate")
-            .field("id", &self.id)
+            .field("stream_id", &self.stream_id)
+            .field("uuid", &self.uuid)
             .field("plugin_id", &self.plugin_id)
             .field("aggregate_type", &self.aggregate_type)
             .field("has_runtime", &self.runtime.is_some())
@@ -201,21 +253,32 @@ impl std::fmt::Debug for PluginAggregate {
 }
 
 impl PluginAggregate {
-    /// Create a new, uninitialised aggregate instance with the given metadata.
+    /// Compute the full stream ID from its parts.
+    #[must_use]
+    pub fn make_stream_id(plugin_id: &str, aggregate_type: &str, uuid: &str) -> String {
+        format!("plugin.{plugin_id}.{aggregate_type}.{uuid}")
+    }
+
+    /// Create a new, uninitialised aggregate instance.
     ///
     /// `state` starts as `Value::Null`; callers should populate it by
     /// calling the plugin's `__initial_state` export before recording events.
     #[must_use]
     pub fn new(
-        id: impl Into<String>,
+        uuid: impl Into<String>,
         plugin_id: impl Into<String>,
         aggregate_type: impl Into<String>,
         runtime: Arc<PluginRuntime<ZeitrakHostCtx>>,
     ) -> Self {
+        let uuid = uuid.into();
+        let plugin_id = plugin_id.into();
+        let aggregate_type = aggregate_type.into();
+        let stream_id = Self::make_stream_id(&plugin_id, &aggregate_type, &uuid);
         Self {
-            id: id.into(),
-            plugin_id: plugin_id.into(),
-            aggregate_type: aggregate_type.into(),
+            stream_id,
+            uuid,
+            plugin_id,
+            aggregate_type,
             state: serde_json::Value::Null,
             runtime: Some(runtime),
         }
@@ -227,14 +290,6 @@ impl PluginAggregate {
         self.runtime = Some(runtime);
         self
     }
-
-    /// Returns the full event-stream ID for this aggregate instance.
-    ///
-    /// Format: `plugin.<plugin_id>.<aggregate_type>.<id>` (§9.1).
-    #[must_use]
-    pub fn stream_id(&self) -> String {
-        format!("plugin.{}.{}.{}", self.plugin_id, self.aggregate_type, self.id)
-    }
 }
 
 impl Aggregate for PluginAggregate {
@@ -242,34 +297,41 @@ impl Aggregate for PluginAggregate {
     type Event = PluginEvent;
     type Error = PluginAggregateError;
 
-    /// All plugin aggregates share a single `type_name`.
+    /// All plugin aggregates share a single type name.
     ///
-    /// The stream ID (`plugin.<plugin_id>.<type>.<uuid>`) encodes the actual
-    /// aggregate type, keeping the `aggregates` table schema generic.
+    /// The full `plugin.<id>.<type>.<uuid>` stream ID encodes the actual type
+    /// information so the `aggregates` table schema remains generic.
     fn type_name() -> &'static str {
         "plugin_aggregate"
     }
 
     fn aggregate_id(&self) -> &Self::Id {
-        &self.id
+        &self.stream_id
     }
 
     /// Apply a domain event by delegating to the plugin's `<type>__apply` export.
     ///
-    /// Requires a **multi-threaded** Tokio runtime; panics inside a
-    /// `current_thread` runtime (e.g. the default `#[tokio::test]`).
+    /// Uses [`tokio::task::block_in_place`] to call WASM synchronously; requires a
+    /// **multi-threaded** Tokio runtime (panics in `current_thread` tests).
     ///
-    /// `apply(None, event)` is not supported — callers must pre-populate the
-    /// state before recording events. Returns [`PluginAggregateError::NoState`]
-    /// if called with `None`.
+    /// The runtime is resolved in order: `self.runtime` → global registry →
+    /// `Err(NoRuntime)`.  The found runtime is cached back on `self` to avoid
+    /// repeated registry lookups.
+    ///
+    /// `apply(None, event)` is unsupported and returns [`PluginAggregateError::NoState`].
     fn apply(state: Option<Self>, event: Self::Event) -> Result<Self, Self::Error> {
         let Some(mut current) = state else {
             return Err(PluginAggregateError::NoState);
         };
 
-        let Some(runtime) = current.runtime.clone() else {
-            return Err(PluginAggregateError::NoRuntime);
-        };
+        let runtime = current
+            .runtime
+            .clone()
+            .or_else(|| lookup_plugin_runtime(&current.plugin_id))
+            .ok_or(PluginAggregateError::NoRuntime)?;
+
+        // Cache the runtime so subsequent apply calls skip the registry lookup.
+        current.runtime = Some(Arc::clone(&runtime));
 
         let plugin_id = PluginId(current.plugin_id.clone());
         let fn_name = format!("{}__apply", current.aggregate_type);
@@ -292,6 +354,189 @@ impl Aggregate for PluginAggregate {
 
         current.state = new_state;
         Ok(current)
+    }
+}
+
+// ── PluginAggregateHost ────────────────────────────────────────────────────────
+
+/// Repository host for a single plugin aggregate type.
+///
+/// Wraps `eventually-any`'s snapshot [`Repository`] and provides the
+/// [`execute_command`] method that orchestrates load → command dispatch →
+/// event application → save.
+///
+/// Construct via [`PluginAggregateHost::new`], which also registers the
+/// runtime in the process-global registry so `PluginAggregate::apply`
+/// works correctly after DB deserialisation.
+pub struct PluginAggregateHost {
+    store: Repository<PluginAggregate, Json<PluginAggregate>, Json<PluginEvent>>,
+    runtime: Arc<PluginRuntime<ZeitrakHostCtx>>,
+    plugin_id: String,
+    aggregate_type: String,
+}
+
+impl std::fmt::Debug for PluginAggregateHost {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PluginAggregateHost")
+            .field("plugin_id", &self.plugin_id)
+            .field("aggregate_type", &self.aggregate_type)
+            .finish_non_exhaustive()
+    }
+}
+
+impl PluginAggregateHost {
+    /// Build a new host, running any pending event-store migrations.
+    ///
+    /// `pool` must be an `AnyPool` connected to the same database as the
+    /// event-store (tenant pool for tenant-scoped aggregates).
+    /// `snapshot_every` is taken from the `AggregateDecl::snapshot_every`
+    /// manifest field (or a default of `50`).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if migrations fail.
+    pub async fn new(
+        pool: sqlx::AnyPool,
+        runtime: Arc<PluginRuntime<ZeitrakHostCtx>>,
+        plugin_id: impl Into<String>,
+        aggregate_type: impl Into<String>,
+        snapshot_every: usize,
+    ) -> Result<Self, sqlx::migrate::MigrateError> {
+        let plugin_id = plugin_id.into();
+
+        // Register so apply() can find the runtime after serde round-trips.
+        register_plugin_runtime(&plugin_id, Arc::clone(&runtime));
+
+        let store = Repository::<PluginAggregate, _, _>::new(
+            pool,
+            Json::default(),
+            Json::default(),
+        )
+        .await?
+        .with_snapshot_every(snapshot_every);
+
+        Ok(Self {
+            store,
+            runtime,
+            plugin_id,
+            aggregate_type: aggregate_type.into(),
+        })
+    }
+
+    /// Returns the full stream ID for an aggregate instance UUID.
+    #[must_use]
+    pub fn stream_id(&self, uuid: &str) -> String {
+        PluginAggregate::make_stream_id(&self.plugin_id, &self.aggregate_type, uuid)
+    }
+
+    /// Load the current aggregate root for the given UUID.
+    ///
+    /// Returns `None` when the aggregate does not yet exist.
+    ///
+    /// # Errors
+    ///
+    /// Returns `GetError` on storage failures.
+    pub async fn load(
+        &self,
+        uuid: &str,
+    ) -> Result<Option<Root<PluginAggregate>>, GetError> {
+        match self.store.get(&self.stream_id(uuid)).await {
+            Ok(root) => Ok(Some(root)),
+            Err(GetError::NotFound) => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Execute a command on a plugin aggregate and persist the resulting events.
+    ///
+    /// 1. Loads the current state (or creates a fresh one via `__initial_state`).
+    /// 2. Calls `<type>__handle_command(state, command)`.
+    /// 3. Applies each returned event via `<type>__apply` (uses `block_in_place`).
+    /// 4. Persists the aggregate root.
+    ///
+    /// Returns the list of events that were persisted.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PluginCommandError`] on any failure.
+    pub async fn execute_command(
+        &self,
+        uuid: &str,
+        command: serde_json::Value,
+        session: &SessionCtx,
+        host_ctx: &ZeitrakHostCtx,
+    ) -> Result<Vec<PluginEvent>, PluginCommandError> {
+        let sid = self.stream_id(uuid);
+        let plugin_id = PluginId(self.plugin_id.clone());
+
+        // Step 1: load or initialise.
+        let mut root = match self.store.get(&sid).await {
+            Ok(root) => root,
+            Err(GetError::NotFound) => {
+                let initial_state = self
+                    .runtime
+                    .call_plugin::<_, serde_json::Value>(
+                        &plugin_id,
+                        &format!("{}__initial_state", self.aggregate_type),
+                        &(),
+                        session,
+                        host_ctx,
+                    )
+                    .await
+                    .map_err(|e| PluginCommandError::WasmCallFailed(e.to_string()))?;
+
+                let agg = PluginAggregate {
+                    stream_id: sid.clone(),
+                    uuid: uuid.to_string(),
+                    plugin_id: self.plugin_id.clone(),
+                    aggregate_type: self.aggregate_type.clone(),
+                    state: initial_state,
+                    runtime: Some(Arc::clone(&self.runtime)),
+                };
+                aggregate::Root::rehydrate_from_state(0, agg)
+            }
+            Err(e) => {
+                return Err(PluginCommandError::LoadFailed(e.to_string()));
+            }
+        };
+
+        // Step 2: handle command.
+        let current_state = root.state.clone();
+        let output = self
+            .runtime
+            .call_plugin::<_, HandleCommandOutput>(
+                &plugin_id,
+                &format!("{}__handle_command", self.aggregate_type),
+                &(current_state, command),
+                session,
+                host_ctx,
+            )
+            .await
+            .map_err(|e| PluginCommandError::WasmCallFailed(e.to_string()))?;
+
+        // Step 3: handle output.
+        let events = match output {
+            HandleCommandOutput::Events(evts) => evts,
+            HandleCommandOutput::Error(msg) => return Err(PluginCommandError::DomainError(msg)),
+        };
+
+        if events.is_empty() {
+            return Ok(events);
+        }
+
+        // Step 4: apply events (each apply() call goes through __apply via block_in_place).
+        for event in &events {
+            root.record_that(eventually::event::Envelope::from(event.clone()))
+                .map_err(|e| PluginCommandError::ApplyFailed(e.to_string()))?;
+        }
+
+        // Step 5: persist.
+        self.store
+            .save(&mut root)
+            .await
+            .map_err(|e: SaveError| PluginCommandError::SaveFailed(e.to_string()))?;
+
+        Ok(events)
     }
 }
 
@@ -323,16 +568,9 @@ mod tests {
     }
 
     #[test]
-    fn plugin_aggregate_stream_id_format() {
-        let agg = PluginAggregate {
-            id: "uuid-123".to_string(),
-            plugin_id: "my-org/my-plugin".to_string(),
-            aggregate_type: "leave_request".to_string(),
-            state: serde_json::Value::Null,
-            runtime: None,
-        };
+    fn make_stream_id_format() {
         assert_eq!(
-            agg.stream_id(),
+            PluginAggregate::make_stream_id("my-org/my-plugin", "leave_request", "uuid-123"),
             "plugin.my-org/my-plugin.leave_request.uuid-123"
         );
     }
@@ -350,7 +588,8 @@ mod tests {
     #[test]
     fn apply_without_runtime_returns_no_runtime_error() {
         let agg = PluginAggregate {
-            id: "x".to_string(),
+            stream_id: "plugin.p.t.x".to_string(),
+            uuid: "x".to_string(),
             plugin_id: "p".to_string(),
             aggregate_type: "t".to_string(),
             state: serde_json::Value::Null,
