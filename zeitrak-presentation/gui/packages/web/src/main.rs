@@ -1,6 +1,10 @@
+use std::sync::Arc;
+
 use api::auth::UserInfo;
+use api::plugin_ctx::ZeitrakPluginCtx;
 use api::settings::{UserSettingsDto, WorkspaceSettingsDto};
 use dioxus::prelude::*;
+use dioxus_extism_frontend::{PluginBootProvider, SessionProviderRoot, WebSessionProvider};
 use dioxus_i18n::{prelude::*, tid};
 use dioxus_motion::prelude::*;
 use easer::functions::Easing;
@@ -12,8 +16,9 @@ use ui::{
         organisms::{Header, Sidebar},
     },
     views::{
-        setup::Setup, Activities, Dashboard, Database, InvitationAccept, Login, Register,
-        SelectWorkspace, Settings, Tags, Timesheets, VerifyEmailConfirm, VerifyEmailPending,
+        setup::Setup, Activities, Dashboard, Database, InvitationAccept, Login, PluginPage,
+        Register, SelectWorkspace, Settings, Tags, Timesheets, VerifyEmailConfirm,
+        VerifyEmailPending,
     },
     ActivitiesCache, GlobalStyles, RunningElapsed, RunningTimer, SidebarOpen, TagsCache,
     TimesheetsCache, UserSettings, WorkspaceSettings, FAVICON,
@@ -88,6 +93,11 @@ enum Route {
                     #[route("/settings")]
                     Settings {},
 
+                    // Catch-all for plugin pages (§12.4 / step 30).
+                    // Must come after all named routes so it doesn't shadow them.
+                    #[route("/plugin/:plugin_id/:..rest")]
+                    PluginPage { plugin_id: String, rest: Vec<String> },
+
                     #[layout(RequireAdmin)]
                         #[route("/developer/database")]
                         Database {},
@@ -153,12 +163,22 @@ async fn main() {
         .with_secure(false)
         .with_same_site(tower_sessions::cookie::SameSite::Lax);
 
+    // Build the zeitrak plugin host and register it with the Axum router so that
+    // dioxus-extism server functions (get_slot_content, get_route_transforms, etc.)
+    // can access the runtime via request extensions.
+    let plugin_host = zeitrak_plugin_host::PluginHost::new()
+        .await
+        .expect("failed to initialise PluginHost");
+    let plugin_runtime = plugin_host.runtime().clone();
+
+    use dioxus_extism_host::PluginRuntimeExt as _;
     let router = axum::Router::new()
         .route(
             "/api/smtp/oauth2/callback",
             axum::routing::get(oauth2_callback_handler),
         )
         .serve_dioxus_application(dioxus_server::ServeConfig::new(), App)
+        .with_plugin_runtime(plugin_runtime)
         .layer(session_layer);
 
     let listener = tokio::net::TcpListener::bind(address).await.unwrap();
@@ -189,6 +209,7 @@ fn App() -> Element {
                 Route::Tags { .. } => 6,
                 Route::Settings { .. } => 7,
                 Route::Database { .. } => 8,
+                Route::PluginPage { .. } => 9,
                 _ => -1,
             }
         }
@@ -234,7 +255,14 @@ fn App() -> Element {
             href: "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
         }
 
-        Router::<Route> {}
+        // Wrap with plugin session + boot providers so PluginSlot / PluginBootProvider
+        // can access ClientCapabilities and the OverrideMap at boot time.
+        SessionProviderRoot {
+            provider: WebSessionProvider,
+            PluginBootProvider {
+                Router::<Route> {}
+            }
+        }
     }
 }
 
@@ -244,6 +272,22 @@ fn App() -> Element {
 fn Layout() -> Element {
     let mut auth: AuthState = use_context();
     let mut i18n = i18n();
+
+    // Provide plugin host context (§12.1) so PluginSlot / OverridableComponent /
+    // PluginAwareRouter can access the current user's identity for capability gating.
+    // Re-evaluated on every re-render so the context tracks auth state reactively.
+    let plugin_ctx = use_memo(move || {
+        Arc::new(match auth.read().as_ref().and_then(Option::as_ref) {
+            Some(user) => ZeitrakPluginCtx {
+                user_id: Some(user.id.clone()),
+                workspace_id: user.workspace_id.clone(),
+                is_admin: user.is_admin,
+            },
+            None => ZeitrakPluginCtx::default(),
+        })
+    });
+    #[allow(clippy::redundant_closure)]
+    use_context_provider(move || plugin_ctx());
 
     // Provide toast context for all descendant views.
     use_context_provider(|| Signal::new(Vec::<ToastMessage>::new()));
@@ -372,6 +416,7 @@ fn Layout() -> Element {
         Route::VerifyEmailConfirm { .. } => tid!("layout-title-verify-email"),
         Route::Landing {} => String::new(),
         Route::NotFound { .. } => tid!("layout-title-not-found"),
+        Route::PluginPage { plugin_id, .. } => plugin_id.clone(),
     };
 
     // Build "Workspace / View" title; show only the view name while on non-workspace routes.

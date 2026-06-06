@@ -21,7 +21,9 @@
 //! ```
 
 pub mod aggregate_host;
+pub mod audit;
 pub mod capabilities;
+pub mod quota;
 pub mod projector_bridge;
 pub mod storage;
 pub mod error;
@@ -42,6 +44,10 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, RwLock};
 
 use dioxus_extism_host::{PluginRuntime, PluginRuntimeError};
+use dioxus_extism_protocol::{CallContext, PluginId};
+use zeitrak_infrastructure_impl::{Pool, ScopeAdmin, StateDisconnected};
+
+use crate::audit::PluginAuditSink;
 
 use crate::capabilities::build_permission_capability_check;
 use crate::hook_dispatcher::HookDispatcher;
@@ -81,6 +87,15 @@ impl PluginHost {
     ///
     /// Returns an error if the underlying `PluginRuntime` fails to initialise.
     pub async fn new() -> Result<Self, PluginRuntimeError> {
+        // Connect to the admin DB for the audit sink.  Errors here surface as
+        // PluginRuntimeError via `map_err`; the caller (web crate startup) treats
+        // them as fatal.
+        let admin_pool = Pool::<ScopeAdmin, StateDisconnected>::connect_admin()
+            .await
+            .map_err(|e| PluginRuntimeError::Pool(format!("admin pool: {e}")))?;
+        let (audit_sink, audit_drain) = PluginAuditSink::new(admin_pool);
+        tokio::spawn(audit_drain);
+
         let contributed_permissions: Arc<RwLock<HashSet<String>>> =
             Arc::new(RwLock::new(HashSet::new()));
 
@@ -99,6 +114,29 @@ impl PluginHost {
 
         let projection_registry: Arc<RwLock<ProjectionRegistry>> =
             Arc::new(RwLock::new(ProjectionRegistry::new()));
+
+        // Route-replace policy (§4 / step 31): controls which frontend routes a
+        // plugin is permitted to shadow based on its trust tier.
+        //
+        // * Tenant     — sandboxed; may only replace routes under `/plugin/`
+        //                (routes the plugin itself contributed via PluginPageOutlet)
+        // * Instance   — workspace-admin install; may also replace core tracking
+        //                routes: `/timesheets` and `/activities`
+        // * SignedInstance — trust-root verified; may replace any route
+        let route_replace_policy = |_plugin_id: &PluginId,
+                                    route: &str,
+                                    ctx: &CallContext<'_, ZeitrakHostCtx>|
+         -> bool {
+            match ctx.host.trust_tier {
+                ZeitrakTrustTier::SignedInstance => true,
+                ZeitrakTrustTier::Instance => {
+                    route.starts_with("/plugin/")
+                        || route.starts_with("/timesheets")
+                        || route.starts_with("/activities")
+                }
+                ZeitrakTrustTier::Tenant => route.starts_with("/plugin/"),
+            }
+        };
 
         let runtime = PluginRuntime::<ZeitrakHostCtx>::builder()
             .with_manifest_extension("zeitrak.app", Arc::new(ZeitrakAppHandler))
@@ -131,6 +169,8 @@ impl PluginHost {
                 "zeitrak.permission",
                 build_permission_capability_check(),
             )
+            .with_audit_sink(Arc::new(audit_sink))
+            .with_route_replace_policy_ctx(route_replace_policy)
             .build()
             .await?;
 

@@ -116,3 +116,10 @@ pub type TimesheetsCache = Signal<Vec<api::timesheet::TimesheetDto>>;
 /// On desktop: `true` = full sidebar, `false` = icon-only collapsed.
 /// On mobile: `true` = drawer visible, `false` = drawer hidden.
 pub type SidebarOpen = Signal<bool>;
+
+/// Frontend plugin host context (§12.1).
+///
+/// Provided via `use_context_provider` in the root `Layout` so that
+/// `PluginSlot<PluginHostCtx>`, `OverridableComponent<PluginHostCtx>`, and
+/// `PluginAwareRouter<_, PluginHostCtx>` can access user identity for capability gating.
+pub type PluginHostCtx = std::sync::Arc<api::plugin_ctx::ZeitrakPluginCtx>;

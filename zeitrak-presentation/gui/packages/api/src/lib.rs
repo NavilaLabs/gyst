@@ -2,6 +2,7 @@
 
 pub mod activity;
 pub mod auth;
+pub mod plugin_ctx;
 pub mod developer;
 pub mod invitation;
 pub mod login;

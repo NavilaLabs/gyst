@@ -47,6 +47,11 @@ pub use dioxus_extism_pdk::{
     PluginId, SlotRegistration, HookRegistration, HostCapability, StateScope,
     SlotProvider, HookHandler, EventSubscriber, InteractionHandler, OnLoad, OnUnload,
     TransformProvider,
+    // View building helpers — re-exported so plugin authors only need zeitrak-plugin-sdk
+    PluginView, PriorityHint, ViewBuilder,
+    a, article, aside, button, div, element, footer, form, fragment,
+    h1, h2, h3, h4, h5, h6, header, img, input, label, li, nav, ol, p,
+    section, select, span, table, tbody, td, text, textarea, th, thead, tr, ul,
 };
 
 use serde::{Deserialize, Serialize};
@@ -260,7 +265,8 @@ macro_rules! on_domain_event_export {
             input: $crate::extism_pdk::Json<$crate::DomainEventEnvelope>,
         ) -> $crate::extism_pdk::FnResult<()> {
             <$plugin as $crate::ZeitrakEventSubscriber>::on_domain_event(input.0)
-                .map_err(|e| $crate::extism_pdk::Error::msg(e.to_string()))
+                .map_err(|e| $crate::extism_pdk::Error::msg(e.to_string()))?;
+            Ok(())
         }
     };
 }
@@ -307,11 +313,12 @@ macro_rules! zeitrak_aggregate {
                 $crate::extism_pdk::Json<<$handler as $crate::ZeitrakAggregate>::State>,
             > {
                 let (state, event) = input.0;
-                <$handler as $crate::ZeitrakAggregate>::apply(state, event)
-                    .map($crate::extism_pdk::Json)
-                    .map_err(|e: $crate::PdkError| {
-                        $crate::extism_pdk::Error::msg(e.to_string())
-                    })
+                Ok($crate::extism_pdk::Json(
+                    <$handler as $crate::ZeitrakAggregate>::apply(state, event)
+                        .map_err(|e: $crate::PdkError| {
+                            $crate::extism_pdk::Error::msg(e.to_string())
+                        })?,
+                ))
             }
 
             #[$crate::extism_pdk::plugin_fn]
@@ -360,10 +367,10 @@ macro_rules! zeitrak_projection {
                 input: $crate::extism_pdk::Json<$crate::PluginProjectionEvent>,
             ) -> $crate::extism_pdk::FnResult<$crate::extism_pdk::Json<()>> {
                 ($handler)(input.0)
-                    .map(|()| $crate::extism_pdk::Json(()))
                     .map_err(|e: $crate::PdkError| {
                         $crate::extism_pdk::Error::msg(e.to_string())
-                    })
+                    })?;
+                Ok($crate::extism_pdk::Json(()))
             }
         }
     };
@@ -422,7 +429,8 @@ macro_rules! zeitrak_hook {
                 input: $crate::extism_pdk::Json<$crate::HookCall>,
             ) -> $crate::extism_pdk::FnResult<()> {
                 ($handler)(input.0)
-                    .map_err(|e: $crate::PdkError| $crate::extism_pdk::Error::msg(e.to_string()))
+                    .map_err(|e: $crate::PdkError| $crate::extism_pdk::Error::msg(e.to_string()))?;
+                Ok(())
             }
         }
     };

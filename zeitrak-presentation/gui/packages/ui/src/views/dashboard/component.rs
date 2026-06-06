@@ -2,7 +2,8 @@ use crate::components::atoms::card::{Card, CardContent};
 use crate::components::atoms::{Button, ButtonVariant, Select, SelectOption, ToastExt, Toasts};
 use crate::formatting;
 use crate::layouts::DefaultLayout;
-use crate::{ActivitiesCache, TimesheetsCache};
+use crate::{ActivitiesCache, PluginHostCtx, TimesheetsCache};
+use dioxus_extism_frontend::PluginSlot;
 use chrono::{Datelike, Duration, Utc};
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{HiLightningBolt, HiPlay, HiStop};
@@ -852,6 +853,9 @@ pub fn Dashboard() -> Element {
                         }
                     }
                 }
+
+                // Plugin-contributed dashboard widgets (§12.2 — dashboard.widgets).
+                PluginSlot::<PluginHostCtx> { name: "dashboard.widgets".to_string() }
 
                 // ── Recent Entries ───────────────────────────────────────────
                 if !recent.read().is_empty() {

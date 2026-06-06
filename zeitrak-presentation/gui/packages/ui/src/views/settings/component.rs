@@ -3,6 +3,8 @@ use crate::components::atoms::{
     Button, ButtonVariant, Input, SearchableSelect, Select, SelectOption, ToastExt, Toasts,
 };
 use crate::layouts::DefaultLayout;
+use crate::PluginHostCtx;
+use dioxus_extism_frontend::PluginSlot;
 use api::invitation::InvitationDto;
 use api::member::MemberDto;
 use api::permissions::PermissionDto;
@@ -619,6 +621,9 @@ pub fn Settings() -> Element {
                             }
                         }
                         } // end settings-card-disabled (Security)
+
+                        // Plugin-contributed user settings sections (§12.2 — settings.sections).
+                        PluginSlot::<PluginHostCtx> { name: "settings.sections".to_string() }
                     }
                 }
 
@@ -955,6 +960,9 @@ pub fn Settings() -> Element {
                                 if *ws_saving.read() { {tid!("common-saving")} } else { {tid!("common-save-settings")} }
                             }
                         }
+
+                        // Plugin-contributed workspace settings sections (§12.2 — workspace.settings.sections).
+                        PluginSlot::<PluginHostCtx> { name: "workspace.settings.sections".to_string() }
                     }
                 }
 
