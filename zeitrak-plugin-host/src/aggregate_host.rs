@@ -198,7 +198,9 @@ impl AuthorizationRepository for NoOpAuthorizationRepository {
 }
 
 /// Builds a system-level [`ZeitrakHostCtx`] for use in `__apply` WASM calls.
-fn system_host_ctx() -> ZeitrakHostCtx {
+/// Builds a system-level [`ZeitrakHostCtx`] for use in WASM calls that have no
+/// user context (aggregate apply, projection handlers).
+pub(crate) fn system_host_ctx() -> ZeitrakHostCtx {
     ZeitrakHostCtx {
         user_id: None,
         workspace_id: None,

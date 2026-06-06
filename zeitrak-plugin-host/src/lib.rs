@@ -22,6 +22,7 @@
 
 pub mod aggregate_host;
 pub mod capabilities;
+pub mod projector_bridge;
 pub mod error;
 pub mod event_bus;
 pub mod hook_dispatcher;
