@@ -15,7 +15,11 @@ use zeitrak_core::permissions;
 
 use crate::hooks::{HookRegistry, RegisteredHook};
 use crate::manifest::{
-    ZeitrakAppExtension, ZeitrakEventsExtension, ZeitrakHooksExtension, ZeitrakPermissionsExtension,
+    AggregateDecl, ProjectionDecl, ZeitrakAppExtension, ZeitrakEventsExtension,
+    ZeitrakHooksExtension, ZeitrakPermissionsExtension,
+};
+use crate::registries::{
+    AggregateRegistry, ProjectionRegistry, RegisteredAggregate, RegisteredProjection,
 };
 
 /// All core zeitrak domain event type strings.
@@ -289,6 +293,301 @@ impl ManifestExtensionHandler for ZeitrakPermissionsHandler {
             "zeitrak.permissions: on_unload does not yet remove contributed permissions \
              from the registry; a host restart will clean them up"
         );
+        Ok(())
+    }
+}
+
+// ── zeitrak.aggregates ───────────────────────────────────────────────────────
+
+/// Handler for `[[extensions."zeitrak.aggregates"]]`.
+///
+/// Validates that aggregate names are globally unique and that `snapshot_every`
+/// is positive when set.  On load, each aggregate is registered in the shared
+/// [`AggregateRegistry`].  Phase E (§9.2) builds WASM-backed runtime wrappers
+/// from the registry; export-presence checks are deferred to that phase.
+pub struct ZeitrakAggregatesHandler {
+    registry: Arc<RwLock<AggregateRegistry>>,
+}
+
+impl ZeitrakAggregatesHandler {
+    /// Create a new handler backed by `registry`.
+    #[must_use]
+    pub const fn new(registry: Arc<RwLock<AggregateRegistry>>) -> Self {
+        Self { registry }
+    }
+}
+
+impl std::fmt::Debug for ZeitrakAggregatesHandler {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ZeitrakAggregatesHandler").finish_non_exhaustive()
+    }
+}
+
+impl ManifestExtensionHandler for ZeitrakAggregatesHandler {
+    fn validate(
+        &self,
+        plugin_id: &PluginId,
+        value: &serde_json::Value,
+    ) -> Result<(), ManifestExtensionError> {
+        let decls: Vec<AggregateDecl> =
+            serde_json::from_value(value.clone()).map_err(|e| {
+                validation_failed(
+                    "zeitrak.aggregates",
+                    format!(
+                        "invalid extension value for plugin `{}`: {e}",
+                        plugin_id.0
+                    ),
+                )
+            })?;
+
+        let registry = self.registry.read().map_err(|e| {
+            validation_failed(
+                "zeitrak.aggregates",
+                format!("aggregate registry lock poisoned: {e}"),
+            )
+        })?;
+
+        let mut seen_in_manifest: HashSet<&str> = HashSet::new();
+
+        for decl in &decls {
+            if decl.name.is_empty() {
+                return Err(validation_failed(
+                    "zeitrak.aggregates",
+                    format!("plugin `{}` declared an aggregate with an empty name", plugin_id.0),
+                ));
+            }
+
+            if !seen_in_manifest.insert(decl.name.as_str()) {
+                return Err(validation_failed(
+                    "zeitrak.aggregates",
+                    format!(
+                        "plugin `{}` declares aggregate `{}` more than once",
+                        plugin_id.0, decl.name
+                    ),
+                ));
+            }
+
+            if registry.contains_name(&decl.name) {
+                return Err(validation_failed(
+                    "zeitrak.aggregates",
+                    format!(
+                        "plugin `{}`: aggregate name `{}` is already registered by another plugin",
+                        plugin_id.0, decl.name
+                    ),
+                ));
+            }
+
+            if let Some(n) = decl.snapshot_every
+                && n == 0
+            {
+                return Err(validation_failed(
+                    "zeitrak.aggregates",
+                    format!(
+                        "plugin `{}` aggregate `{}`: snapshot_every must be \
+                         positive (got 0)",
+                        plugin_id.0, decl.name
+                    ),
+                ));
+            }
+        }
+
+        drop(registry);
+        Ok(())
+    }
+
+    fn on_load(
+        &self,
+        plugin_id: &PluginId,
+        value: &serde_json::Value,
+    ) -> Result<(), ManifestExtensionError> {
+        let decls: Vec<AggregateDecl> =
+            serde_json::from_value(value.clone()).map_err(|e| {
+                load_failed(
+                    "zeitrak.aggregates",
+                    format!(
+                        "invalid extension value for plugin `{}`: {e}",
+                        plugin_id.0
+                    ),
+                )
+            })?;
+
+        {
+            let mut registry = self.registry.write().map_err(|e| {
+                load_failed(
+                    "zeitrak.aggregates",
+                    format!("aggregate registry lock poisoned: {e}"),
+                )
+            })?;
+            for decl in decls {
+                registry.register(RegisteredAggregate {
+                    plugin_id: plugin_id.0.clone(),
+                    decl,
+                });
+            }
+        }
+
+        Ok(())
+    }
+
+    fn on_unload(&self, plugin_id: &PluginId) -> Result<(), ManifestExtensionError> {
+        if let Ok(mut registry) = self.registry.write() {
+            registry.unregister(&plugin_id.0);
+        }
+        Ok(())
+    }
+}
+
+// ── zeitrak.projections ───────────────────────────────────────────────────────
+
+/// Handler for `[[extensions."zeitrak.projections"]]`.
+///
+/// Validates that projection names and table names are globally unique.  On
+/// load, each projection is recorded in the shared [`ProjectionRegistry`].
+/// SQL table creation and projector wiring are deferred to Phase F (§10) and
+/// Phase E (§9.5) respectively.
+pub struct ZeitrakProjectionsHandler {
+    registry: Arc<RwLock<ProjectionRegistry>>,
+}
+
+impl ZeitrakProjectionsHandler {
+    /// Create a new handler backed by `registry`.
+    #[must_use]
+    pub const fn new(registry: Arc<RwLock<ProjectionRegistry>>) -> Self {
+        Self { registry }
+    }
+}
+
+impl std::fmt::Debug for ZeitrakProjectionsHandler {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ZeitrakProjectionsHandler").finish_non_exhaustive()
+    }
+}
+
+impl ManifestExtensionHandler for ZeitrakProjectionsHandler {
+    fn validate(
+        &self,
+        plugin_id: &PluginId,
+        value: &serde_json::Value,
+    ) -> Result<(), ManifestExtensionError> {
+        let decls: Vec<ProjectionDecl> =
+            serde_json::from_value(value.clone()).map_err(|e| {
+                validation_failed(
+                    "zeitrak.projections",
+                    format!(
+                        "invalid extension value for plugin `{}`: {e}",
+                        plugin_id.0
+                    ),
+                )
+            })?;
+
+        let registry = self.registry.read().map_err(|e| {
+            validation_failed(
+                "zeitrak.projections",
+                format!("projection registry lock poisoned: {e}"),
+            )
+        })?;
+
+        let mut seen_names: HashSet<&str> = HashSet::new();
+        let mut seen_tables: HashSet<&str> = HashSet::new();
+
+        for decl in &decls {
+            if decl.name.is_empty() {
+                return Err(validation_failed(
+                    "zeitrak.projections",
+                    format!("plugin `{}` declared a projection with an empty name", plugin_id.0),
+                ));
+            }
+            if decl.table.is_empty() {
+                return Err(validation_failed(
+                    "zeitrak.projections",
+                    format!(
+                        "plugin `{}` projection `{}` has an empty table name",
+                        plugin_id.0, decl.name
+                    ),
+                ));
+            }
+
+            if !seen_names.insert(decl.name.as_str()) {
+                return Err(validation_failed(
+                    "zeitrak.projections",
+                    format!(
+                        "plugin `{}` declares projection `{}` more than once",
+                        plugin_id.0, decl.name
+                    ),
+                ));
+            }
+            if !seen_tables.insert(decl.table.as_str()) {
+                return Err(validation_failed(
+                    "zeitrak.projections",
+                    format!(
+                        "plugin `{}` uses table `{}` more than once",
+                        plugin_id.0, decl.table
+                    ),
+                ));
+            }
+
+            if registry.contains_name(&decl.name) {
+                return Err(validation_failed(
+                    "zeitrak.projections",
+                    format!(
+                        "plugin `{}`: projection name `{}` is already registered",
+                        plugin_id.0, decl.name
+                    ),
+                ));
+            }
+            if registry.contains_table(&decl.table) {
+                return Err(validation_failed(
+                    "zeitrak.projections",
+                    format!(
+                        "plugin `{}`: table `{}` is already in use by another projection",
+                        plugin_id.0, decl.table
+                    ),
+                ));
+            }
+        }
+
+        drop(registry);
+        Ok(())
+    }
+
+    fn on_load(
+        &self,
+        plugin_id: &PluginId,
+        value: &serde_json::Value,
+    ) -> Result<(), ManifestExtensionError> {
+        let decls: Vec<ProjectionDecl> =
+            serde_json::from_value(value.clone()).map_err(|e| {
+                load_failed(
+                    "zeitrak.projections",
+                    format!(
+                        "invalid extension value for plugin `{}`: {e}",
+                        plugin_id.0
+                    ),
+                )
+            })?;
+
+        {
+            let mut registry = self.registry.write().map_err(|e| {
+                load_failed(
+                    "zeitrak.projections",
+                    format!("projection registry lock poisoned: {e}"),
+                )
+            })?;
+            for decl in decls {
+                registry.register(RegisteredProjection {
+                    plugin_id: plugin_id.0.clone(),
+                    decl,
+                });
+            }
+        }
+
+        Ok(())
+    }
+
+    fn on_unload(&self, plugin_id: &PluginId) -> Result<(), ManifestExtensionError> {
+        if let Ok(mut registry) = self.registry.write() {
+            registry.unregister(&plugin_id.0);
+        }
         Ok(())
     }
 }
@@ -574,6 +873,135 @@ mod tests {
         assert!(guard.contains("leave.submit"));
         assert!(guard.contains("leave.approve"));
         drop(guard);
+    }
+
+    // ── ZeitrakAggregatesHandler ──────────────────────────────────────────────
+
+    fn make_aggregate_registry() -> Arc<RwLock<AggregateRegistry>> {
+        Arc::new(RwLock::new(AggregateRegistry::new()))
+    }
+
+    fn make_projection_registry() -> Arc<RwLock<ProjectionRegistry>> {
+        Arc::new(RwLock::new(ProjectionRegistry::new()))
+    }
+
+    #[test]
+    fn aggregates_handler_accepts_valid_declaration() {
+        let handler = ZeitrakAggregatesHandler::new(make_aggregate_registry());
+        let value = serde_json::json!([{
+            "name": "leave_request",
+            "events": ["Submitted", "Approved"],
+            "snapshot_every": 50,
+            "commands": [{ "name": "Submit", "permission": "leave.submit" }]
+        }]);
+        let id = PluginId("test-plugin".to_string());
+        assert!(handler.validate(&id, &value).is_ok());
+    }
+
+    #[test]
+    fn aggregates_handler_rejects_duplicate_name_in_manifest() {
+        let handler = ZeitrakAggregatesHandler::new(make_aggregate_registry());
+        let value = serde_json::json!([
+            { "name": "leave_request", "events": [] },
+            { "name": "leave_request", "events": [] }
+        ]);
+        let id = PluginId("test-plugin".to_string());
+        assert!(handler.validate(&id, &value).is_err());
+    }
+
+    #[test]
+    fn aggregates_handler_rejects_zero_snapshot_every() {
+        let handler = ZeitrakAggregatesHandler::new(make_aggregate_registry());
+        let value = serde_json::json!([{
+            "name": "leave_request",
+            "snapshot_every": 0,
+            "events": []
+        }]);
+        let id = PluginId("test-plugin".to_string());
+        assert!(handler.validate(&id, &value).is_err());
+    }
+
+    #[test]
+    fn aggregates_handler_rejects_globally_duplicate_name() {
+        let registry = make_aggregate_registry();
+        let handler = ZeitrakAggregatesHandler::new(Arc::clone(&registry));
+
+        // Load first plugin with the name
+        let value_a = serde_json::json!([{ "name": "leave_request", "events": [] }]);
+        let id_a = PluginId("plugin-a".to_string());
+        handler.on_load(&id_a, &value_a).expect("first load must succeed");
+
+        // Second plugin tries to claim the same name
+        let value_b = serde_json::json!([{ "name": "leave_request", "events": [] }]);
+        let id_b = PluginId("plugin-b".to_string());
+        assert!(handler.validate(&id_b, &value_b).is_err());
+    }
+
+    #[test]
+    fn aggregates_handler_on_load_registers_and_on_unload_removes() {
+        let registry = make_aggregate_registry();
+        let handler = ZeitrakAggregatesHandler::new(Arc::clone(&registry));
+        let value = serde_json::json!([{ "name": "leave_request", "events": [] }]);
+        let id = PluginId("test-plugin".to_string());
+
+        handler.on_load(&id, &value).expect("on_load must succeed");
+        assert!(!registry.read().unwrap().is_empty());
+
+        handler.on_unload(&id).expect("on_unload must succeed");
+        assert!(registry.read().unwrap().is_empty());
+    }
+
+    // ── ZeitrakProjectionsHandler ─────────────────────────────────────────────
+
+    #[test]
+    fn projections_handler_accepts_valid_declaration() {
+        let handler = ZeitrakProjectionsHandler::new(make_projection_registry());
+        let value = serde_json::json!([{
+            "name": "pending_leaves",
+            "table": "pending_leaves",
+            "events": ["Submitted", "Approved"]
+        }]);
+        let id = PluginId("test-plugin".to_string());
+        assert!(handler.validate(&id, &value).is_ok());
+    }
+
+    #[test]
+    fn projections_handler_rejects_duplicate_table_in_manifest() {
+        let handler = ZeitrakProjectionsHandler::new(make_projection_registry());
+        let value = serde_json::json!([
+            { "name": "proj_a", "table": "same_table", "events": [] },
+            { "name": "proj_b", "table": "same_table", "events": [] }
+        ]);
+        let id = PluginId("test-plugin".to_string());
+        assert!(handler.validate(&id, &value).is_err());
+    }
+
+    #[test]
+    fn projections_handler_rejects_globally_duplicate_table() {
+        let registry = make_projection_registry();
+        let handler = ZeitrakProjectionsHandler::new(Arc::clone(&registry));
+
+        let value_a = serde_json::json!([{ "name": "proj_a", "table": "leaves", "events": [] }]);
+        let id_a = PluginId("plugin-a".to_string());
+        handler.on_load(&id_a, &value_a).expect("first load must succeed");
+
+        let value_b = serde_json::json!([{ "name": "proj_b", "table": "leaves", "events": [] }]);
+        let id_b = PluginId("plugin-b".to_string());
+        assert!(handler.validate(&id_b, &value_b).is_err());
+    }
+
+    #[test]
+    fn projections_handler_on_load_registers_and_on_unload_removes() {
+        let registry = make_projection_registry();
+        let handler = ZeitrakProjectionsHandler::new(Arc::clone(&registry));
+        let value = serde_json::json!([{ "name": "pending_leaves", "table": "pending", "events": [] }]);
+        let id = PluginId("test-plugin".to_string());
+
+        handler.on_load(&id, &value).expect("on_load must succeed");
+        assert!(!registry.read().unwrap().is_empty());
+
+        handler.on_unload(&id).expect("on_unload must succeed");
+        assert!(registry.read().unwrap().is_empty());
     }
 
     // ── ZeitrakEventsHandler ──────────────────────────────────────────────────

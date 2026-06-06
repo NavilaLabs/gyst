@@ -6,6 +6,64 @@
 
 use serde::Deserialize;
 
+// ── zeitrak.aggregates ───────────────────────────────────────────────────────
+
+/// A command declared inside `[[extensions."zeitrak.aggregates"]]`.
+#[derive(Debug, Clone, Deserialize)]
+pub struct CommandDecl {
+    /// Command name, e.g. `"Submit"`.
+    pub name: String,
+    /// Permission required to invoke the command, e.g. `"leave.submit"`.
+    pub permission: String,
+}
+
+/// One aggregate declaration in `[[extensions."zeitrak.aggregates"]]`.
+///
+/// ```toml
+/// [[extensions."zeitrak.aggregates"]]
+/// name = "leave_request"
+/// events = ["Submitted", "Approved", "Rejected"]
+/// snapshot_every = 50
+/// commands = [
+///   { name = "Submit",  permission = "leave.submit" },
+///   { name = "Approve", permission = "leave.approve" },
+/// ]
+/// ```
+#[derive(Debug, Clone, Deserialize)]
+pub struct AggregateDecl {
+    /// Globally unique aggregate type name.
+    pub name: String,
+    /// Event variant names produced by this aggregate.
+    #[serde(default)]
+    pub events: Vec<String>,
+    /// Snapshot every N events. Must be positive if set.
+    pub snapshot_every: Option<u32>,
+    /// Commands the aggregate handles.
+    #[serde(default)]
+    pub commands: Vec<CommandDecl>,
+}
+
+// ── zeitrak.projections ───────────────────────────────────────────────────────
+
+/// One projection declaration in `[[extensions."zeitrak.projections"]]`.
+///
+/// ```toml
+/// [[extensions."zeitrak.projections"]]
+/// name = "pending_leaves"
+/// table = "pending_leaves"       # becomes plugin_<id>__pending_leaves
+/// events = ["Submitted", "Approved", "Rejected"]
+/// ```
+#[derive(Debug, Clone, Deserialize)]
+pub struct ProjectionDecl {
+    /// Globally unique projection name.
+    pub name: String,
+    /// Table name suffix; the host prepends `plugin_<sanitized_id>__`.
+    pub table: String,
+    /// Event names this projection listens to.
+    #[serde(default)]
+    pub events: Vec<String>,
+}
+
 // ── zeitrak.events ───────────────────────────────────────────────────────────
 
 /// `[extensions."zeitrak.events"]`

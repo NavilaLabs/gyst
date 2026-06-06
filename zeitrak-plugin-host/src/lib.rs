@@ -26,6 +26,7 @@ pub mod hooks;
 pub mod host_ctx;
 pub mod manifest;
 pub mod manifest_handlers;
+pub mod registries;
 pub mod trust;
 
 pub use error::PluginHostError;
@@ -40,9 +41,10 @@ use dioxus_extism_host::{PluginRuntime, PluginRuntimeError};
 use crate::capabilities::build_permission_capability_check;
 use crate::hooks::HookRegistry;
 use crate::manifest_handlers::{
-    ZeitrakAppHandler, ZeitrakEventsHandler, ZeitrakHooksHandler, ZeitrakPermissionsHandler,
-    CORE_DOMAIN_EVENTS,
+    ZeitrakAggregatesHandler, ZeitrakAppHandler, ZeitrakEventsHandler, ZeitrakHooksHandler,
+    ZeitrakPermissionsHandler, ZeitrakProjectionsHandler, CORE_DOMAIN_EVENTS,
 };
+use crate::registries::{AggregateRegistry, ProjectionRegistry};
 
 /// Central facade for the zeitrak plugin system.
 ///
@@ -59,6 +61,10 @@ pub struct PluginHost {
     event_subscriptions: Arc<RwLock<HashMap<String, Vec<String>>>>,
     /// Command hooks registered by plugins via `zeitrak.hooks`.
     hook_registry: Arc<RwLock<HookRegistry>>,
+    /// Plugin-contributed aggregate types, registered via `zeitrak.aggregates`.
+    aggregate_registry: Arc<RwLock<AggregateRegistry>>,
+    /// Plugin-contributed projections, registered via `zeitrak.projections`.
+    projection_registry: Arc<RwLock<ProjectionRegistry>>,
 }
 
 impl PluginHost {
@@ -82,6 +88,12 @@ impl PluginHost {
         let hook_registry: Arc<RwLock<HookRegistry>> =
             Arc::new(RwLock::new(HookRegistry::new()));
 
+        let aggregate_registry: Arc<RwLock<AggregateRegistry>> =
+            Arc::new(RwLock::new(AggregateRegistry::new()));
+
+        let projection_registry: Arc<RwLock<ProjectionRegistry>> =
+            Arc::new(RwLock::new(ProjectionRegistry::new()));
+
         let runtime = PluginRuntime::<ZeitrakHostCtx>::builder()
             .with_manifest_extension("zeitrak.app", Arc::new(ZeitrakAppHandler))
             .with_manifest_extension(
@@ -101,6 +113,14 @@ impl PluginHost {
                 "zeitrak.hooks",
                 Arc::new(ZeitrakHooksHandler::new(Arc::clone(&hook_registry))),
             )
+            .with_manifest_extension(
+                "zeitrak.aggregates",
+                Arc::new(ZeitrakAggregatesHandler::new(Arc::clone(&aggregate_registry))),
+            )
+            .with_manifest_extension(
+                "zeitrak.projections",
+                Arc::new(ZeitrakProjectionsHandler::new(Arc::clone(&projection_registry))),
+            )
             .with_capability_check_ctx(
                 "zeitrak.permission",
                 build_permission_capability_check(),
@@ -114,6 +134,8 @@ impl PluginHost {
             known_events,
             event_subscriptions,
             hook_registry,
+            aggregate_registry,
+            projection_registry,
         })
     }
 
@@ -156,6 +178,23 @@ impl PluginHost {
     #[must_use]
     pub fn hook_registry(&self) -> Arc<RwLock<HookRegistry>> {
         Arc::clone(&self.hook_registry)
+    }
+
+    /// Returns the shared aggregate registry.
+    ///
+    /// Phase E (§9.2) builds WASM-backed runtime wrappers from these entries.
+    #[must_use]
+    pub fn aggregate_registry(&self) -> Arc<RwLock<AggregateRegistry>> {
+        Arc::clone(&self.aggregate_registry)
+    }
+
+    /// Returns the shared projection registry.
+    ///
+    /// Phase E (§9.5) wires each projection into the `eventually-projection`
+    /// runner; Phase F (§10) creates the backing SQL tables.
+    #[must_use]
+    pub fn projection_registry(&self) -> Arc<RwLock<ProjectionRegistry>> {
+        Arc::clone(&self.projection_registry)
     }
 }
 
