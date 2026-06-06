@@ -7,6 +7,7 @@ members = [
   "zeitrak-migrations/zeitrak-admin-migrations",
   "zeitrak-migrations/zeitrak-shared-migrations",
   "zeitrak-migrations/zeitrak-tenant-migrations",
+  "zeitrak-plugin-host",
   "zeitrak-tests",
 ]
 resolver = "3"
