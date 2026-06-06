@@ -22,6 +22,7 @@
 
 pub mod capabilities;
 pub mod error;
+pub mod event_bus;
 pub mod hooks;
 pub mod host_ctx;
 pub mod manifest;
