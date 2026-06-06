@@ -23,6 +23,7 @@
 pub mod capabilities;
 pub mod error;
 pub mod event_bus;
+pub mod hook_dispatcher;
 pub mod hooks;
 pub mod host_ctx;
 pub mod manifest;
@@ -40,6 +41,7 @@ use std::sync::{Arc, RwLock};
 use dioxus_extism_host::{PluginRuntime, PluginRuntimeError};
 
 use crate::capabilities::build_permission_capability_check;
+use crate::hook_dispatcher::HookDispatcher;
 use crate::hooks::HookRegistry;
 use crate::manifest_handlers::{
     ZeitrakAggregatesHandler, ZeitrakAppHandler, ZeitrakEventsHandler, ZeitrakHooksHandler,
@@ -196,6 +198,15 @@ impl PluginHost {
     #[must_use]
     pub fn projection_registry(&self) -> Arc<RwLock<ProjectionRegistry>> {
         Arc::clone(&self.projection_registry)
+    }
+
+    /// Build a [`HookDispatcher`] bound to this host's runtime and hook registry.
+    ///
+    /// Phase D (§8.4) application services use this to fire pre/post hooks
+    /// around command execution.
+    #[must_use]
+    pub fn hook_dispatcher(&self) -> HookDispatcher {
+        HookDispatcher::new(Arc::clone(&self.runtime), Arc::clone(&self.hook_registry))
     }
 }
 
