@@ -20,6 +20,7 @@
 //! zeitrak (facade)
 //! ```
 
+pub mod aggregate_host;
 pub mod capabilities;
 pub mod error;
 pub mod event_bus;
