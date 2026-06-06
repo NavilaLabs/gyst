@@ -22,6 +22,7 @@
 
 pub mod capabilities;
 pub mod error;
+pub mod hooks;
 pub mod host_ctx;
 pub mod manifest;
 pub mod manifest_handlers;
@@ -31,13 +32,17 @@ pub use error::PluginHostError;
 pub use host_ctx::{PermissionSet, ZeitrakHostCtx};
 pub use trust::{InstallContext, Installer, ZeitrakTrustTier};
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, RwLock};
 
 use dioxus_extism_host::{PluginRuntime, PluginRuntimeError};
 
 use crate::capabilities::build_permission_capability_check;
-use crate::manifest_handlers::{ZeitrakAppHandler, ZeitrakPermissionsHandler};
+use crate::hooks::HookRegistry;
+use crate::manifest_handlers::{
+    ZeitrakAppHandler, ZeitrakEventsHandler, ZeitrakHooksHandler, ZeitrakPermissionsHandler,
+    CORE_DOMAIN_EVENTS,
+};
 
 /// Central facade for the zeitrak plugin system.
 ///
@@ -46,8 +51,14 @@ use crate::manifest_handlers::{ZeitrakAppHandler, ZeitrakPermissionsHandler};
 /// it once at application startup and share it via `Arc`.
 pub struct PluginHost {
     runtime: Arc<PluginRuntime<ZeitrakHostCtx>>,
-    /// Permissions contributed by loaded plugins, registered during `on_load`.
+    /// Permissions contributed by loaded plugins via `zeitrak.permissions`.
     contributed_permissions: Arc<RwLock<HashSet<String>>>,
+    /// Known domain event names: core events + plugin-contributed (step 13).
+    known_events: Arc<RwLock<HashSet<String>>>,
+    /// Plugin → subscribed event names, populated via `zeitrak.events`.
+    event_subscriptions: Arc<RwLock<HashMap<String, Vec<String>>>>,
+    /// Command hooks registered by plugins via `zeitrak.hooks`.
+    hook_registry: Arc<RwLock<HookRegistry>>,
 }
 
 impl PluginHost {
@@ -61,16 +72,34 @@ impl PluginHost {
         let contributed_permissions: Arc<RwLock<HashSet<String>>> =
             Arc::new(RwLock::new(HashSet::new()));
 
+        let known_events: Arc<RwLock<HashSet<String>>> = Arc::new(RwLock::new(
+            CORE_DOMAIN_EVENTS.iter().map(|s| (*s).to_string()).collect(),
+        ));
+
+        let event_subscriptions: Arc<RwLock<HashMap<String, Vec<String>>>> =
+            Arc::new(RwLock::new(HashMap::new()));
+
+        let hook_registry: Arc<RwLock<HookRegistry>> =
+            Arc::new(RwLock::new(HookRegistry::new()));
+
         let runtime = PluginRuntime::<ZeitrakHostCtx>::builder()
-            .with_manifest_extension(
-                "zeitrak.app",
-                Arc::new(ZeitrakAppHandler),
-            )
+            .with_manifest_extension("zeitrak.app", Arc::new(ZeitrakAppHandler))
             .with_manifest_extension(
                 "zeitrak.permissions",
                 Arc::new(ZeitrakPermissionsHandler::new(Arc::clone(
                     &contributed_permissions,
                 ))),
+            )
+            .with_manifest_extension(
+                "zeitrak.events",
+                Arc::new(ZeitrakEventsHandler::new(
+                    Arc::clone(&known_events),
+                    Arc::clone(&event_subscriptions),
+                )),
+            )
+            .with_manifest_extension(
+                "zeitrak.hooks",
+                Arc::new(ZeitrakHooksHandler::new(Arc::clone(&hook_registry))),
             )
             .with_capability_check_ctx(
                 "zeitrak.permission",
@@ -82,6 +111,9 @@ impl PluginHost {
         Ok(Self {
             runtime,
             contributed_permissions,
+            known_events,
+            event_subscriptions,
+            hook_registry,
         })
     }
 
@@ -99,6 +131,31 @@ impl PluginHost {
     #[must_use]
     pub fn contributed_permissions(&self) -> Arc<RwLock<HashSet<String>>> {
         Arc::clone(&self.contributed_permissions)
+    }
+
+    /// Returns the shared set of known domain event names.
+    ///
+    /// Pre-populated with core event names; extended by `ZeitrakAggregatesHandler`
+    /// (step 13) as plugin aggregates are registered.
+    #[must_use]
+    pub fn known_events(&self) -> Arc<RwLock<HashSet<String>>> {
+        Arc::clone(&self.known_events)
+    }
+
+    /// Returns the shared plugin → subscribed-event-names map.
+    ///
+    /// Phase D (§8.3) reads this map to route broadcast events to plugins.
+    #[must_use]
+    pub fn event_subscriptions(&self) -> Arc<RwLock<HashMap<String, Vec<String>>>> {
+        Arc::clone(&self.event_subscriptions)
+    }
+
+    /// Returns the shared command hook registry.
+    ///
+    /// Phase D (§8.4) reads this registry when dispatching pre/post hooks.
+    #[must_use]
+    pub fn hook_registry(&self) -> Arc<RwLock<HookRegistry>> {
+        Arc::clone(&self.hook_registry)
     }
 }
 
