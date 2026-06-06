@@ -21,8 +21,11 @@
 //! ```
 
 pub mod error;
+pub mod host_ctx;
+pub mod trust;
 
 pub use error::PluginHostError;
+pub use host_ctx::{PermissionSet, ZeitrakHostCtx};
 
 /// Central facade for the zeitrak plugin system.
 ///
