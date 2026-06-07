@@ -7,7 +7,6 @@ use dioxus::prelude::*;
 use dioxus_extism_frontend::{PluginBootProvider, SessionProviderRoot, WebSessionProvider};
 use dioxus_i18n::{prelude::*, tid};
 use dioxus_motion::prelude::*;
-use easer::functions::Easing;
 #[cfg(feature = "landing")]
 use ui::views::LandingPage;
 use ui::{
@@ -20,8 +19,8 @@ use ui::{
         Register, SelectWorkspace, Settings, Tags, Timesheets, VerifyEmailConfirm,
         VerifyEmailPending,
     },
-    ActivitiesCache, GlobalStyles, RunningElapsed, RunningTimer, SidebarOpen, TagsCache,
-    UserSettings, WorkspaceSettings, FAVICON,
+    ActivitiesCache, GlobalStyles, NavDirection, RunningElapsed, RunningTimer, SidebarOpen,
+    TagsCache, UserSettings, WorkspaceSettings, FAVICON,
 };
 use unic_langid::langid;
 
@@ -118,6 +117,29 @@ enum Route {
     NotFound { route: Vec<String> },
 }
 
+/// Maps each route to a linear index used to compute navigation direction.
+/// Higher index = "further right" in the conceptual flow of the app.
+/// Returns -1 for routes that don't participate in directional transitions.
+fn route_idx(route: &Route) -> i32 {
+    match route {
+        Route::Login { .. } => 0,
+        Route::Setup { .. } => 1,
+        Route::Register { .. } => 1,
+        Route::InvitationAccept { .. } => 1,
+        Route::VerifyEmailPending { .. } => 1,
+        Route::VerifyEmailConfirm { .. } => 1,
+        Route::SelectWorkspace { .. } => 2,
+        Route::Dashboard { .. } => 3,
+        Route::Timesheets { .. } => 4,
+        Route::Activities { .. } => 5,
+        Route::Tags { .. } => 6,
+        Route::Settings { .. } => 7,
+        Route::Database { .. } => 8,
+        Route::PluginPage { .. } => 9,
+        _ => -1,
+    }
+}
+
 #[cfg(not(feature = "server"))]
 fn main() {
     dotenvy::from_filename_override(".env").ok();
@@ -193,48 +215,6 @@ fn App() -> Element {
     // Global auth state — available to every component in the tree.
     use_context_provider(|| Signal::new(None::<Option<UserInfo>>));
     use_init_i18n(ui::i18n::i18n_config);
-
-    let resolver: TransitionVariantResolver<Route> = std::rc::Rc::new(|from, to| {
-        fn idx(route: &Route) -> i32 {
-            match route {
-                Route::Login { .. } => 0,
-                Route::Setup { .. } => 1,
-                Route::Register { .. } => 1,
-                Route::InvitationAccept { .. } => 1,
-                Route::VerifyEmailPending { .. } => 1,
-                Route::VerifyEmailConfirm { .. } => 1,
-                Route::SelectWorkspace { .. } => 2,
-                Route::Dashboard { .. } => 3,
-                Route::Activities { .. } => 4,
-                Route::Timesheets { .. } => 5,
-                Route::Tags { .. } => 6,
-                Route::Settings { .. } => 7,
-                Route::Database { .. } => 8,
-                Route::PluginPage { .. } => 9,
-                _ => -1,
-            }
-        }
-        let from_idx = idx(from);
-        let to_idx = idx(to);
-        if from_idx != -1 && to_idx != -1 {
-            if to_idx > from_idx {
-                TransitionVariant::SlideLeft
-            } else if to_idx < from_idx {
-                TransitionVariant::SlideRight
-            } else {
-                TransitionVariant::Fade
-            }
-        } else {
-            to.get_transition()
-        }
-    });
-    use_context_provider(|| resolver);
-
-    let tween = use_signal(|| Tween {
-        duration: std::time::Duration::from_millis(200),
-        easing: easer::functions::Cubic::ease_in_out,
-    });
-    use_context_provider(|| tween);
 
     rsx! {
         GlobalStyles {}
@@ -398,6 +378,21 @@ fn Layout() -> Element {
     });
 
     let route: Route = use_route();
+
+    // Compute navigation direction for the CSS slide-in animation in DefaultLayout.
+    // We set the signal during render (before children render) so DefaultLayout reads
+    // the correct direction at mount time via peek().
+    let mut nav_direction: NavDirection = use_context_provider(|| Signal::new(0i8));
+    let current_idx = route_idx(&route);
+    let mut prev_route_idx = use_signal(move || current_idx);
+    {
+        let prev = *prev_route_idx.peek();
+        if current_idx != prev {
+            nav_direction.set(if current_idx > prev { 1 } else { -1 });
+            prev_route_idx.set(current_idx);
+        }
+    }
+
     let view_title = match &route {
         Route::Dashboard {} => tid!("layout-title-dashboard"),
         Route::Activities {} => tid!("layout-title-activities"),
@@ -444,7 +439,7 @@ fn Layout() -> Element {
             div { class: "app-right",
                 Header { title: page_title }
                 main { class: "app-main",
-                    AnimatedOutlet::<Route> {}
+                    Outlet::<Route> {}
                 }
             }
         }
@@ -465,8 +460,6 @@ fn RequireSetupComplete() -> Element {
         None => rsx! {},
         Some(Ok(true)) => rsx! { Outlet::<Route> {} },
         Some(Ok(false)) | Some(Err(_)) => {
-            // Guard against re-firing when this component is in the leaving side
-            // of an AnimatedOutlet transition that already landed on /setup.
             if !matches!(route, Route::Setup {}) {
                 nav.replace(Route::Setup {});
             }
@@ -527,8 +520,6 @@ fn RequireWorkspace() -> Element {
             rsx! { Outlet::<Route> {} }
         }
         Some(Some(_)) => {
-            // Guard against re-firing when this component is in the leaving side
-            // of an AnimatedOutlet transition that already landed on /select-workspace.
             if !matches!(route, Route::SelectWorkspace {}) {
                 nav.replace(Route::SelectWorkspace {});
             }

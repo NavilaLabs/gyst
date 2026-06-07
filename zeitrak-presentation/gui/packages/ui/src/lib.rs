@@ -114,6 +114,15 @@ pub type TagsCache = Signal<Vec<api::timesheet_tag::TimesheetsTagDto>>;
 /// On mobile: `true` = drawer visible, `false` = drawer hidden.
 pub type SidebarOpen = Signal<bool>;
 
+/// Navigation direction used to select the page-enter animation in `DefaultLayout`.
+///
+/// - `1`  → forward  (entering from the right, e.g. Dashboard → Timesheets)
+/// - `-1` → backward (entering from the left,  e.g. Timesheets → Dashboard)
+/// - `0`  → initial load / no direction preference
+///
+/// Set by the top-level `Layout` component during every render that detects a route change.
+pub type NavDirection = Signal<i8>;
+
 /// Frontend plugin host context (§12.1).
 ///
 /// Provided via `use_context_provider` in the root `Layout` so that
