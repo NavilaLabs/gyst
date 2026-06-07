@@ -12,7 +12,7 @@ use zeitrak_infrastructure_impl::{
 ///
 /// Resolution order:
 /// 1. Admin-database row (`smtp_config` table) — includes encrypted password
-///    or OAuth2 refresh token.
+///    or `OAuth2` refresh token.
 /// 2. Static `CONFIG` (env vars / YAML files).
 ///
 /// # Errors
@@ -49,7 +49,9 @@ fn build_from_persisted(p: PersistedSmtpConfig) -> Result<Box<dyn EmailSender>> 
             Ok(Box::new(sender))
         }
         SmtpAuthMethod::XOAuth2 => {
-            anyhow::bail!("OAuth2 SMTP is configured but not yet authorized — complete the Microsoft authorization flow first")
+            anyhow::bail!(
+                "OAuth2 SMTP is configured but not yet authorized — complete the Microsoft authorization flow first"
+            )
         }
         _ => build_from_static_config(),
     }

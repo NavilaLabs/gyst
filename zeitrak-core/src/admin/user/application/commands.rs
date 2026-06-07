@@ -35,6 +35,12 @@ pub trait UserCommandTrait<R> {
     async fn request_verification(&self, id: UserId, token: String) -> Result<(), Self::Error>;
 
     async fn verify_email(&self, id: UserId) -> Result<(), Self::Error>;
+
+    /// Grants the instance-admin flag to the given user.
+    ///
+    /// Fails if any other user already holds the flag (only one instance admin
+    /// is permitted at a time).
+    async fn grant_instance_admin(&self, id: UserId) -> Result<(), Self::Error>;
 }
 
 #[derive(Debug)]
@@ -144,6 +150,29 @@ where
             .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
             .into();
         root.record_that(UserEvent::Verified {}.into())?;
+        self.repository
+            .save(&mut root)
+            .await
+            .map_err(|e| crate::Error::WriteRepositoryError(e.into()))
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error if the aggregate cannot be loaded or the event cannot be saved.
+    /// Use [`UserQueryTrait::instance_admin_exists`] before calling this to enforce
+    /// the single-instance-admin invariant at the application level; the DB partial
+    /// unique index enforces it at the storage level.
+    async fn grant_instance_admin(
+        &self,
+        id: UserId,
+    ) -> Result<(), <Self as UserCommandTrait<R>>::Error> {
+        let mut root: UserRoot = self
+            .repository
+            .get(&id)
+            .await
+            .map_err(|e| crate::Error::ReadRepositoryError(e.into()))?
+            .into();
+        root.record_that(UserEvent::InstanceAdminGranted {}.into())?;
         self.repository
             .save(&mut root)
             .await

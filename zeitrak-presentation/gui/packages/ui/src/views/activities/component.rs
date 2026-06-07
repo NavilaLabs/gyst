@@ -2,9 +2,10 @@ use crate::components::atoms::{ColumnDef, DataTable, ToastExt, Toasts};
 use crate::layouts::DefaultLayout;
 use crate::views::activities::activity_row::ActivityRow;
 use crate::views::activities::create_form::ActivityCreateForm;
-use crate::ActivitiesCache;
+use crate::{ActivitiesCache, PluginHostCtx};
 use api::activity::ActivityDto;
 use dioxus::prelude::*;
+use dioxus_extism_frontend::PluginSlot;
 use dioxus_i18n::tid;
 
 const PAGE_SIZE: usize = 15;
@@ -52,6 +53,8 @@ pub fn Activities() -> Element {
                 div { class: "island",
                     div { class: "island-header",
                         span { class: "island-title", {tid!("activities-title")} }
+                        // Plugin-contributed toolbar actions (§12.2 — activity.list.toolbar.actions).
+                        PluginSlot::<PluginHostCtx> { name: "activity.list.toolbar.actions".to_string() }
                     }
                     DataTable {
                         columns,

@@ -72,7 +72,7 @@ pub struct PersistedSmtpConfig {
     pub host: String,
     /// SMTP server port.
     pub port: u16,
-    /// SMTP login username (also used as the OAuth2 SMTP address).
+    /// SMTP login username (also used as the `OAuth2` SMTP address).
     pub username: String,
     /// Sender address used in outgoing emails.
     pub from_address: String,
@@ -80,9 +80,9 @@ pub struct PersistedSmtpConfig {
     pub use_tls: bool,
     /// Plaintext password (password auth only).
     pub password: Option<String>,
-    /// OAuth2 application (client) ID.
+    /// `OAuth2` application (client) ID.
     pub client_id: Option<String>,
-    /// OAuth2 client secret (decrypted).
+    /// `OAuth2` client secret (decrypted).
     pub client_secret: Option<String>,
     /// Azure AD tenant ID.
     pub tenant_id: Option<String>,
@@ -90,7 +90,7 @@ pub struct PersistedSmtpConfig {
     pub refresh_token: Option<String>,
     /// The Microsoft 365 mailbox address used for SMTP AUTH.
     pub oauth2_smtp_email: Option<String>,
-    /// True once the OAuth2 authorization code flow has completed.
+    /// True once the `OAuth2` authorization code flow has completed.
     pub oauth2_authorized: bool,
 }
 
@@ -111,11 +111,11 @@ pub trait SmtpConfigRepository: Send + Sync {
     /// Returns an error if the database write or encryption fails.
     async fn save(&self, config: &PersistedSmtpConfig) -> anyhow::Result<()>;
 
-    /// Stores a CSRF state token before initiating the OAuth2 authorization flow.
+    /// Stores a CSRF state token before initiating the `OAuth2` authorization flow.
     ///
     /// # Errors
     ///
-    /// Returns an error if no smtp_config row exists yet or the update fails.
+    /// Returns an error if no `smtp_config` row exists yet or the update fails.
     async fn set_oauth2_state(&self, state: &str) -> anyhow::Result<()>;
 
     /// Validates `actual_state` against the stored CSRF token, then persists the
@@ -124,9 +124,5 @@ pub trait SmtpConfigRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an error if the state does not match or the database write fails.
-    async fn complete_oauth2(
-        &self,
-        actual_state: &str,
-        refresh_token: &str,
-    ) -> anyhow::Result<()>;
+    async fn complete_oauth2(&self, actual_state: &str, refresh_token: &str) -> anyhow::Result<()>;
 }

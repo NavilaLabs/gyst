@@ -1,3 +1,19 @@
+/* ── Login greeting overlay ── */
+/* The overlay wraps the login.greeting plugin slot.  It has no background of
+   its own — the plugin's rendered view provides all visual styling.  If no
+   plugin is registered for the slot the div is empty and invisible. */
+.greeting-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.greeting-overlay:empty {
+  display: none;
+}
+
 /* ── Workspace selection — full-page layout ── */
 
 .workspace-select-page {

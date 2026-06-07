@@ -71,6 +71,7 @@ async fn _create_workspace(workspace_name: String) -> Result<WorkspaceDto, Serve
             .await
             .map_err(internal)?;
 
+    user.can_manage_workspace = true;
     user.workspace_id = Some(workspace_id.to_string());
     let session: Session = extract().await?;
     session
@@ -165,6 +166,15 @@ async fn _select_workspace(workspace_id: String) -> Result<(), ServerFnError> {
         });
     }
 
+    let can_manage_workspace = user.is_admin
+        || zeitrak::authorization::AuthorizationService::has_permission(
+            &user.id,
+            &workspace_id,
+            zeitrak::core::permissions::ROLE_CREATE,
+        )
+        .await
+        .unwrap_or(false);
+    user.can_manage_workspace = can_manage_workspace;
     user.workspace_id = Some(workspace_id);
     session
         .insert("user", user)

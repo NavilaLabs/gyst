@@ -8,6 +8,10 @@ pub struct UserInfo {
     pub id: String,
     pub email: String,
     pub is_admin: bool,
+    /// True when the user holds workspace-management permissions (e.g. the
+    /// `workspace_admin` role) in their currently selected workspace, or is an
+    /// instance admin.  Set to `false` until a workspace is selected.
+    pub can_manage_workspace: bool,
     /// The workspace (tenant) this user belongs to. `None` for users with no
     /// workspace assignment (should not happen in a properly set-up instance).
     pub workspace_id: Option<String>,

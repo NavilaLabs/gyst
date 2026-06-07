@@ -6,6 +6,7 @@ use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use sha2::{Digest, Sha256};
 
 /// Derives a 32-byte AES-256 key from an arbitrary secret string via SHA-256.
+#[must_use]
 pub fn derive_key(secret: &str) -> [u8; 32] {
     let mut hasher = Sha256::new();
     hasher.update(secret.as_bytes());

@@ -24,9 +24,12 @@ pub async fn list_workspace_roles() -> Result<Vec<WorkspaceRoleDto>, ServerFnErr
 
 #[cfg(feature = "server")]
 async fn _list_workspace_roles() -> Result<Vec<WorkspaceRoleDto>, ServerFnError> {
-    use crate::session::{internal, session_workspace};
+    use crate::session::{internal, require_permission, session_workspace};
+    use zeitrak::core::permissions::ROLE_READ;
 
-    let (_, workspace_id) = session_workspace().await?;
+    let (user, workspace_id) = session_workspace().await?;
+    require_permission(&user, ROLE_READ).await?;
+
     let roles = zeitrak::workspace::list_workspace_roles(&workspace_id)
         .await
         .map_err(internal)?;
@@ -56,9 +59,12 @@ pub async fn list_roles_with_permissions() -> Result<Vec<WorkspaceRoleDto>, Serv
 
 #[cfg(feature = "server")]
 async fn _list_roles_with_permissions() -> Result<Vec<WorkspaceRoleDto>, ServerFnError> {
-    use crate::session::{internal, session_workspace};
+    use crate::session::{internal, require_permission, session_workspace};
+    use zeitrak::core::permissions::ROLE_READ;
 
-    let (_, workspace_id) = session_workspace().await?;
+    let (user, workspace_id) = session_workspace().await?;
+    require_permission(&user, ROLE_READ).await?;
+
     let roles = zeitrak::workspace::list_roles_with_permissions(&workspace_id)
         .await
         .map_err(internal)?;
@@ -75,7 +81,7 @@ async fn _list_roles_with_permissions() -> Result<Vec<WorkspaceRoleDto>, ServerF
 
 /// Creates a new role in the current workspace.
 ///
-/// Requires the `role.manage` permission.
+/// Requires the `role.create` permission.
 #[post("/api/workspace-roles/create")]
 pub async fn create_role(name: String) -> Result<String, ServerFnError> {
     #[cfg(feature = "server")]
@@ -92,10 +98,10 @@ pub async fn create_role(name: String) -> Result<String, ServerFnError> {
 #[cfg(feature = "server")]
 async fn _create_role(name: String) -> Result<String, ServerFnError> {
     use crate::session::{internal, require_permission, session_workspace};
-    use zeitrak::core::permissions::ROLE_MANAGE;
+    use zeitrak::core::permissions::ROLE_CREATE;
 
     let (user, workspace_id) = session_workspace().await?;
-    require_permission(&user, ROLE_MANAGE).await?;
+    require_permission(&user, ROLE_CREATE).await?;
 
     let role_id = zeitrak::workspace::create_role(&workspace_id, name)
         .await
@@ -106,7 +112,7 @@ async fn _create_role(name: String) -> Result<String, ServerFnError> {
 
 /// Renames an existing workspace role.
 ///
-/// Requires the `role.manage` permission.
+/// Requires the `role.update` permission.
 #[post("/api/workspace-roles/rename")]
 pub async fn rename_role(role_id: String, name: String) -> Result<(), ServerFnError> {
     #[cfg(feature = "server")]
@@ -123,10 +129,10 @@ pub async fn rename_role(role_id: String, name: String) -> Result<(), ServerFnEr
 #[cfg(feature = "server")]
 async fn _rename_role(role_id: String, name: String) -> Result<(), ServerFnError> {
     use crate::session::{internal, require_permission, session_workspace};
-    use zeitrak::core::permissions::ROLE_MANAGE;
+    use zeitrak::core::permissions::ROLE_UPDATE;
 
     let (user, _) = session_workspace().await?;
-    require_permission(&user, ROLE_MANAGE).await?;
+    require_permission(&user, ROLE_UPDATE).await?;
 
     zeitrak::workspace::rename_role(&role_id, name)
         .await
@@ -136,7 +142,7 @@ async fn _rename_role(role_id: String, name: String) -> Result<(), ServerFnError
 /// Deletes a workspace role.
 ///
 /// Returns an error if any members still have this role assigned.
-/// Requires the `role.manage` permission.
+/// Requires the `role.delete` permission.
 #[post("/api/workspace-roles/delete")]
 pub async fn delete_role(role_id: String) -> Result<(), ServerFnError> {
     #[cfg(feature = "server")]
@@ -153,10 +159,10 @@ pub async fn delete_role(role_id: String) -> Result<(), ServerFnError> {
 #[cfg(feature = "server")]
 async fn _delete_role(role_id: String) -> Result<(), ServerFnError> {
     use crate::session::{internal, require_permission, session_workspace};
-    use zeitrak::core::permissions::ROLE_MANAGE;
+    use zeitrak::core::permissions::ROLE_DELETE;
 
     let (user, _) = session_workspace().await?;
-    require_permission(&user, ROLE_MANAGE).await?;
+    require_permission(&user, ROLE_DELETE).await?;
 
     zeitrak::workspace::delete_role(&role_id)
         .await
@@ -165,7 +171,7 @@ async fn _delete_role(role_id: String) -> Result<(), ServerFnError> {
 
 /// Grants a permission to a workspace role.
 ///
-/// Requires the `role.manage` permission.
+/// Requires the `role.update` permission.
 #[post("/api/workspace-roles/grant-permission")]
 pub async fn grant_role_permission(
     role_id: String,
@@ -188,10 +194,10 @@ async fn _grant_role_permission(
     permission_id: String,
 ) -> Result<(), ServerFnError> {
     use crate::session::{internal, require_permission, session_workspace};
-    use zeitrak::core::permissions::ROLE_MANAGE;
+    use zeitrak::core::permissions::ROLE_UPDATE;
 
     let (user, _) = session_workspace().await?;
-    require_permission(&user, ROLE_MANAGE).await?;
+    require_permission(&user, ROLE_UPDATE).await?;
 
     zeitrak::workspace::grant_role_permission(&role_id, &permission_id)
         .await
@@ -200,7 +206,7 @@ async fn _grant_role_permission(
 
 /// Revokes a permission from a workspace role.
 ///
-/// Requires the `role.manage` permission.
+/// Requires the `role.update` permission.
 #[post("/api/workspace-roles/revoke-permission")]
 pub async fn revoke_role_permission(
     role_id: String,
@@ -223,10 +229,10 @@ async fn _revoke_role_permission(
     permission_id: String,
 ) -> Result<(), ServerFnError> {
     use crate::session::{internal, require_permission, session_workspace};
-    use zeitrak::core::permissions::ROLE_MANAGE;
+    use zeitrak::core::permissions::ROLE_UPDATE;
 
     let (user, _) = session_workspace().await?;
-    require_permission(&user, ROLE_MANAGE).await?;
+    require_permission(&user, ROLE_UPDATE).await?;
 
     zeitrak::workspace::revoke_role_permission(&role_id, &permission_id)
         .await

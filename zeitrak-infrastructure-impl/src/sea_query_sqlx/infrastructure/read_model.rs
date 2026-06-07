@@ -1,5 +1,5 @@
 use sea_query::{Expr, Func, SelectStatement};
-use sqlx::{Row, any::AnyRow};
+use sqlx::{AssertSqlSafe, Row, any::AnyRow};
 
 use super::{ConnectedAdminPool, ConnectionProvider};
 
@@ -44,7 +44,7 @@ impl<'a, P: ConnectionProvider> SeaQueryReadModel<'a, P> {
     /// Returns an error if the query fails or no row is found.
     pub async fn fetch_one_row(&self, stmt: &SelectStatement) -> Result<AnyRow, crate::Error> {
         let (sql, args) = self.pool.build_query(stmt);
-        Ok(sqlx::query_with(&sql, args)
+        Ok(sqlx::query_with(AssertSqlSafe(sql.as_str()), args)
             .fetch_one(self.pool.any_pool())
             .await?)
     }
@@ -59,7 +59,7 @@ impl<'a, P: ConnectionProvider> SeaQueryReadModel<'a, P> {
         stmt: &SelectStatement,
     ) -> Result<Option<AnyRow>, crate::Error> {
         let (sql, args) = self.pool.build_query(stmt);
-        Ok(sqlx::query_with(&sql, args)
+        Ok(sqlx::query_with(AssertSqlSafe(sql.as_str()), args)
             .fetch_optional(self.pool.any_pool())
             .await?)
     }
@@ -74,7 +74,7 @@ impl<'a, P: ConnectionProvider> SeaQueryReadModel<'a, P> {
         stmt: &SelectStatement,
     ) -> Result<Vec<AnyRow>, crate::Error> {
         let (sql, args) = self.pool.build_query(stmt);
-        Ok(sqlx::query_with(&sql, args)
+        Ok(sqlx::query_with(AssertSqlSafe(sql.as_str()), args)
             .fetch_all(self.pool.any_pool())
             .await?)
     }
@@ -86,7 +86,7 @@ impl<'a, P: ConnectionProvider> SeaQueryReadModel<'a, P> {
     /// Returns an error if the query fails.
     pub async fn count_rows(&self, stmt: &SelectStatement) -> Result<u64, crate::Error> {
         let (sql, args) = self.pool.build_query(stmt);
-        let row = sqlx::query_with(&sql, args)
+        let row = sqlx::query_with(AssertSqlSafe(sql.as_str()), args)
             .fetch_one(self.pool.any_pool())
             .await?;
         let n: i64 = row.try_get(0usize)?;

@@ -47,6 +47,8 @@ impl Aggregate for Permission {
     }
 }
 
+impl crate::snapshot_policy::SnapshotPolicy for Permission {}
+
 #[cfg(test)]
 mod tests {
     use super::*;

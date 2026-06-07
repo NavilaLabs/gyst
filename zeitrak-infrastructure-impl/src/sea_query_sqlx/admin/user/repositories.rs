@@ -7,14 +7,16 @@ use eventually::aggregate::{Aggregate, Root};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
 use sea_query::{Alias, Condition, Expr, ExprTrait};
-use sqlx::{Row, any::AnyRow};
+use sqlx::{AssertSqlSafe, Row, any::AnyRow};
 use zeitrak_core::admin::user::{
     User, UserEvent, UserId, UserRepository as UserRepositoryTrait, UserRow,
 };
 use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 
 use crate::{
-    ConnectedAdminPool, infrastructure::read_model::SeaQueryReadModel, snapshot::SnapshotRepository,
+    ConnectedAdminPool,
+    infrastructure::{event_stream::current_stream_version, read_model::SeaQueryReadModel},
+    snapshot::SnapshotRepository,
 };
 
 const TABLE: &str = "projections__users";
@@ -76,6 +78,10 @@ impl UserRepository {
             .try_get::<bool, _>("is_verified")
             .or_else(|_| row.try_get::<i64, _>("is_verified").map(|v| v != 0))
             .unwrap_or(false);
+        let is_instance_admin: bool = row
+            .try_get::<bool, _>("is_instance_admin")
+            .or_else(|_| row.try_get::<i64, _>("is_instance_admin").map(|v| v != 0))
+            .unwrap_or(false);
         Ok(UserRow::new_with_settings(
             id,
             name,
@@ -84,6 +90,17 @@ impl UserRepository {
             date_format,
             language,
             is_verified,
+            is_instance_admin,
+        ))
+    }
+
+    async fn row_to_root_versioned(&self, row: AnyRow) -> Result<Root<User>, crate::Error> {
+        let root = self.row_to_root(row)?;
+        let version =
+            current_stream_version(&self.store.pool, &root.aggregate_id().to_string()).await?;
+        Ok(Root::rehydrate_from_state(
+            version,
+            root.to_aggregate_type::<User>(),
         ))
     }
 
@@ -132,6 +149,10 @@ impl RowToRoot<AnyRow, User> for UserRepository {
             .try_get::<bool, _>("is_verified")
             .or_else(|_| row.try_get::<i64, _>("is_verified").map(|v| v != 0))
             .unwrap_or(false);
+        let is_instance_admin: bool = row
+            .try_get::<bool, _>("is_instance_admin")
+            .or_else(|_| row.try_get::<i64, _>("is_instance_admin").map(|v| v != 0))
+            .unwrap_or(false);
         let verification_token: Option<String> = row.try_get("verification_token").unwrap_or(None);
         let user = User::apply(
             None,
@@ -164,7 +185,13 @@ impl RowToRoot<AnyRow, User> for UserRepository {
         } else {
             user
         };
-        Ok(Root::rehydrate_from_state(0, user)) // TODO: really get the version of the aggregate root.
+        let user = if is_instance_admin {
+            User::apply(Some(user), UserEvent::InstanceAdminGranted {})
+                .expect("InstanceAdminGranted event on Some state is infallible")
+        } else {
+            user
+        };
+        Ok(Root::rehydrate_from_state(0, user))
     }
 }
 
@@ -184,7 +211,11 @@ impl ReadRepository<User, AnyRow> for UserRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
-        row.map(|r| self.row_to_root(r)).transpose()
+        if let Some(row) = row {
+            Ok(Some(self.row_to_root_versioned(row).await?))
+        } else {
+            Ok(None)
+        }
     }
 
     async fn find_many(&self, ids: Vec<UserId>) -> Result<Vec<Root<User>>, crate::Error> {
@@ -200,14 +231,22 @@ impl ReadRepository<User, AnyRow> for UserRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.row_to_root(row)).collect()
+        let mut roots = Vec::with_capacity(rows.len());
+        for row in rows {
+            roots.push(self.row_to_root_versioned(row).await?);
+        }
+        Ok(roots)
     }
 
     async fn all(&self) -> Result<Vec<Root<User>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.row_to_root(row)).collect()
+        let mut roots = Vec::with_capacity(rows.len());
+        for row in rows {
+            roots.push(self.row_to_root_versioned(row).await?);
+        }
+        Ok(roots)
     }
 
     async fn count_by(&self, filter: Condition) -> Result<u64, crate::Error> {
@@ -243,7 +282,7 @@ impl UserRepositoryTrait<AnyRow> for UserRepository {
             .and_where(Expr::col(Alias::new("email")).eq(email))
             .to_owned();
         let (sql, arguments) = self.store.pool.build_query(&statement);
-        let row = sqlx::query_with(&sql, arguments)
+        let row = sqlx::query_with(AssertSqlSafe(sql.as_str()), arguments)
             .fetch_optional(self.store.pool.as_ref())
             .await?;
         row.map(|r| {
@@ -263,7 +302,7 @@ impl UserRepositoryTrait<AnyRow> for UserRepository {
             .and_where(Expr::col(Alias::new("verification_token")).eq(token))
             .to_owned();
         let (sql, arguments) = self.store.pool.build_query(&statement);
-        let row = sqlx::query_with(&sql, arguments)
+        let row = sqlx::query_with(AssertSqlSafe(sql.as_str()), arguments)
             .fetch_optional(self.store.pool.as_ref())
             .await?;
         row.map(|r| {
@@ -288,7 +327,7 @@ impl UserRepositoryTrait<AnyRow> for UserRepository {
 
         tracing::debug!(sql = %sql, "find_credentials_by_email");
 
-        let row = sqlx::query_with(&sql, arguments)
+        let row = sqlx::query_with(AssertSqlSafe(sql.as_str()), arguments)
             .fetch_optional(self.store.pool.as_ref())
             .await?;
 
@@ -299,5 +338,19 @@ impl UserRepositoryTrait<AnyRow> for UserRepository {
             Ok((id, email, hash))
         })
         .transpose()
+    }
+
+    async fn instance_admin_exists(&self) -> Result<bool, crate::Error> {
+        let statement = sea_query::Query::select()
+            .expr(sea_query::Expr::col(Alias::new("id")))
+            .from(Alias::new(TABLE))
+            .and_where(sea_query::Expr::col(Alias::new("is_instance_admin")).eq(true))
+            .limit(1)
+            .to_owned();
+        let (sql, arguments) = self.store.pool.build_query(&statement);
+        let row = sqlx::query_with(AssertSqlSafe(sql.as_str()), arguments)
+            .fetch_optional(self.store.pool.as_ref())
+            .await?;
+        Ok(row.is_some())
     }
 }

@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use eventually_projection::{Projector, RawEvent};
 use sea_query::{DynIden, OnConflict, PostgresQueryBuilder, Query, SqliteQueryBuilder, TableRef};
 use sea_query_sqlx::SqlxBinder;
+use sqlx::AssertSqlSafe;
 use zeitrak_core::admin::user::UserEvent;
 
 use crate::{DatabaseType, Pool, ScopeAdmin, StateConnected};
@@ -59,7 +60,7 @@ impl Projector for UserProjector {
                     DatabaseType::Postgres => query.build_sqlx(PostgresQueryBuilder),
                 };
 
-                sqlx::query_with(&sql, values)
+                sqlx::query_with(AssertSqlSafe(sql.as_str()), values)
                     .execute(self.pool.as_ref())
                     .await?;
 
@@ -100,7 +101,7 @@ impl Projector for UserProjector {
                     }
                 };
 
-                sqlx::query_with(&sql, values)
+                sqlx::query_with(AssertSqlSafe(sql.as_str()), values)
                     .execute(self.pool.as_ref())
                     .await?;
 
@@ -128,7 +129,7 @@ impl Projector for UserProjector {
                     DatabaseType::Postgres => query.build_sqlx(PostgresQueryBuilder),
                 };
 
-                sqlx::query_with(&sql, values)
+                sqlx::query_with(AssertSqlSafe(sql.as_str()), values)
                     .execute(self.pool.as_ref())
                     .await?;
 
@@ -157,7 +158,30 @@ impl Projector for UserProjector {
                     DatabaseType::Postgres => query.build_sqlx(PostgresQueryBuilder),
                 };
 
-                sqlx::query_with(&sql, values)
+                sqlx::query_with(AssertSqlSafe(sql.as_str()), values)
+                    .execute(self.pool.as_ref())
+                    .await?;
+
+                Ok(())
+            }
+            "UserInstanceAdminGranted" => {
+                use sea_query::{Condition, Expr, ExprTrait, Query as SQ};
+
+                let query = SQ::update()
+                    .table(TableRef::from(Self::TABLE))
+                    .values([(DynIden::from("is_instance_admin"), true.into())])
+                    .cond_where(
+                        Condition::all()
+                            .add(Expr::col("id").eq(Expr::val(event.stream_id.clone()))),
+                    )
+                    .to_owned();
+
+                let (sql, values) = match self.pool.database_type() {
+                    DatabaseType::Sqlite => query.build_sqlx(SqliteQueryBuilder),
+                    DatabaseType::Postgres => query.build_sqlx(PostgresQueryBuilder),
+                };
+
+                sqlx::query_with(AssertSqlSafe(sql.as_str()), values)
                     .execute(self.pool.as_ref())
                     .await?;
 

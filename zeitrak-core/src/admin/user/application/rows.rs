@@ -9,6 +9,7 @@ pub struct UserRow {
     pub date_format: String,
     pub language: String,
     pub is_verified: bool,
+    pub is_instance_admin: bool,
 }
 
 impl UserRow {
@@ -22,10 +23,12 @@ impl UserRow {
             date_format: "%Y-%m-%d".to_string(),
             language: "en".to_string(),
             is_verified: false,
+            is_instance_admin: false,
         }
     }
 
     #[must_use]
+    #[allow(clippy::too_many_arguments)]
     pub const fn new_with_settings(
         id: UserId,
         name: String,
@@ -34,6 +37,7 @@ impl UserRow {
         date_format: String,
         language: String,
         is_verified: bool,
+        is_instance_admin: bool,
     ) -> Self {
         Self {
             id,
@@ -43,6 +47,7 @@ impl UserRow {
             date_format,
             language,
             is_verified,
+            is_instance_admin,
         }
     }
 

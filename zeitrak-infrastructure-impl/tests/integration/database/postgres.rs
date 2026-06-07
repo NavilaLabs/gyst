@@ -1,3 +1,4 @@
+use sqlx::AssertSqlSafe;
 use tracing::info;
 use url::Url;
 use zeitrak_infrastructure::{
@@ -44,14 +45,19 @@ async fn reset_entire_database(pool: &ConnectedDefaultPool) -> Result<(), Error>
 
     let admin_database_name = CONFIG.database().databases().admin().name();
     let safe_admin_name = escape_pg_identifier(admin_database_name);
-    sqlx::query(&format!("DROP DATABASE IF EXISTS \"{safe_admin_name}\""))
-        .execute(pool.as_ref())
-        .await?;
+    sqlx::query(AssertSqlSafe(
+        format!("DROP DATABASE IF EXISTS \"{safe_admin_name}\"").as_str(),
+    ))
+    .execute(pool.as_ref())
+    .await?;
 
     let tenant_database_name_prefix = CONFIG.database().databases().tenant().name_prefix();
     let safe_prefix = escape_pg_like_prefix(tenant_database_name_prefix);
-    let tenants: Vec<(String,)> = sqlx::query_as(&format!(
-        "SELECT datname::TEXT FROM pg_database WHERE datname LIKE '{safe_prefix}%' ESCAPE '\\'"
+    let tenants: Vec<(String,)> = sqlx::query_as(AssertSqlSafe(
+        format!(
+            "SELECT datname::TEXT FROM pg_database WHERE datname LIKE '{safe_prefix}%' ESCAPE '\\'"
+        )
+        .as_str(),
     ))
     .fetch_all(pool.as_ref())
     .await?;
@@ -59,7 +65,9 @@ async fn reset_entire_database(pool: &ConnectedDefaultPool) -> Result<(), Error>
     for (tenant_name,) in tenants {
         let safe_tenant_name = escape_pg_identifier(&tenant_name);
         let drop_query = format!("DROP DATABASE CASCADE IF EXISTS \"{safe_tenant_name}\"");
-        sqlx::query(&drop_query).execute(pool.as_ref()).await?;
+        sqlx::query(AssertSqlSafe(drop_query.as_str()))
+            .execute(pool.as_ref())
+            .await?;
     }
 
     Ok(())

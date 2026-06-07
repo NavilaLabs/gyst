@@ -16,7 +16,8 @@ use zeitrak_core::tenant::timesheet::{
 };
 
 use crate::{
-    ConnectedTenantPool, infrastructure::read_model::SeaQueryReadModel,
+    ConnectedTenantPool,
+    infrastructure::{event_stream::current_stream_version, read_model::SeaQueryReadModel},
     snapshot::SnapshotRepository,
 };
 
@@ -55,39 +56,101 @@ impl TimesheetRepository {
         SeaQueryReadModel::new(&self.store.pool, TABLE)
     }
 
-    /// Most-recent 50 non-cancelled timesheets for a user, newest first.
+    /// Returns a page of non-cancelled timesheets for a user, newest first.
+    ///
+    /// Returns `(rows, total_count)` where `total_count` is the full un-paged count.
     ///
     /// # Errors
     ///
     /// Returns an error if the database query fails.
-    pub async fn recent_for_user(&self, user_id: &str) -> Result<Vec<TimesheetRow>, crate::Error> {
+    pub async fn recent_for_user(
+        &self,
+        user_id: &str,
+        page: u32,
+        page_size: u32,
+    ) -> Result<(Vec<TimesheetRow>, u64), crate::Error> {
         let rm = self.read_model();
+        let filter = Condition::all()
+            .add(Expr::col("user_id").eq(user_id))
+            .add(Expr::col("cancelled_at").is_null());
+        let total = rm
+            .count_rows(&rm.select_count().cond_where(filter.clone()).to_owned())
+            .await?;
         let stmt = rm
             .select()
-            .cond_where(
-                Condition::all()
-                    .add(Expr::col("user_id").eq(user_id))
-                    .add(Expr::col("cancelled_at").is_null()),
-            )
+            .cond_where(filter)
             .order_by(Alias::new("start_time"), Order::Desc)
-            .limit(50)
+            .limit(u64::from(page_size))
+            .offset(u64::from(page) * u64::from(page_size))
             .to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|r| Self::map_row(&r)).collect()
+        let items = rows
+            .into_iter()
+            .map(|r| Self::map_row(&r))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok((items, total))
     }
 
-    /// Most-recent 50 non-cancelled timesheets across all users, newest first.
+    /// Returns a page of non-cancelled timesheets across all users, newest first.
+    ///
+    /// `member_id` optionally restricts results to a single user.
+    /// Returns `(rows, total_count)` where `total_count` is the full un-paged count.
     ///
     /// # Errors
     ///
     /// Returns an error if the database query fails.
-    pub async fn recent_for_workspace(&self) -> Result<Vec<TimesheetRow>, crate::Error> {
+    pub async fn recent_for_workspace(
+        &self,
+        page: u32,
+        page_size: u32,
+        member_id: Option<&str>,
+    ) -> Result<(Vec<TimesheetRow>, u64), crate::Error> {
         let rm = self.read_model();
+        let mut filter = Condition::all().add(Expr::col("cancelled_at").is_null());
+        if let Some(uid) = member_id {
+            filter = filter.add(Expr::col("user_id").eq(uid));
+        }
+        let total = rm
+            .count_rows(&rm.select_count().cond_where(filter.clone()).to_owned())
+            .await?;
         let stmt = rm
             .select()
-            .cond_where(Expr::col("cancelled_at").is_null())
+            .cond_where(filter)
             .order_by(Alias::new("start_time"), Order::Desc)
-            .limit(50)
+            .limit(u64::from(page_size))
+            .offset(u64::from(page) * u64::from(page_size))
+            .to_owned();
+        let rows = rm.fetch_all_rows(&stmt).await?;
+        let items = rows
+            .into_iter()
+            .map(|r| Self::map_row(&r))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok((items, total))
+    }
+
+    /// Returns all completed timesheets (`end_time` IS NOT NULL, not cancelled) with
+    /// `start_time >= since_rfc3339`, for a single member or all members.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    pub async fn stats_for_period(
+        &self,
+        member_id: Option<&str>,
+        since_rfc3339: &str,
+    ) -> Result<Vec<TimesheetRow>, crate::Error> {
+        let rm = self.read_model();
+        let mut filter = Condition::all()
+            .add(Expr::col("cancelled_at").is_null())
+            .add(Expr::col("end_time").is_not_null())
+            .add(Expr::col("start_time").gte(since_rfc3339));
+        if let Some(uid) = member_id {
+            filter = filter.add(Expr::col("user_id").eq(uid));
+        }
+        let stmt = rm
+            .select()
+            .cond_where(filter)
+            .order_by(Alias::new("start_time"), Order::Desc)
             .to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
         rows.into_iter().map(|r| Self::map_row(&r)).collect()
@@ -197,6 +260,18 @@ impl RowToRoot<AnyRow, Timesheet> for TimesheetRepository {
     }
 }
 
+impl TimesheetRepository {
+    async fn row_to_root_versioned(&self, row: AnyRow) -> Result<Root<Timesheet>, crate::Error> {
+        let root = self.row_to_root(row)?;
+        let version =
+            current_stream_version(&self.store.pool, &root.aggregate_id().to_string()).await?;
+        Ok(Root::rehydrate_from_state(
+            version,
+            root.to_aggregate_type::<Timesheet>(),
+        ))
+    }
+}
+
 impl zeitrak_core::shared::repositories::Repository<Timesheet, AnyRow> for TimesheetRepository {}
 
 #[async_trait]
@@ -213,7 +288,11 @@ impl ReadRepository<Timesheet, AnyRow> for TimesheetRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
-        row.map(|r| self.row_to_root(r)).transpose()
+        if let Some(row) = row {
+            Ok(Some(self.row_to_root_versioned(row).await?))
+        } else {
+            Ok(None)
+        }
     }
 
     async fn find_many(&self, ids: Vec<TimesheetId>) -> Result<Vec<Root<Timesheet>>, crate::Error> {
@@ -229,14 +308,22 @@ impl ReadRepository<Timesheet, AnyRow> for TimesheetRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.row_to_root(row)).collect()
+        let mut roots = Vec::with_capacity(rows.len());
+        for row in rows {
+            roots.push(self.row_to_root_versioned(row).await?);
+        }
+        Ok(roots)
     }
 
     async fn all(&self) -> Result<Vec<Root<Timesheet>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.row_to_root(row)).collect()
+        let mut roots = Vec::with_capacity(rows.len());
+        for row in rows {
+            roots.push(self.row_to_root_versioned(row).await?);
+        }
+        Ok(roots)
     }
 
     async fn count_by(&self, filter: Condition) -> Result<u64, crate::Error> {
@@ -275,15 +362,33 @@ impl Saver<Timesheet> for TimesheetRepository {
 impl TimesheetRepositoryTrait<AnyRow> for TimesheetRepository {
     type Error = crate::Error;
 
-    async fn recent_for_user(&self, user_id: &str) -> Result<Vec<TimesheetRow>, crate::Error> {
-        self.recent_for_user(user_id).await
+    async fn recent_for_user(
+        &self,
+        user_id: &str,
+        page: u32,
+        page_size: u32,
+    ) -> Result<(Vec<TimesheetRow>, u64), crate::Error> {
+        self.recent_for_user(user_id, page, page_size).await
     }
 
     async fn running_for_user(&self, user_id: &str) -> Result<Option<TimesheetRow>, crate::Error> {
         self.running_for_user(user_id).await
     }
 
-    async fn recent_for_workspace(&self) -> Result<Vec<TimesheetRow>, crate::Error> {
-        self.recent_for_workspace().await
+    async fn recent_for_workspace(
+        &self,
+        page: u32,
+        page_size: u32,
+        member_id: Option<&str>,
+    ) -> Result<(Vec<TimesheetRow>, u64), crate::Error> {
+        self.recent_for_workspace(page, page_size, member_id).await
+    }
+
+    async fn stats_for_period(
+        &self,
+        member_id: Option<&str>,
+        since_rfc3339: &str,
+    ) -> Result<Vec<TimesheetRow>, crate::Error> {
+        self.stats_for_period(member_id, since_rfc3339).await
     }
 }

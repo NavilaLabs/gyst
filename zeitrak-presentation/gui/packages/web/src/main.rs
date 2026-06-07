@@ -1,9 +1,12 @@
+use std::sync::Arc;
+
 use api::auth::UserInfo;
+use api::plugin_ctx::ZeitrakPluginCtx;
 use api::settings::{UserSettingsDto, WorkspaceSettingsDto};
 use dioxus::prelude::*;
+use dioxus_extism_frontend::{PluginBootProvider, SessionProviderRoot, WebSessionProvider};
 use dioxus_i18n::{prelude::*, tid};
 use dioxus_motion::prelude::*;
-use easer::functions::Easing;
 #[cfg(feature = "landing")]
 use ui::views::LandingPage;
 use ui::{
@@ -12,11 +15,12 @@ use ui::{
         organisms::{Header, Sidebar},
     },
     views::{
-        setup::Setup, Activities, Dashboard, Database, InvitationAccept, Login, Register,
-        SelectWorkspace, Settings, Tags, Timesheets, VerifyEmailConfirm, VerifyEmailPending,
+        setup::Setup, Activities, Dashboard, Database, InvitationAccept, Login, PluginPage,
+        Register, SelectWorkspace, Settings, Tags, Timesheets, VerifyEmailConfirm,
+        VerifyEmailPending,
     },
-    ActivitiesCache, GlobalStyles, RunningElapsed, RunningTimer, SidebarOpen, TagsCache,
-    TimesheetsCache, UserSettings, WorkspaceSettings, FAVICON,
+    ActivitiesCache, GlobalStyles, NavDirection, RunningElapsed, RunningTimer, SidebarOpen,
+    TagsCache, UserSettings, WorkspaceSettings, FAVICON,
 };
 use unic_langid::langid;
 
@@ -29,9 +33,13 @@ pub type AuthState = Signal<Option<Option<UserInfo>>>;
 
 #[component]
 fn Landing() -> Element {
+    let nav = use_navigator();
+
     #[cfg(feature = "landing")]
-    rsx! { LandingPage {} }
-    #[cfg(not(feature = "landing"))]
+    return rsx! { LandingPage {} };
+
+    // When the landing page feature is disabled, redirect directly to the app.
+    nav.replace(Route::Dashboard {});
     rsx! {}
 }
 
@@ -88,6 +96,11 @@ enum Route {
                     #[route("/settings")]
                     Settings {},
 
+                    // Catch-all for plugin pages (§12.4 / step 30).
+                    // Must come after all named routes so it doesn't shadow them.
+                    #[route("/plugin/:plugin_id/:..rest")]
+                    PluginPage { plugin_id: String, rest: Vec<String> },
+
                     #[layout(RequireAdmin)]
                         #[route("/developer/database")]
                         Database {},
@@ -104,6 +117,29 @@ enum Route {
     NotFound { route: Vec<String> },
 }
 
+/// Maps each route to a linear index used to compute navigation direction.
+/// Higher index = "further right" in the conceptual flow of the app.
+/// Returns -1 for routes that don't participate in directional transitions.
+fn route_idx(route: &Route) -> i32 {
+    match route {
+        Route::Login { .. } => 0,
+        Route::Setup { .. } => 1,
+        Route::Register { .. } => 1,
+        Route::InvitationAccept { .. } => 1,
+        Route::VerifyEmailPending { .. } => 1,
+        Route::VerifyEmailConfirm { .. } => 1,
+        Route::SelectWorkspace { .. } => 2,
+        Route::Dashboard { .. } => 3,
+        Route::Timesheets { .. } => 4,
+        Route::Activities { .. } => 5,
+        Route::Tags { .. } => 6,
+        Route::Settings { .. } => 7,
+        Route::Database { .. } => 8,
+        Route::PluginPage { .. } => 9,
+        _ => -1,
+    }
+}
+
 #[cfg(not(feature = "server"))]
 fn main() {
     dotenvy::from_filename_override(".env").ok();
@@ -117,9 +153,7 @@ fn main() {
 /// stores it in the admin database, then redirects back to the settings page.
 #[cfg(feature = "server")]
 async fn oauth2_callback_handler(
-    axum::extract::Query(params): axum::extract::Query<
-        std::collections::HashMap<String, String>,
-    >,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
 ) -> axum::response::Response {
     use axum::response::IntoResponse as _;
 
@@ -130,8 +164,7 @@ async fn oauth2_callback_handler(
         Ok(()) => axum::response::Redirect::to("/settings?smtp=authorized").into_response(),
         Err(e) => {
             let msg = urlencoding::encode(&e.to_string()).into_owned();
-            axum::response::Redirect::to(&format!("/settings?smtp=error&msg={msg}"))
-                .into_response()
+            axum::response::Redirect::to(&format!("/settings?smtp=error&msg={msg}")).into_response()
         }
     }
 }
@@ -153,12 +186,22 @@ async fn main() {
         .with_secure(false)
         .with_same_site(tower_sessions::cookie::SameSite::Lax);
 
+    // Build the zeitrak plugin host and register it with the Axum router so that
+    // dioxus-extism server functions (get_slot_content, get_route_transforms, etc.)
+    // can access the runtime via request extensions.
+    let plugin_host = zeitrak_plugin_host::PluginHost::new()
+        .await
+        .expect("failed to initialise PluginHost");
+    let plugin_runtime = plugin_host.runtime().clone();
+
+    use dioxus_extism_host::PluginRuntimeExt as _;
     let router = axum::Router::new()
         .route(
             "/api/smtp/oauth2/callback",
             axum::routing::get(oauth2_callback_handler),
         )
         .serve_dioxus_application(dioxus_server::ServeConfig::new(), App)
+        .with_plugin_runtime(plugin_runtime)
         .layer(session_layer);
 
     let listener = tokio::net::TcpListener::bind(address).await.unwrap();
@@ -172,47 +215,6 @@ fn App() -> Element {
     // Global auth state — available to every component in the tree.
     use_context_provider(|| Signal::new(None::<Option<UserInfo>>));
     use_init_i18n(ui::i18n::i18n_config);
-
-    let resolver: TransitionVariantResolver<Route> = std::rc::Rc::new(|from, to| {
-        fn idx(route: &Route) -> i32 {
-            match route {
-                Route::Login { .. } => 0,
-                Route::Setup { .. } => 1,
-                Route::Register { .. } => 1,
-                Route::InvitationAccept { .. } => 1,
-                Route::VerifyEmailPending { .. } => 1,
-                Route::VerifyEmailConfirm { .. } => 1,
-                Route::SelectWorkspace { .. } => 2,
-                Route::Dashboard { .. } => 3,
-                Route::Activities { .. } => 4,
-                Route::Timesheets { .. } => 5,
-                Route::Tags { .. } => 6,
-                Route::Settings { .. } => 7,
-                Route::Database { .. } => 8,
-                _ => -1,
-            }
-        }
-        let from_idx = idx(from);
-        let to_idx = idx(to);
-        if from_idx != -1 && to_idx != -1 {
-            if to_idx > from_idx {
-                TransitionVariant::SlideLeft
-            } else if to_idx < from_idx {
-                TransitionVariant::SlideRight
-            } else {
-                TransitionVariant::Fade
-            }
-        } else {
-            to.get_transition()
-        }
-    });
-    use_context_provider(|| resolver);
-
-    let tween = use_signal(|| Tween {
-        duration: std::time::Duration::from_millis(500),
-        easing: easer::functions::Cubic::ease_in_out,
-    });
-    use_context_provider(|| tween);
 
     rsx! {
         GlobalStyles {}
@@ -234,7 +236,14 @@ fn App() -> Element {
             href: "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
         }
 
-        Router::<Route> {}
+        // Wrap with plugin session + boot providers so PluginSlot / PluginBootProvider
+        // can access ClientCapabilities and the OverrideMap at boot time.
+        SessionProviderRoot {
+            provider: WebSessionProvider,
+            PluginBootProvider {
+                Router::<Route> {}
+            }
+        }
     }
 }
 
@@ -244,6 +253,23 @@ fn App() -> Element {
 fn Layout() -> Element {
     let mut auth: AuthState = use_context();
     let mut i18n = i18n();
+
+    // Provide plugin host context (§12.1) so PluginSlot / OverridableComponent /
+    // PluginAwareRouter can access the current user's identity for capability gating.
+    // Re-evaluated on every re-render so the context tracks auth state reactively.
+    let plugin_ctx = use_memo(move || {
+        Arc::new(match auth.read().as_ref().and_then(Option::as_ref) {
+            Some(user) => ZeitrakPluginCtx {
+                user_id: Some(user.id.clone()),
+                email: Some(user.email.clone()),
+                workspace_id: user.workspace_id.clone(),
+                is_admin: user.is_admin,
+            },
+            None => ZeitrakPluginCtx::default(),
+        })
+    });
+    #[allow(clippy::redundant_closure)]
+    use_context_provider(move || plugin_ctx());
 
     // Provide toast context for all descendant views.
     use_context_provider(|| Signal::new(Vec::<ToastMessage>::new()));
@@ -274,7 +300,6 @@ fn Layout() -> Element {
     // Provide entity caches — views read from these to avoid the empty-then-loaded flash.
     let mut activities_cache: ActivitiesCache = use_context_provider(|| Signal::new(Vec::new()));
     let mut tags_cache: TagsCache = use_context_provider(|| Signal::new(Vec::new()));
-    let mut timesheets_cache: TimesheetsCache = use_context_provider(|| Signal::new(Vec::new()));
 
     // Provide user and workspace settings with sane defaults; refreshed after login.
     let mut user_settings: UserSettings = use_context_provider(|| {
@@ -350,12 +375,24 @@ fn Layout() -> Element {
         if let Ok(list) = api::timesheet_tag::list_tags().await {
             tags_cache.set(list);
         }
-        if let Ok(list) = api::timesheet::list_timesheets().await {
-            timesheets_cache.set(list);
-        }
     });
 
     let route: Route = use_route();
+
+    // Compute navigation direction for the CSS slide-in animation in DefaultLayout.
+    // We set the signal during render (before children render) so DefaultLayout reads
+    // the correct direction at mount time via peek().
+    let mut nav_direction: NavDirection = use_context_provider(|| Signal::new(0i8));
+    let current_idx = route_idx(&route);
+    let mut prev_route_idx = use_signal(move || current_idx);
+    {
+        let prev = *prev_route_idx.peek();
+        if current_idx != prev {
+            nav_direction.set(if current_idx > prev { 1 } else { -1 });
+            prev_route_idx.set(current_idx);
+        }
+    }
+
     let view_title = match &route {
         Route::Dashboard {} => tid!("layout-title-dashboard"),
         Route::Activities {} => tid!("layout-title-activities"),
@@ -372,6 +409,7 @@ fn Layout() -> Element {
         Route::VerifyEmailConfirm { .. } => tid!("layout-title-verify-email"),
         Route::Landing {} => String::new(),
         Route::NotFound { .. } => tid!("layout-title-not-found"),
+        Route::PluginPage { plugin_id, .. } => plugin_id.clone(),
     };
 
     // Build "Workspace / View" title; show only the view name while on non-workspace routes.
@@ -401,7 +439,7 @@ fn Layout() -> Element {
             div { class: "app-right",
                 Header { title: page_title }
                 main { class: "app-main",
-                    AnimatedOutlet::<Route> {}
+                    Outlet::<Route> {}
                 }
             }
         }
@@ -415,13 +453,16 @@ fn Layout() -> Element {
 #[component]
 fn RequireSetupComplete() -> Element {
     let nav = use_navigator();
+    let route: Route = use_route();
     let complete = use_resource(|| async { api::setup::is_setup_complete().await });
 
     match complete.value().cloned() {
         None => rsx! {},
         Some(Ok(true)) => rsx! { Outlet::<Route> {} },
         Some(Ok(false)) | Some(Err(_)) => {
-            nav.replace(Route::Setup {});
+            if !matches!(route, Route::Setup {}) {
+                nav.replace(Route::Setup {});
+            }
             rsx! {}
         }
     }
@@ -431,13 +472,16 @@ fn RequireSetupComplete() -> Element {
 #[component]
 fn RequireSetupIncomplete() -> Element {
     let nav = use_navigator();
+    let route: Route = use_route();
     let complete = use_resource(|| async { api::setup::is_setup_complete().await });
 
     match complete.value().cloned() {
         None => rsx! {},
         Some(Err(_)) | Some(Ok(false)) => rsx! { Outlet::<Route> {} },
         Some(Ok(true)) => {
-            nav.replace(Route::Login {});
+            if !matches!(route, Route::Login {}) {
+                nav.replace(Route::Login {});
+            }
             rsx! {}
         }
     }
@@ -448,15 +492,18 @@ fn RequireSetupIncomplete() -> Element {
 #[component]
 fn RequireAuth() -> Element {
     let nav = use_navigator();
+    let route: Route = use_route();
     let auth: AuthState = use_context();
 
     match auth.cloned() {
         None => rsx! {},
         Some(None) => {
-            nav.replace(Route::Login {});
+            if !matches!(route, Route::Login {}) {
+                nav.replace(Route::Login {});
+            }
             rsx! {}
         }
-        Some(Some(_)) => rsx! { AnimatedOutlet::<Route> {} },
+        Some(Some(_)) => rsx! { Outlet::<Route> {} },
     }
 }
 
@@ -465,15 +512,17 @@ fn RequireAuth() -> Element {
 #[component]
 fn RequireWorkspace() -> Element {
     let nav = use_navigator();
+    let route: Route = use_route();
     let auth: AuthState = use_context();
 
     match auth.cloned() {
         Some(Some(user)) if user.workspace_id.is_some() => {
-            rsx! { AnimatedOutlet::<Route> {} }
+            rsx! { Outlet::<Route> {} }
         }
         Some(Some(_)) => {
-            // Authenticated but no workspace selected yet.
-            nav.replace(Route::SelectWorkspace {});
+            if !matches!(route, Route::SelectWorkspace {}) {
+                nav.replace(Route::SelectWorkspace {});
+            }
             rsx! {}
         }
         // Loading or unauthenticated — RequireAuth above handles these.
@@ -485,12 +534,15 @@ fn RequireWorkspace() -> Element {
 #[component]
 fn RequireAdmin() -> Element {
     let nav = use_navigator();
+    let route: Route = use_route();
     let auth: AuthState = use_context();
 
     match auth.cloned() {
         Some(Some(user)) if user.is_admin => rsx! { Outlet::<Route> {} },
         Some(Some(_)) => {
-            nav.replace(Route::Dashboard {});
+            if !matches!(route, Route::Dashboard {}) {
+                nav.replace(Route::Dashboard {});
+            }
             rsx! {}
         }
         // Loading or unauthenticated — RequireAuth handles these cases above us.

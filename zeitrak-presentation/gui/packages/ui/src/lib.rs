@@ -109,10 +109,23 @@ pub type ActivitiesCache = Signal<Vec<api::activity::ActivityDto>>;
 /// Global cache of all tags. Pre-populated in `Layout` so views start with data.
 pub type TagsCache = Signal<Vec<api::timesheet_tag::TimesheetsTagDto>>;
 
-/// Global cache of recent timesheets. Pre-populated in `Layout` so views start with data.
-pub type TimesheetsCache = Signal<Vec<api::timesheet::TimesheetDto>>;
-
 /// Whether the sidebar is open/expanded (`true`) or collapsed/hidden (`false`).
 /// On desktop: `true` = full sidebar, `false` = icon-only collapsed.
 /// On mobile: `true` = drawer visible, `false` = drawer hidden.
 pub type SidebarOpen = Signal<bool>;
+
+/// Navigation direction used to select the page-enter animation in `DefaultLayout`.
+///
+/// - `1`  → forward  (entering from the right, e.g. Dashboard → Timesheets)
+/// - `-1` → backward (entering from the left,  e.g. Timesheets → Dashboard)
+/// - `0`  → initial load / no direction preference
+///
+/// Set by the top-level `Layout` component during every render that detects a route change.
+pub type NavDirection = Signal<i8>;
+
+/// Frontend plugin host context (§12.1).
+///
+/// Provided via `use_context_provider` in the root `Layout` so that
+/// `PluginSlot<PluginHostCtx>`, `OverridableComponent<PluginHostCtx>`, and
+/// `PluginAwareRouter<_, PluginHostCtx>` can access user identity for capability gating.
+pub type PluginHostCtx = std::sync::Arc<api::plugin_ctx::ZeitrakPluginCtx>;

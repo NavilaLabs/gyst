@@ -14,17 +14,106 @@ pub struct TimesheetDto {
     pub description: Option<String>,
     pub timezone: String,
     pub tags: Vec<TimesheetsTagDto>,
+    /// Display name of the member who created this timesheet.
+    /// Populated only when the caller has `timesheet.read_all` access.
+    pub member_name: Option<String>,
 }
 
-#[get("/api/timesheets/recent")]
-pub async fn list_timesheets() -> Result<Vec<TimesheetDto>, ServerFnError> {
+/// A page of timesheet results with server-side pagination metadata.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TimesheetPageDto {
+    pub items: Vec<TimesheetDto>,
+    pub total: u64,
+    pub page: u32,
+    pub page_size: u32,
+    /// `true` when the caller has `timesheet.read_all` and may use the `member_id` filter.
+    pub can_filter_members: bool,
+}
+
+/// One time bucket in the dashboard bar chart.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DailyChartPoint {
+    /// Human-readable label for the bucket (e.g. "Mon", "Jun 1", "Jan").
+    pub label: String,
+    /// `(activity_id, activity_name, color, hours)` segments for this bucket.
+    pub segments: Vec<(String, String, String, f32)>,
+}
+
+/// One slice in the dashboard activity-mix donut.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ActivityMixPoint {
+    pub activity_id: String,
+    pub activity_name: String,
+    pub color: String,
+    pub hours: f32,
+    pub percentage: f32,
+}
+
+/// Chart aggregation period for `dashboard_stats`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum DashboardPeriod {
+    Week,
+    Month,
+    Year,
+}
+
+/// Pre-aggregated stats returned by `dashboard_stats`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DashboardStatsDto {
+    pub today_hours: f32,
+    pub week_hours: f32,
+    pub streak: u32,
+    /// Last six completed timesheets, newest first (tags populated).
+    pub recent_entries: Vec<TimesheetDto>,
+    pub chart_bars: Vec<DailyChartPoint>,
+    pub activity_mix: Vec<ActivityMixPoint>,
+    /// `true` when the caller has `timesheet.read_all` and may use the `member_id` filter.
+    pub can_filter_members: bool,
+}
+
+#[post("/api/timesheets/recent")]
+pub async fn list_timesheets(
+    page: u32,
+    member_id: Option<String>,
+) -> Result<TimesheetPageDto, ServerFnError> {
     #[cfg(feature = "server")]
     {
-        _list_timesheets().await
+        _list_timesheets(page, member_id).await
     }
     #[cfg(not(feature = "server"))]
     {
-        Ok(vec![])
+        let _ = (page, member_id);
+        Ok(TimesheetPageDto {
+            items: vec![],
+            total: 0,
+            page: 0,
+            page_size: 20,
+            can_filter_members: false,
+        })
+    }
+}
+
+#[post("/api/timesheets/dashboard-stats")]
+pub async fn dashboard_stats(
+    member_id: Option<String>,
+    period: DashboardPeriod,
+) -> Result<DashboardStatsDto, ServerFnError> {
+    #[cfg(feature = "server")]
+    {
+        _dashboard_stats(member_id, period).await
+    }
+    #[cfg(not(feature = "server"))]
+    {
+        let _ = (member_id, period);
+        Ok(DashboardStatsDto {
+            today_hours: 0.0,
+            week_hours: 0.0,
+            streak: 0,
+            recent_entries: vec![],
+            chart_bars: vec![],
+            activity_mix: vec![],
+            can_filter_members: false,
+        })
     }
 }
 
@@ -161,6 +250,7 @@ pub async fn cancel_timesheet(timesheet_id: String) -> Result<(), ServerFnError>
 fn row_to_dto(
     r: zeitrak::core::tenant::timesheet::TimesheetRow,
     tags: Vec<TimesheetsTagDto>,
+    member_name: Option<String>,
 ) -> TimesheetDto {
     TimesheetDto {
         id: r.id().to_string(),
@@ -172,14 +262,23 @@ fn row_to_dto(
         description: r.description().map(String::from),
         timezone: r.timezone().to_string(),
         tags,
+        member_name,
     }
 }
 
 #[cfg(feature = "server")]
-async fn _list_timesheets() -> Result<Vec<TimesheetDto>, ServerFnError> {
+async fn _list_timesheets(
+    page: u32,
+    member_id: Option<String>,
+) -> Result<TimesheetPageDto, ServerFnError> {
+    use std::collections::HashMap;
+
     use crate::session;
     use zeitrak::authentication::CurrentUser;
     use zeitrak::authorization::AuthorizationService;
+    use zeitrak::core::permissions;
+
+    const PAGE_SIZE: u32 = 20;
 
     let (user, workspace_id) = session::session_workspace().await?;
 
@@ -190,15 +289,42 @@ async fn _list_timesheets() -> Result<Vec<TimesheetDto>, ServerFnError> {
     let is_admin = AuthorizationService::is_admin(&current_user.id)
         .await
         .map_err(session::internal)?;
+    let can_read_all = is_admin
+        || AuthorizationService::has_permission(
+            &current_user.id,
+            &workspace_id,
+            permissions::TIMESHEET_READ_ALL,
+        )
+        .await
+        .map_err(session::internal)?;
 
-    let rows = if is_admin {
-        zeitrak::tenant::timesheet::recent_all(&workspace_id)
+    // Security: member_id filter is only applied when the caller has read_all.
+    let effective_member_id = if can_read_all {
+        member_id.as_deref()
+    } else {
+        None
+    };
+
+    let (rows, total) = if can_read_all {
+        zeitrak::tenant::timesheet::recent_all(&workspace_id, page, PAGE_SIZE, effective_member_id)
             .await
             .map_err(session::internal)?
     } else {
-        zeitrak::tenant::timesheet::recent(&workspace_id, &user.id)
+        zeitrak::tenant::timesheet::recent(&workspace_id, &user.id, page, PAGE_SIZE)
             .await
             .map_err(session::internal)?
+    };
+
+    // Build user_id → display name map when viewing all workspace timesheets.
+    let member_names: HashMap<String, String> = if can_read_all {
+        zeitrak::workspace::list_workspace_members(&workspace_id)
+            .await
+            .map_err(session::internal)?
+            .into_iter()
+            .map(|m| (m.user_id, m.name))
+            .collect()
+    } else {
+        HashMap::new()
     };
 
     let ids: Vec<String> = rows.iter().map(|r| r.id().to_string()).collect();
@@ -208,10 +334,16 @@ async fn _list_timesheets() -> Result<Vec<TimesheetDto>, ServerFnError> {
             .await
             .map_err(session::internal)?;
 
-    Ok(rows
+    let items = rows
         .into_iter()
         .map(|r| {
             let id = r.id().to_string();
+            let member_name = if can_read_all {
+                let uid = r.user_id().to_string();
+                member_names.get(uid.as_str()).cloned()
+            } else {
+                None
+            };
             let tags = tags_map
                 .remove(&id)
                 .unwrap_or_default()
@@ -221,9 +353,17 @@ async fn _list_timesheets() -> Result<Vec<TimesheetDto>, ServerFnError> {
                     name: t.name().to_string(),
                 })
                 .collect();
-            row_to_dto(r, tags)
+            row_to_dto(r, tags, member_name)
         })
-        .collect())
+        .collect();
+
+    Ok(TimesheetPageDto {
+        items,
+        total,
+        page,
+        page_size: PAGE_SIZE,
+        can_filter_members: can_read_all,
+    })
 }
 
 #[cfg(feature = "server")]
@@ -234,7 +374,7 @@ async fn _running_timesheet() -> Result<Option<TimesheetDto>, ServerFnError> {
     let row = zeitrak::tenant::timesheet::running(&workspace_id, &user.id)
         .await
         .map_err(session::internal)?;
-    Ok(row.map(|r| row_to_dto(r, vec![])))
+    Ok(row.map(|r| row_to_dto(r, vec![], None)))
 }
 
 #[cfg(feature = "server")]
@@ -256,7 +396,7 @@ async fn _start_timesheet(
     )
     .await
     .map_err(session::internal)?;
-    Ok(row_to_dto(r, vec![]))
+    Ok(row_to_dto(r, vec![], None))
 }
 
 #[cfg(feature = "server")]
@@ -328,7 +468,7 @@ async fn _create_timesheet_manual(
     )
     .await
     .map_err(session::internal)?;
-    Ok(row_to_dto(r, vec![]))
+    Ok(row_to_dto(r, vec![], None))
 }
 
 #[cfg(feature = "server")]
@@ -359,9 +499,311 @@ async fn _cancel_timesheet(timesheet_id: String) -> Result<(), ServerFnError> {
     use zeitrak::core::permissions;
 
     let (user, workspace_id) = session::session_workspace().await?;
-    session::require_permission(&user, permissions::TIMESHEET_CANCEL).await?;
+    session::require_permission(&user, permissions::TIMESHEET_DELETE).await?;
 
     zeitrak::tenant::timesheet::cancel(&workspace_id, &timesheet_id)
         .await
         .map_err(session::internal)
+}
+
+#[cfg(feature = "server")]
+async fn _dashboard_stats(
+    member_id: Option<String>,
+    period: DashboardPeriod,
+) -> Result<DashboardStatsDto, ServerFnError> {
+    use std::collections::HashMap;
+
+    use chrono::{Datelike, Duration, NaiveDate, Utc};
+
+    use crate::session;
+    use zeitrak::authentication::CurrentUser;
+    use zeitrak::authorization::AuthorizationService;
+    use zeitrak::core::permissions;
+
+    let (user, workspace_id) = session::session_workspace().await?;
+    let current_user = CurrentUser {
+        id: user.id.clone(),
+        email: user.email.clone(),
+    };
+    let is_admin = AuthorizationService::is_admin(&current_user.id)
+        .await
+        .map_err(session::internal)?;
+    let can_read_all = is_admin
+        || AuthorizationService::has_permission(
+            &current_user.id,
+            &workspace_id,
+            permissions::TIMESHEET_READ_ALL,
+        )
+        .await
+        .map_err(session::internal)?;
+
+    // Security: member_id filter is only applied when the caller has read_all.
+    let effective_member_id: Option<&str> = if can_read_all {
+        member_id.as_deref()
+    } else {
+        Some(user.id.as_str())
+    };
+
+    // Compute the date window based on period.
+    let today = Utc::now().date_naive();
+    let days_back = match period {
+        DashboardPeriod::Week => 6i64,
+        DashboardPeriod::Month => 27,
+        DashboardPeriod::Year => 364,
+    };
+    let since_date = today - Duration::days(days_back);
+    // Use one extra day as buffer so start-of-day timesheets are not clipped by timezone.
+    let since_rfc = format!("{since_date}T00:00:00Z");
+
+    let rows = zeitrak::tenant::timesheet::stats_for_period(
+        &workspace_id,
+        effective_member_id,
+        &since_rfc,
+    )
+    .await
+    .map_err(session::internal)?;
+
+    // Build activity lookup map (id → (name, color)).
+    let act_rows = zeitrak::tenant::activity::list(&workspace_id)
+        .await
+        .map_err(session::internal)?;
+    let act_map: HashMap<String, (String, String)> = act_rows
+        .iter()
+        .map(|a| {
+            (
+                a.id().to_string(),
+                (a.name().to_string(), a.color().to_string()),
+            )
+        })
+        .collect();
+
+    // ── KPI calculations ──────────────────────────────────────────────────────
+
+    let days_from_monday = today.weekday().num_days_from_monday() as i64;
+    let week_start = today - Duration::days(days_from_monday);
+
+    let parse_date = |s: &str| -> Option<NaiveDate> {
+        chrono::DateTime::parse_from_rfc3339(s)
+            .ok()
+            .map(|dt| dt.date_naive())
+            .or_else(|| {
+                chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f")
+                    .ok()
+                    .map(|dt| dt.date())
+            })
+    };
+
+    let today_hours: f32 = rows
+        .iter()
+        .filter(|ts| ts.duration().is_some() && parse_date(ts.start_time()) == Some(today))
+        .map(|ts| ts.duration().unwrap_or(0) as f32 / 3600.0)
+        .sum();
+
+    let week_hours: f32 = rows
+        .iter()
+        .filter(|ts| {
+            ts.duration().is_some()
+                && parse_date(ts.start_time())
+                    .map(|d| d >= week_start)
+                    .unwrap_or(false)
+        })
+        .map(|ts| ts.duration().unwrap_or(0) as f32 / 3600.0)
+        .sum();
+
+    // Streak: consecutive days with at least one completed timesheet, counting back from today.
+    let mut streak = 0u32;
+    let mut check = today;
+    loop {
+        let has_entry = rows
+            .iter()
+            .any(|ts| ts.duration().is_some() && parse_date(ts.start_time()) == Some(check));
+        if has_entry {
+            streak += 1;
+            check -= Duration::days(1);
+        } else {
+            break;
+        }
+    }
+
+    // ── Activity mix ──────────────────────────────────────────────────────────
+
+    let mut mix_map: HashMap<String, f32> = HashMap::new();
+    for ts in &rows {
+        if let (Some(aid), Some(dur)) = (ts.activity_id().map(|id| id.to_string()), ts.duration()) {
+            if dur > 0 {
+                *mix_map.entry(aid).or_insert(0.0) += dur as f32 / 3600.0;
+            }
+        }
+    }
+    let total_mix_hours: f32 = mix_map.values().copied().sum();
+    let mut activity_mix: Vec<ActivityMixPoint> = mix_map
+        .into_iter()
+        .map(|(aid, hours)| {
+            let (name, color) = act_map
+                .get(&aid)
+                .cloned()
+                .unwrap_or_else(|| ("—".to_string(), "#6c6c76".to_string()));
+            let percentage = if total_mix_hours > 0.0 {
+                hours / total_mix_hours * 100.0
+            } else {
+                0.0
+            };
+            ActivityMixPoint {
+                activity_id: aid,
+                activity_name: name,
+                color,
+                hours,
+                percentage,
+            }
+        })
+        .collect();
+    activity_mix.sort_by(|a, b| {
+        b.hours
+            .partial_cmp(&a.hours)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    // ── Chart bars ────────────────────────────────────────────────────────────
+
+    let bucket_segs =
+        |bucket_rows: Vec<&zeitrak::core::tenant::timesheet::TimesheetRow>| -> Vec<(String, String, String, f32)> {
+            let mut map: HashMap<String, f32> = HashMap::new();
+            for ts in bucket_rows {
+                if let Some(dur) = ts.duration() {
+                    if dur > 0 {
+                        let key = ts.activity_id().map(|id| id.to_string()).unwrap_or_default();
+                        *map.entry(key).or_insert(0.0) += dur as f32 / 3600.0;
+                    }
+                }
+            }
+            let mut segs: Vec<(String, String, String, f32)> = map
+                .into_iter()
+                .map(|(aid, hours)| {
+                    let (name, color) = act_map
+                        .get(&aid)
+                        .cloned()
+                        .unwrap_or_else(|| ("—".to_string(), "#6c6c76".to_string()));
+                    (aid, name, color, hours)
+                })
+                .collect();
+            segs.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap_or(std::cmp::Ordering::Equal));
+            segs
+        };
+
+    let chart_bars: Vec<DailyChartPoint> = match period {
+        DashboardPeriod::Week => (0..7)
+            .map(|i| {
+                let day = today - Duration::days(6 - i as i64);
+                let bucket: Vec<&zeitrak::core::tenant::timesheet::TimesheetRow> = rows
+                    .iter()
+                    .filter(|ts| {
+                        ts.duration().is_some() && parse_date(ts.start_time()) == Some(day)
+                    })
+                    .collect();
+                DailyChartPoint {
+                    label: day.format("%a").to_string(),
+                    segments: bucket_segs(bucket),
+                }
+            })
+            .collect(),
+        DashboardPeriod::Month => (0..4)
+            .map(|w| {
+                let week_end = today - Duration::days((3 - w as i64) * 7);
+                let week_start_b = week_end - Duration::days(6);
+                let bucket: Vec<&zeitrak::core::tenant::timesheet::TimesheetRow> = rows
+                    .iter()
+                    .filter(|ts| {
+                        ts.duration().is_some()
+                            && parse_date(ts.start_time())
+                                .map(|d| d >= week_start_b && d <= week_end)
+                                .unwrap_or(false)
+                    })
+                    .collect();
+                DailyChartPoint {
+                    label: week_start_b.format("%-d.%-m").to_string(),
+                    segments: bucket_segs(bucket),
+                }
+            })
+            .collect(),
+        DashboardPeriod::Year => (0..12)
+            .map(|m| {
+                let month_offset = 11 - m as i32;
+                let target_month =
+                    ((today.month() as i32 - month_offset - 1).rem_euclid(12) + 1) as u32;
+                let target_year =
+                    today.year() - (month_offset + 12 - today.month() as i32).max(0) / 12;
+                let bucket: Vec<&zeitrak::core::tenant::timesheet::TimesheetRow> = rows
+                    .iter()
+                    .filter(|ts| {
+                        ts.duration().is_some()
+                            && parse_date(ts.start_time())
+                                .map(|d| d.year() == target_year && d.month() == target_month)
+                                .unwrap_or(false)
+                    })
+                    .collect();
+                let lbl_date =
+                    NaiveDate::from_ymd_opt(today.year(), target_month, 1).unwrap_or(today);
+                DailyChartPoint {
+                    label: lbl_date.format("%b").to_string(),
+                    segments: bucket_segs(bucket),
+                }
+            })
+            .collect(),
+    };
+
+    // ── Recent entries (last 6) with tags ─────────────────────────────────────
+
+    // `rows` is already ordered newest-first (see stats_for_period query).
+    let recent_rows: Vec<_> = rows.iter().take(6).collect();
+    let recent_ids: Vec<String> = recent_rows.iter().map(|r| r.id().to_string()).collect();
+    let recent_id_refs: Vec<&str> = recent_ids.iter().map(String::as_str).collect();
+    let mut recent_tags_map =
+        zeitrak::tenant::timesheet_tag::for_timesheets_batch(&workspace_id, &recent_id_refs)
+            .await
+            .map_err(session::internal)?;
+
+    // Build member name map for recent entries.
+    let member_names: HashMap<String, String> = if can_read_all {
+        zeitrak::workspace::list_workspace_members(&workspace_id)
+            .await
+            .map_err(session::internal)?
+            .into_iter()
+            .map(|m| (m.user_id, m.name))
+            .collect()
+    } else {
+        HashMap::new()
+    };
+
+    let recent_entries: Vec<TimesheetDto> = recent_rows
+        .into_iter()
+        .map(|r| {
+            let id = r.id().to_string();
+            let member_name = if can_read_all {
+                let uid = r.user_id().to_string();
+                member_names.get(uid.as_str()).cloned()
+            } else {
+                None
+            };
+            let tags = recent_tags_map
+                .remove(&id)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|t| TimesheetsTagDto {
+                    id: t.id().to_string(),
+                    name: t.name().to_string(),
+                })
+                .collect();
+            row_to_dto(r.clone(), tags, member_name)
+        })
+        .collect();
+
+    Ok(DashboardStatsDto {
+        today_hours,
+        week_hours,
+        streak,
+        recent_entries,
+        chart_bars,
+        activity_mix,
+        can_filter_members: can_read_all,
+    })
 }

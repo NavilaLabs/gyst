@@ -1,0 +1,21 @@
+[workspace]
+
+[package]
+name = "leave-requests"
+version = "0.1.0"
+edition = "2024"
+
+# WASM plugin — must compile for wasm32-unknown-unknown.
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+zeitrak-plugin-sdk = { path = "../../../zeitrak-plugin-sdk" }
+extism-pdk         = "1.4"
+serde              = { version = "1", features = ["derive"] }
+serde_json         = "1"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = "symbols"

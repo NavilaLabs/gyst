@@ -161,6 +161,8 @@ impl Aggregate for Timesheet {
     }
 }
 
+impl crate::snapshot_policy::SnapshotPolicy for Timesheet {}
+
 #[cfg(test)]
 mod tests {
     use super::*;

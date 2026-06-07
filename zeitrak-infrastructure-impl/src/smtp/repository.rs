@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use chrono::Utc;
+use sqlx::Row as _;
 use zeitrak_infrastructure::email::{PersistedSmtpConfig, SmtpAuthMethod, SmtpConfigRepository};
 
 use crate::{ConnectedAdminPool, smtp::encryption};
@@ -45,8 +46,6 @@ impl SmtpConfigRepository for SmtpConfigRepositoryImpl {
         let Some(row) = row else {
             return Ok(None);
         };
-
-        use sqlx::Row as _;
 
         let auth_method_str: String = row.try_get("auth_method")?;
         let auth_method = if auth_method_str == "xoauth2" {
@@ -96,15 +95,13 @@ impl SmtpConfigRepository for SmtpConfigRepositoryImpl {
 
     async fn save(&self, config: &PersistedSmtpConfig) -> anyhow::Result<()> {
         let auth_method = match config.auth_method {
-            SmtpAuthMethod::Password => "password",
             SmtpAuthMethod::XOAuth2 => "xoauth2",
             _ => "password",
         };
         let now = Utc::now().to_rfc3339();
         let use_tls: i64 = i64::from(config.use_tls);
 
-        let (enc_password, pw_nonce) =
-            encrypt_optional(&self.key, config.password.as_deref())?;
+        let (enc_password, pw_nonce) = encrypt_optional(&self.key, config.password.as_deref())?;
         let (enc_secret, secret_nonce) =
             encrypt_optional(&self.key, config.client_secret.as_deref())?;
         let (enc_refresh, refresh_nonce) =
@@ -154,14 +151,13 @@ impl SmtpConfigRepository for SmtpConfigRepositoryImpl {
 
     async fn set_oauth2_state(&self, state: &str) -> anyhow::Result<()> {
         let now = Utc::now().to_rfc3339();
-        let rows_affected = sqlx::query(
-            "UPDATE smtp_config SET oauth2_state = ?, updated_at = ? WHERE id = 1",
-        )
-        .bind(state)
-        .bind(&now)
-        .execute(self.pool.as_ref())
-        .await?
-        .rows_affected();
+        let rows_affected =
+            sqlx::query("UPDATE smtp_config SET oauth2_state = ?, updated_at = ? WHERE id = 1")
+                .bind(state)
+                .bind(&now)
+                .execute(self.pool.as_ref())
+                .await?
+                .rows_affected();
 
         anyhow::ensure!(
             rows_affected > 0,
@@ -178,7 +174,6 @@ impl SmtpConfigRepository for SmtpConfigRepositoryImpl {
 
         let row = row.ok_or_else(|| anyhow::anyhow!("no smtp_config row exists"))?;
 
-        use sqlx::Row as _;
         let stored_state: Option<String> = row.try_get("oauth2_state")?;
         let stored_state = stored_state.ok_or_else(|| anyhow::anyhow!("no OAuth2 state set"))?;
 
@@ -187,8 +182,7 @@ impl SmtpConfigRepository for SmtpConfigRepositoryImpl {
             "OAuth2 state mismatch — possible CSRF attack"
         );
 
-        let (enc_refresh, refresh_nonce) =
-            encryption::encrypt(&self.key, refresh_token)?;
+        let (enc_refresh, refresh_nonce) = encryption::encrypt(&self.key, refresh_token)?;
         let now = Utc::now().to_rfc3339();
 
         sqlx::query(
@@ -213,9 +207,7 @@ fn decrypt_optional(
     nonce: Option<String>,
 ) -> anyhow::Result<Option<String>> {
     match (ciphertext, nonce) {
-        (Some(ct), Some(n)) if !ct.is_empty() => {
-            encryption::decrypt(key, &ct, &n).map(Some)
-        }
+        (Some(ct), Some(n)) if !ct.is_empty() => encryption::decrypt(key, &ct, &n).map(Some),
         _ => Ok(None),
     }
 }

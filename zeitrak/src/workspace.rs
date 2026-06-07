@@ -14,6 +14,7 @@ use zeitrak_core::admin::{
         WorkspaceRoleWithPermissionsRow,
     },
 };
+use zeitrak_core::permissions as p;
 use zeitrak_core::shared::repositories::ReadRepository;
 use zeitrak_infrastructure::database::Migrate;
 use zeitrak_infrastructure_impl::{
@@ -36,11 +37,18 @@ pub struct WorkspaceInfo {
 ///
 /// Creates the workspace, default roles (admin + standard), seeds all permissions onto
 /// the admin role, seeds the standard set of permissions onto the standard role, and
-/// initialises the tenant SQLite database.
+/// initialises the tenant `SQLite` database.
+#[allow(clippy::too_many_lines)]
 pub async fn create_workspace_for_user(
     user_id: UserId,
     workspace_name: String,
 ) -> Result<WorkspaceId> {
+    crate::plugin_hooks::run_pre(
+        "workspace.Create",
+        serde_json::json!({ "user_id": user_id.to_string(), "workspace_name": workspace_name }),
+    )
+    .await?;
+
     let pool = Pool::connect_admin().await?;
 
     let workspace_id = WorkspaceId::new();
@@ -67,32 +75,61 @@ pub async fn create_workspace_for_user(
             .ok_or_else(|| anyhow::anyhow!("permission '{name}' not seeded in database"))
     };
 
-    // --- Admin role: all permissions ---
-    let admin_role_id = WorkspaceRoleId::new();
-    let role_cmd =
-        WorkspaceRoleCommand::new(WorkspaceRoleRepository::from_pool(pool.clone()).await?);
-    let _ = role_cmd
+    // --- Workspace admin role: all workspace-scoped permissions ---
+    let workspace_admin_role_id = WorkspaceRoleId::new();
+    let _ = WorkspaceRoleCommand::new(WorkspaceRoleRepository::from_pool(pool.clone()).await?)
         .create(
-            admin_role_id.clone(),
+            workspace_admin_role_id.clone(),
             workspace_id.clone(),
-            Some("admin".to_string()),
+            Some("workspace_admin".to_string()),
         )
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    for (perm_id, _) in &all_perms {
-        WorkspaceRoleCommand::new(WorkspaceRoleRepository::from_pool(pool.clone()).await?)
-            .grant_permission(admin_role_id.clone(), perm_id.clone())
-            .await
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let workspace_admin_permissions = [
+        p::ACTIVITY_CREATE,
+        p::ACTIVITY_READ,
+        p::ACTIVITY_UPDATE,
+        p::ACTIVITY_DELETE,
+        p::ACTIVITY_EXPORT,
+        p::MEMBER_CREATE,
+        p::MEMBER_READ,
+        p::MEMBER_UPDATE,
+        p::MEMBER_DELETE,
+        p::MEMBER_EXPORT,
+        p::ROLE_CREATE,
+        p::ROLE_READ,
+        p::ROLE_UPDATE,
+        p::ROLE_DELETE,
+        p::ROLE_EXPORT,
+        p::TAG_CREATE,
+        p::TAG_READ,
+        p::TAG_UPDATE,
+        p::TAG_DELETE,
+        p::TAG_EXPORT,
+        p::TIMESHEET_CREATE,
+        p::TIMESHEET_READ,
+        p::TIMESHEET_UPDATE,
+        p::TIMESHEET_DELETE,
+        p::TIMESHEET_EXPORT,
+        p::TIMESHEET_READ_ALL,
+    ];
+
+    for perm_name in workspace_admin_permissions {
+        if let Ok(perm_id) = perm_id_for(perm_name) {
+            WorkspaceRoleCommand::new(WorkspaceRoleRepository::from_pool(pool.clone()).await?)
+                .grant_permission(workspace_admin_role_id.clone(), perm_id)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+        }
     }
 
     WorkspaceCommand::new(WorkspaceRepository::from_pool(pool.clone()).await?)
-        .assign_user_role(workspace_id.clone(), user_id, admin_role_id)
+        .assign_user_role(workspace_id.clone(), user_id, workspace_admin_role_id)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    // --- Standard role: limited permissions ---
+    // --- Standard role: basic self-service permissions ---
     let standard_role_id = WorkspaceRoleId::new();
     let _ = WorkspaceRoleCommand::new(WorkspaceRoleRepository::from_pool(pool.clone()).await?)
         .create(
@@ -104,10 +141,13 @@ pub async fn create_workspace_for_user(
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let standard_permissions = [
-        zeitrak_core::permissions::TIMESHEET_CREATE,
-        zeitrak_core::permissions::TIMESHEET_UPDATE,
-        zeitrak_core::permissions::TIMESHEET_EXPORT,
-        zeitrak_core::permissions::TIMESHEET_CANCEL,
+        p::ACTIVITY_READ,
+        p::TAG_READ,
+        p::TIMESHEET_CREATE,
+        p::TIMESHEET_READ,
+        p::TIMESHEET_UPDATE,
+        p::TIMESHEET_DELETE,
+        p::TIMESHEET_EXPORT,
     ];
 
     for perm_name in standard_permissions {
@@ -126,6 +166,12 @@ pub async fn create_workspace_for_user(
     let tenant_pool =
         Pool::<ScopeTenant, StateDisconnected>::connect_tenant(&workspace_id.to_string()).await?;
     tenant_pool.migrate_database().await?;
+
+    crate::plugin_hooks::run_post(
+        "workspace.Create",
+        &serde_json::json!({ "workspace_id": workspace_id.to_string() }),
+    )
+    .await;
 
     Ok(workspace_id)
 }
@@ -202,6 +248,12 @@ pub async fn update_workspace_settings(
     currency: String,
     week_start: String,
 ) -> Result<()> {
+    crate::plugin_hooks::run_pre(
+        "workspace.UpdateSettings",
+        serde_json::json!({ "workspace_id": workspace_id }),
+    )
+    .await?;
+
     let pool = Pool::connect_admin().await?;
     let repo = WorkspaceRepository::from_pool(pool).await?;
 
@@ -209,7 +261,14 @@ pub async fn update_workspace_settings(
     let cmd = WorkspaceCommand::new(repo);
     cmd.update_settings(agg_id, name, timezone, date_format, currency, week_start)
         .await
-        .map_err(|e| anyhow::anyhow!("{e}"))
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    crate::plugin_hooks::run_post(
+        "workspace.UpdateSettings",
+        &serde_json::json!({ "workspace_id": workspace_id }),
+    )
+    .await;
+    Ok(())
 }
 
 /// Creates a new role in the given workspace.
@@ -221,6 +280,12 @@ pub async fn create_role(workspace_id: &str, name: String) -> Result<WorkspaceRo
     if name.trim().is_empty() {
         anyhow::bail!("role name must not be empty");
     }
+    crate::plugin_hooks::run_pre(
+        "workspace_role.Create",
+        serde_json::json!({ "workspace_id": workspace_id, "name": name }),
+    )
+    .await?;
+
     let pool = Pool::connect_admin().await?;
     let ws_id: WorkspaceId = workspace_id.parse()?;
     let role_id = WorkspaceRoleId::new();
@@ -228,6 +293,12 @@ pub async fn create_role(workspace_id: &str, name: String) -> Result<WorkspaceRo
         .create(role_id.clone(), ws_id, Some(name))
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    crate::plugin_hooks::run_post(
+        "workspace_role.Create",
+        &serde_json::json!({ "workspace_id": workspace_id, "role_id": role_id.to_string() }),
+    )
+    .await;
     Ok(role_id)
 }
 
@@ -240,12 +311,25 @@ pub async fn rename_role(role_id: &str, name: String) -> Result<()> {
     if name.trim().is_empty() {
         anyhow::bail!("role name must not be empty");
     }
+    crate::plugin_hooks::run_pre(
+        "workspace_role.Rename",
+        serde_json::json!({ "role_id": role_id, "name": name }),
+    )
+    .await?;
+
     let pool = Pool::connect_admin().await?;
     let id: WorkspaceRoleId = role_id.parse()?;
     WorkspaceRoleCommand::new(WorkspaceRoleRepository::from_pool(pool).await?)
         .rename(id, name)
         .await
-        .map_err(|e| anyhow::anyhow!("{e}"))
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    crate::plugin_hooks::run_post(
+        "workspace_role.Rename",
+        &serde_json::json!({ "role_id": role_id }),
+    )
+    .await;
+    Ok(())
 }
 
 /// Deletes a workspace role.
@@ -254,6 +338,12 @@ pub async fn rename_role(role_id: &str, name: String) -> Result<()> {
 ///
 /// Returns an error if any members still have this role assigned, or if the command fails.
 pub async fn delete_role(role_id: &str) -> Result<()> {
+    crate::plugin_hooks::run_pre(
+        "workspace_role.Delete",
+        serde_json::json!({ "role_id": role_id }),
+    )
+    .await?;
+
     let pool = Pool::connect_admin().await?;
     let id: WorkspaceRoleId = role_id.parse()?;
     let repo = WorkspaceRoleRepository::from_pool(pool).await?;
@@ -267,29 +357,62 @@ pub async fn delete_role(role_id: &str) -> Result<()> {
     WorkspaceRoleCommand::new(repo)
         .delete(id)
         .await
-        .map_err(|e| anyhow::anyhow!("{e}"))
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    crate::plugin_hooks::run_post(
+        "workspace_role.Delete",
+        &serde_json::json!({ "role_id": role_id }),
+    )
+    .await;
+    Ok(())
 }
 
 /// Grants a permission to a workspace role.
 pub async fn grant_role_permission(role_id: &str, permission_id: &str) -> Result<()> {
+    crate::plugin_hooks::run_pre(
+        "workspace_role.GrantPermission",
+        serde_json::json!({ "role_id": role_id, "permission_id": permission_id }),
+    )
+    .await?;
+
     let pool = Pool::connect_admin().await?;
     let id: WorkspaceRoleId = role_id.parse()?;
     let perm_id: PermissionId = permission_id.parse()?;
     WorkspaceRoleCommand::new(WorkspaceRoleRepository::from_pool(pool).await?)
         .grant_permission(id, perm_id)
         .await
-        .map_err(|e| anyhow::anyhow!("{e}"))
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    crate::plugin_hooks::run_post(
+        "workspace_role.GrantPermission",
+        &serde_json::json!({ "role_id": role_id, "permission_id": permission_id }),
+    )
+    .await;
+    Ok(())
 }
 
 /// Revokes a permission from a workspace role.
 pub async fn revoke_role_permission(role_id: &str, permission_id: &str) -> Result<()> {
+    crate::plugin_hooks::run_pre(
+        "workspace_role.RevokePermission",
+        serde_json::json!({ "role_id": role_id, "permission_id": permission_id }),
+    )
+    .await?;
+
     let pool = Pool::connect_admin().await?;
     let id: WorkspaceRoleId = role_id.parse()?;
     let perm_id: PermissionId = permission_id.parse()?;
     WorkspaceRoleCommand::new(WorkspaceRoleRepository::from_pool(pool).await?)
         .revoke_permission(id, perm_id)
         .await
-        .map_err(|e| anyhow::anyhow!("{e}"))
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    crate::plugin_hooks::run_post(
+        "workspace_role.RevokePermission",
+        &serde_json::json!({ "role_id": role_id, "permission_id": permission_id }),
+    )
+    .await;
+    Ok(())
 }
 
 /// Returns all permissions available in the system.
@@ -315,6 +438,12 @@ pub async fn list_workspace_members(workspace_id: &str) -> Result<Vec<MemberRow>
 
 /// Assigns a role to a workspace member.
 pub async fn assign_member_role(workspace_id: &str, user_id: &str, role_id: &str) -> Result<()> {
+    crate::plugin_hooks::run_pre(
+        "workspace_role.AssignUser",
+        serde_json::json!({ "workspace_id": workspace_id, "user_id": user_id, "role_id": role_id }),
+    )
+    .await?;
+
     let pool = Pool::connect_admin().await?;
     let ws_id: WorkspaceId = workspace_id.parse()?;
     let uid: UserId = user_id.parse()?;
@@ -322,11 +451,24 @@ pub async fn assign_member_role(workspace_id: &str, user_id: &str, role_id: &str
     WorkspaceCommand::new(WorkspaceRepository::from_pool(pool).await?)
         .assign_user_role(ws_id, uid, rid)
         .await
-        .map_err(|e| anyhow::anyhow!("{e}"))
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    crate::plugin_hooks::run_post(
+        "workspace_role.AssignUser",
+        &serde_json::json!({ "workspace_id": workspace_id, "user_id": user_id, "role_id": role_id }),
+    )
+    .await;
+    Ok(())
 }
 
 /// Revokes a role from a workspace member.
 pub async fn revoke_member_role(workspace_id: &str, user_id: &str, role_id: &str) -> Result<()> {
+    crate::plugin_hooks::run_pre(
+        "workspace_role.RevokeUserRole",
+        serde_json::json!({ "workspace_id": workspace_id, "user_id": user_id, "role_id": role_id }),
+    )
+    .await?;
+
     let pool = Pool::connect_admin().await?;
     let ws_id: WorkspaceId = workspace_id.parse()?;
     let uid: UserId = user_id.parse()?;
@@ -334,7 +476,14 @@ pub async fn revoke_member_role(workspace_id: &str, user_id: &str, role_id: &str
     WorkspaceCommand::new(WorkspaceRepository::from_pool(pool).await?)
         .revoke_user_role(ws_id, uid, rid)
         .await
-        .map_err(|e| anyhow::anyhow!("{e}"))
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    crate::plugin_hooks::run_post(
+        "workspace_role.RevokeUserRole",
+        &serde_json::json!({ "workspace_id": workspace_id, "user_id": user_id, "role_id": role_id }),
+    )
+    .await;
+    Ok(())
 }
 
 /// Grants a direct permission to a workspace member.
@@ -377,12 +526,12 @@ pub async fn revoke_member_permission(
 pub async fn remove_member(workspace_id: &str, user_id: &str) -> Result<()> {
     let pool = Pool::connect_admin().await?;
 
-    // Guard: prevent removing the last admin.
+    // Guard: prevent removing the last workspace_admin.
     let admin_count: i64 = sqlx::query(
         "SELECT COUNT(DISTINCT wur.user_id) \
          FROM projections__workspace_user_roles wur \
          JOIN projections__workspace_roles wr ON wur.workspace_role_id = wr.id \
-         WHERE wur.workspace_id = ? AND wr.name = 'admin'",
+         WHERE wur.workspace_id = ? AND wr.name = 'workspace_admin'",
     )
     .bind(workspace_id)
     .fetch_one(pool.as_ref())
@@ -392,11 +541,11 @@ pub async fn remove_member(workspace_id: &str, user_id: &str) -> Result<()> {
     .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     if admin_count <= 1 {
-        let is_admin: i64 = sqlx::query(
+        let is_workspace_admin: i64 = sqlx::query(
             "SELECT COUNT(*) \
              FROM projections__workspace_user_roles wur \
              JOIN projections__workspace_roles wr ON wur.workspace_role_id = wr.id \
-             WHERE wur.workspace_id = ? AND wur.user_id = ? AND wr.name = 'admin'",
+             WHERE wur.workspace_id = ? AND wur.user_id = ? AND wr.name = 'workspace_admin'",
         )
         .bind(workspace_id)
         .bind(user_id)
@@ -406,8 +555,8 @@ pub async fn remove_member(workspace_id: &str, user_id: &str) -> Result<()> {
         .try_get(0)
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-        if is_admin > 0 {
-            anyhow::bail!("cannot remove the last admin of a workspace");
+        if is_workspace_admin > 0 {
+            anyhow::bail!("cannot remove the last workspace admin");
         }
     }
 

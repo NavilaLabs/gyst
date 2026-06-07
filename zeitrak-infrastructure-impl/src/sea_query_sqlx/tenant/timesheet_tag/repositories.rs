@@ -6,7 +6,7 @@ use eventually::aggregate::{Aggregate, Root};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
 use sea_query::{Alias, Condition, Expr, ExprTrait, JoinType, Order};
-use sqlx::{Row, any::AnyRow};
+use sqlx::{AssertSqlSafe, Row, any::AnyRow};
 use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 use zeitrak_core::tenant::timesheet_tag::{
     TimesheetTag, TimesheetTagEvent, TimesheetTagId,
@@ -14,7 +14,8 @@ use zeitrak_core::tenant::timesheet_tag::{
 };
 
 use crate::{
-    ConnectedTenantPool, infrastructure::read_model::SeaQueryReadModel,
+    ConnectedTenantPool,
+    infrastructure::{event_stream::current_stream_version, read_model::SeaQueryReadModel},
     snapshot::SnapshotRepository,
 };
 
@@ -89,7 +90,7 @@ impl TimesheetTagRepository {
             .order_by((Alias::new("t"), Alias::new("name")), Order::Asc)
             .to_owned();
         let (sql, values) = self.store.pool.build_query(&stmt);
-        let rows = sqlx::query_with(&sql, values)
+        let rows = sqlx::query_with(AssertSqlSafe(sql.as_str()), values)
             .fetch_all(self.store.pool.as_ref())
             .await?;
         rows.into_iter().map(|r| Self::map_row(&r)).collect()
@@ -124,7 +125,7 @@ impl TimesheetTagRepository {
             .order_by((Alias::new("t"), Alias::new("name")), Order::Asc)
             .to_owned();
         let (sql, values) = self.store.pool.build_query(&stmt);
-        let rows = sqlx::query_with(&sql, values)
+        let rows = sqlx::query_with(AssertSqlSafe(sql.as_str()), values)
             .fetch_all(self.store.pool.as_ref())
             .await?;
         let mut result: HashMap<String, Vec<TimesheetTagRow>> = HashMap::new();
@@ -157,6 +158,18 @@ impl RowToRoot<AnyRow, TimesheetTag> for TimesheetTagRepository {
     }
 }
 
+impl TimesheetTagRepository {
+    async fn row_to_root_versioned(&self, row: AnyRow) -> Result<Root<TimesheetTag>, crate::Error> {
+        let root = self.row_to_root(row)?;
+        let version =
+            current_stream_version(&self.store.pool, &root.aggregate_id().to_string()).await?;
+        Ok(Root::rehydrate_from_state(
+            version,
+            root.to_aggregate_type::<TimesheetTag>(),
+        ))
+    }
+}
+
 impl zeitrak_core::shared::repositories::Repository<TimesheetTag, AnyRow>
     for TimesheetTagRepository
 {
@@ -176,7 +189,11 @@ impl ReadRepository<TimesheetTag, AnyRow> for TimesheetTagRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
-        row.map(|r| self.row_to_root(r)).transpose()
+        if let Some(row) = row {
+            Ok(Some(self.row_to_root_versioned(row).await?))
+        } else {
+            Ok(None)
+        }
     }
 
     async fn find_many(
@@ -198,14 +215,22 @@ impl ReadRepository<TimesheetTag, AnyRow> for TimesheetTagRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.row_to_root(row)).collect()
+        let mut roots = Vec::with_capacity(rows.len());
+        for row in rows {
+            roots.push(self.row_to_root_versioned(row).await?);
+        }
+        Ok(roots)
     }
 
     async fn all(&self) -> Result<Vec<Root<TimesheetTag>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.row_to_root(row)).collect()
+        let mut roots = Vec::with_capacity(rows.len());
+        for row in rows {
+            roots.push(self.row_to_root_versioned(row).await?);
+        }
+        Ok(roots)
     }
 
     async fn count_by(&self, filter: Condition) -> Result<u64, crate::Error> {

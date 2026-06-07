@@ -33,7 +33,10 @@ async fn smtp_config_repository_roundtrip() {
     let fixture = TestFixture::setup().await;
     let repo = make_repo(&fixture);
 
-    assert!(repo.get().await.unwrap().is_none(), "fresh DB must have no config");
+    assert!(
+        repo.get().await.unwrap().is_none(),
+        "fresh DB must have no config"
+    );
 
     let config = password_config();
     repo.save(&config).await.unwrap();
@@ -89,7 +92,7 @@ async fn smtp_config_null_password_clears_it() {
     assert_eq!(loaded.password, None);
 }
 
-/// The OAuth2 state flow: set state → complete with correct state → refresh_token stored.
+/// The `OAuth2` state flow: set state → complete with correct state → `refresh_token` stored.
 #[tokio::test]
 async fn oauth2_state_flow_succeeds() {
     let fixture = TestFixture::setup().await;
@@ -100,14 +103,16 @@ async fn oauth2_state_flow_succeeds() {
     repo.set_oauth2_state("csrf-state-abc123").await.unwrap();
 
     let refresh = "my-refresh-token-value";
-    repo.complete_oauth2("csrf-state-abc123", refresh).await.unwrap();
+    repo.complete_oauth2("csrf-state-abc123", refresh)
+        .await
+        .unwrap();
 
     let loaded = repo.get().await.unwrap().unwrap();
     assert!(loaded.oauth2_authorized);
     assert_eq!(loaded.refresh_token.as_deref(), Some(refresh));
 }
 
-/// Completing OAuth2 with the wrong state must fail (CSRF protection).
+/// Completing `OAuth2` with the wrong state must fail (CSRF protection).
 #[tokio::test]
 async fn oauth2_state_mismatch_fails() {
     let fixture = TestFixture::setup().await;

@@ -68,8 +68,8 @@ async fn main() -> Result<()> {
     );
 
     let backoff = BackoffConfig {
-        min_idle_ms: 20,
-        max_idle_ms: 200,
+        min_idle: Duration::from_millis(20),
+        max_idle: Duration::from_millis(200),
         ..Default::default()
     };
 
@@ -102,6 +102,7 @@ async fn main() -> Result<()> {
         // Run the projection runner migrations once per tenant database so the
         // `global_position` column and trigger are in place before we start.
         ProjectionRunner::new(pool.clone().into_pool(), ProjectionSource::AllStreams)
+            .await
             .run_migrations()
             .await?;
 
@@ -109,7 +110,7 @@ async fn main() -> Result<()> {
         let checkpoint = SqlCheckpoint::new(pool.clone().into_pool(), &checkpoint_name).await?;
 
         daemon.register_with_config(
-            ProjectionRunner::new(pool.clone().into_pool(), ProjectionSource::AllStreams),
+            ProjectionRunner::new(pool.clone().into_pool(), ProjectionSource::AllStreams).await,
             TenantProjector::new(&pool),
             checkpoint,
             backoff.clone(),

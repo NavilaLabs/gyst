@@ -1,0 +1,41 @@
+[package]
+name = "zeitrak-plugin-host"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+async-trait     = { workspace = true }
+semver          = { version = "1", features = ["serde"] }
+serde           = { workspace = true }
+serde_json      = { workspace = true }
+sqlparser       = { version = "0.53", features = ["visitor"] }
+sqlx            = { workspace = true }
+thiserror       = { workspace = true }
+tokio           = { workspace = true }
+tracing         = { workspace = true }
+uuid            = { workspace = true }
+
+eventually = { version = "0.5", git = "https://github.com/get-eventually/eventually-rs" }
+eventually-any = { version = "0.1", git = "https://github.com/NavilaLabs/eventually-any", features = [
+  "snapshots",
+  "tracing",
+] }
+eventually-projection = { version = "0.1", git = "https://github.com/NavilaLabs/eventually-projection", features = [
+  "tracing",
+] }
+
+dioxus-extism-host     = { path = "../../dioxus-extism/crates/dioxus-extism-host" }
+dioxus-extism-protocol = { path = "../../dioxus-extism/crates/dioxus-extism-protocol" }
+
+zeitrak-core                = { path = "../zeitrak-core" }
+zeitrak-infrastructure      = { path = "../zeitrak-infrastructure" }
+zeitrak-infrastructure-impl = { path = "../zeitrak-infrastructure-impl" }
+
+[features]
+default     = ["sea-query-sqlx"]
+sea-query-sqlx = ["zeitrak-infrastructure-impl/sea-query-sqlx"]
+sqlite      = ["zeitrak-infrastructure-impl/sqlite"]
+postgres    = ["zeitrak-infrastructure-impl/postgres"]
+
+[lints]
+workspace = true

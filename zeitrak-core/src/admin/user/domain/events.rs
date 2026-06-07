@@ -25,6 +25,7 @@ enum UserEventDe {
         token: String,
     },
     Verified {},
+    InstanceAdminGranted {},
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -44,6 +45,8 @@ pub enum UserEvent {
         token: String,
     },
     Verified {},
+    /// Marks this user as the sole instance admin.
+    InstanceAdminGranted {},
 }
 
 impl<'de> Deserialize<'de> for UserEvent {
@@ -77,6 +80,7 @@ impl<'de> Deserialize<'de> for UserEvent {
             },
             UserEventDe::VerificationRequested { token } => Self::VerificationRequested { token },
             UserEventDe::Verified {} => Self::Verified {},
+            UserEventDe::InstanceAdminGranted {} => Self::InstanceAdminGranted {},
         })
     }
 }
@@ -88,6 +92,7 @@ impl Message for UserEvent {
             Self::SettingsUpdated { .. } => "UserSettingsUpdated",
             Self::VerificationRequested { .. } => "UserVerificationRequested",
             Self::Verified {} => "UserVerified",
+            Self::InstanceAdminGranted {} => "UserInstanceAdminGranted",
         }
     }
 }

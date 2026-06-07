@@ -15,7 +15,9 @@ use zeitrak_core::admin::workspace_role::{
 use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 
 use crate::{
-    ConnectedAdminPool, infrastructure::read_model::SeaQueryReadModel, snapshot::SnapshotRepository,
+    ConnectedAdminPool,
+    infrastructure::{event_stream::current_stream_version, read_model::SeaQueryReadModel},
+    snapshot::SnapshotRepository,
 };
 
 const TABLE: &str = "projections__workspace_roles";
@@ -83,6 +85,21 @@ impl RowToRoot<AnyRow, WorkspaceRole> for WorkspaceRoleRepository {
     }
 }
 
+impl WorkspaceRoleRepository {
+    async fn row_to_root_versioned(
+        &self,
+        row: AnyRow,
+    ) -> Result<Root<WorkspaceRole>, crate::Error> {
+        let root = self.row_to_root(row)?;
+        let version =
+            current_stream_version(&self.store.pool, &root.aggregate_id().to_string()).await?;
+        Ok(Root::rehydrate_from_state(
+            version,
+            root.to_aggregate_type::<WorkspaceRole>(),
+        ))
+    }
+}
+
 impl zeitrak_core::shared::repositories::Repository<WorkspaceRole, AnyRow>
     for WorkspaceRoleRepository
 {
@@ -105,7 +122,11 @@ impl ReadRepository<WorkspaceRole, AnyRow> for WorkspaceRoleRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
-        row.map(|r| self.row_to_root(r)).transpose()
+        if let Some(row) = row {
+            Ok(Some(self.row_to_root_versioned(row).await?))
+        } else {
+            Ok(None)
+        }
     }
 
     async fn find_many(
@@ -127,14 +148,22 @@ impl ReadRepository<WorkspaceRole, AnyRow> for WorkspaceRoleRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.row_to_root(row)).collect()
+        let mut roots = Vec::with_capacity(rows.len());
+        for row in rows {
+            roots.push(self.row_to_root_versioned(row).await?);
+        }
+        Ok(roots)
     }
 
     async fn all(&self) -> Result<Vec<Root<WorkspaceRole>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.row_to_root(row)).collect()
+        let mut roots = Vec::with_capacity(rows.len());
+        for row in rows {
+            roots.push(self.row_to_root_versioned(row).await?);
+        }
+        Ok(roots)
     }
 
     async fn count_by(&self, filter: Condition) -> Result<u64, crate::Error> {
@@ -184,7 +213,7 @@ impl WorkspaceRoleRepositoryTrait<AnyRow> for WorkspaceRoleRepository {
         .fetch_one(self.store.pool.as_ref())
         .await?;
         let count: i64 = row.try_get(0)?;
-        Ok(count as u64)
+        Ok(count.cast_unsigned())
     }
 
     async fn find_with_permissions(

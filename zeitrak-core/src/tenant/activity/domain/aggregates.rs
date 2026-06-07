@@ -87,6 +87,8 @@ impl Aggregate for Activity {
     }
 }
 
+impl crate::snapshot_policy::SnapshotPolicy for Activity {}
+
 #[cfg(test)]
 mod tests {
     use super::*;

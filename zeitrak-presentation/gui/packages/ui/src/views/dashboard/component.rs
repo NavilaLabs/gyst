@@ -1,15 +1,20 @@
 use crate::components::atoms::card::{Card, CardContent};
-use crate::components::atoms::{Button, ButtonVariant, Select, SelectOption, ToastExt, Toasts};
+use crate::components::atoms::{
+    Button, ButtonVariant, Select, SelectOption, Skeleton, ToastExt, Toasts,
+};
+use crate::components::molecules::MemberFilter;
 use crate::formatting;
 use crate::layouts::DefaultLayout;
-use crate::{ActivitiesCache, TimesheetsCache};
-use chrono::{Datelike, Duration, Utc};
+use crate::{ActivitiesCache, PluginHostCtx};
 use dioxus::prelude::*;
+use dioxus_extism_frontend::PluginSlot;
 use dioxus_free_icons::icons::hi_solid_icons::{HiLightningBolt, HiPlay, HiStop};
 use dioxus_free_icons::Icon;
 use dioxus_i18n::tid;
 
 // ── Chart period ──────────────────────────────────────────────────────────────
+
+use api::timesheet::DashboardPeriod;
 
 #[derive(Clone, PartialEq)]
 enum ChartPeriod {
@@ -18,23 +23,17 @@ enum ChartPeriod {
     Year,
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-fn parse_date(s: &str) -> Option<chrono::NaiveDate> {
-    chrono::DateTime::parse_from_rfc3339(s)
-        .ok()
-        .map(|dt| dt.date_naive())
-        .or_else(|| {
-            chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f")
-                .ok()
-                .map(|dt| dt.date())
-        })
-        .or_else(|| {
-            chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f")
-                .ok()
-                .map(|dt| dt.date())
-        })
+impl From<ChartPeriod> for DashboardPeriod {
+    fn from(p: ChartPeriod) -> Self {
+        match p {
+            ChartPeriod::Week => DashboardPeriod::Week,
+            ChartPeriod::Month => DashboardPeriod::Month,
+            ChartPeriod::Year => DashboardPeriod::Year,
+        }
+    }
 }
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn fmt_hours(h: f32) -> String {
     if h < 0.1 {
@@ -325,7 +324,7 @@ fn HoursBarChart(bars: Vec<Vec<BarSegment>>, labels: Vec<String>) -> Element {
     }
 }
 
-// ── Stats ─────────────────────────────────────────────────────────────────────
+// ── Rendering types (data comes from server via DashboardStatsDto) ────────────
 
 #[derive(Clone, PartialEq)]
 struct ActivityMixItem {
@@ -339,215 +338,6 @@ struct BarSegment {
     name: String,
     color: String,
     hours: f32,
-}
-
-struct DashStats {
-    today_hours: f32,
-    week_hours: f32,
-    streak: u32,
-    activity_mix: Vec<ActivityMixItem>,
-}
-
-fn compute_stats(
-    timesheets: &[api::timesheet::TimesheetDto],
-    activities: &[api::activity::ActivityDto],
-) -> DashStats {
-    let today = Utc::now().date_naive();
-    let days_from_monday = today.weekday().num_days_from_monday() as i64;
-    let week_start = today - Duration::days(days_from_monday);
-
-    let today_hours: f32 = timesheets
-        .iter()
-        .filter(|ts| ts.duration.is_some() && parse_date(&ts.start_time) == Some(today))
-        .map(|ts| ts.duration.unwrap_or(0) as f32 / 3600.0)
-        .sum();
-
-    let week_hours: f32 = timesheets
-        .iter()
-        .filter(|ts| {
-            ts.duration.is_some()
-                && parse_date(&ts.start_time)
-                    .map(|d| d >= week_start)
-                    .unwrap_or(false)
-        })
-        .map(|ts| ts.duration.unwrap_or(0) as f32 / 3600.0)
-        .sum();
-
-    // Streak: consecutive days with at least one completed timesheet, counting back from today
-    let mut streak = 0u32;
-    let mut check = today;
-    loop {
-        let has_entry = timesheets
-            .iter()
-            .any(|ts| ts.duration.is_some() && parse_date(&ts.start_time) == Some(check));
-        if has_entry {
-            streak += 1;
-            check -= Duration::days(1);
-        } else {
-            break;
-        }
-    }
-
-    // Activity mix
-    let mut mix_map: std::collections::HashMap<String, f32> = std::collections::HashMap::new();
-    for ts in timesheets {
-        if let (Some(aid), Some(dur)) = (&ts.activity_id, ts.duration) {
-            if dur > 0 {
-                *mix_map.entry(aid.clone()).or_insert(0.0) += dur as f32 / 3600.0;
-            }
-        }
-    }
-    let mut activity_mix: Vec<ActivityMixItem> = mix_map
-        .into_iter()
-        .map(|(aid, hours)| {
-            let activity = activities.iter().find(|a| a.id == aid);
-            let name = activity
-                .map(|a| a.name.clone())
-                .unwrap_or_else(|| "—".to_string());
-            let color = activity
-                .map(|a| a.color.clone())
-                .unwrap_or_else(|| "#6c6c76".to_string());
-            ActivityMixItem { name, color, hours }
-        })
-        .collect();
-    activity_mix.sort_by(|a, b| {
-        b.hours
-            .partial_cmp(&a.hours)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-
-    DashStats {
-        today_hours,
-        week_hours,
-        streak,
-        activity_mix,
-    }
-}
-
-fn bucket_to_segments(
-    timesheets: &[&api::timesheet::TimesheetDto],
-    activities: &[api::activity::ActivityDto],
-) -> Vec<BarSegment> {
-    let mut map: std::collections::HashMap<String, f32> = std::collections::HashMap::new();
-    for ts in timesheets {
-        if let Some(dur) = ts.duration {
-            if dur > 0 {
-                let key = ts.activity_id.clone().unwrap_or_default();
-                *map.entry(key).or_insert(0.0) += dur as f32 / 3600.0;
-            }
-        }
-    }
-    let mut segs: Vec<BarSegment> = map
-        .into_iter()
-        .map(|(aid, hours)| {
-            let activity = activities.iter().find(|a| a.id == aid);
-            let name = activity
-                .map(|a| a.name.clone())
-                .unwrap_or_else(|| "—".to_string());
-            let color = activity
-                .map(|a| a.color.clone())
-                .unwrap_or_else(|| "#6c6c76".to_string());
-            BarSegment { name, color, hours }
-        })
-        .collect();
-    segs.sort_by(|a, b| {
-        b.hours
-            .partial_cmp(&a.hours)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-    segs
-}
-
-fn compute_chart_data(
-    timesheets: &[api::timesheet::TimesheetDto],
-    activities: &[api::activity::ActivityDto],
-    period: &ChartPeriod,
-) -> (Vec<Vec<BarSegment>>, Vec<String>) {
-    let today = Utc::now().date_naive();
-
-    match period {
-        ChartPeriod::Week => {
-            let bars: Vec<Vec<BarSegment>> = (0..7)
-                .map(|i| {
-                    let day = today - Duration::days(6 - i as i64);
-                    let bucket: Vec<&api::timesheet::TimesheetDto> = timesheets
-                        .iter()
-                        .filter(|ts| {
-                            ts.duration.is_some() && parse_date(&ts.start_time) == Some(day)
-                        })
-                        .collect();
-                    bucket_to_segments(&bucket, activities)
-                })
-                .collect();
-            let labels: Vec<String> = (0..7)
-                .map(|i| {
-                    let day = today - Duration::days(6 - i as i64);
-                    day.format("%a").to_string()
-                })
-                .collect();
-            (bars, labels)
-        }
-        ChartPeriod::Month => {
-            // 4 weekly buckets covering the last 28 days
-            let bars: Vec<Vec<BarSegment>> = (0..4)
-                .map(|w| {
-                    let week_end = today - Duration::days((3 - w as i64) * 7);
-                    let week_start = week_end - Duration::days(6);
-                    let bucket: Vec<&api::timesheet::TimesheetDto> = timesheets
-                        .iter()
-                        .filter(|ts| {
-                            ts.duration.is_some()
-                                && parse_date(&ts.start_time)
-                                    .map(|d| d >= week_start && d <= week_end)
-                                    .unwrap_or(false)
-                        })
-                        .collect();
-                    bucket_to_segments(&bucket, activities)
-                })
-                .collect();
-            let labels: Vec<String> = (0..4)
-                .map(|w| {
-                    let week_end = today - Duration::days((3 - w as i64) * 7);
-                    let week_start = week_end - Duration::days(6);
-                    format!("{}", week_start.format("%-d.%-m"))
-                })
-                .collect();
-            (bars, labels)
-        }
-        ChartPeriod::Year => {
-            // 12 monthly bars
-            let bars: Vec<Vec<BarSegment>> = (0..12)
-                .map(|m| {
-                    let month_offset = 11 - m;
-                    let target_year =
-                        today.year() - (month_offset + 12 - today.month() as i32).max(0) / 12;
-                    let target_month =
-                        ((today.month() as i32 - month_offset - 1).rem_euclid(12) + 1) as u32;
-                    let bucket: Vec<&api::timesheet::TimesheetDto> = timesheets
-                        .iter()
-                        .filter(|ts| {
-                            ts.duration.is_some()
-                                && parse_date(&ts.start_time)
-                                    .map(|d| d.year() == target_year && d.month() == target_month)
-                                    .unwrap_or(false)
-                        })
-                        .collect();
-                    bucket_to_segments(&bucket, activities)
-                })
-                .collect();
-            let labels: Vec<String> = (0..12)
-                .map(|m| {
-                    let month_offset = 11 - m;
-                    let target_month =
-                        ((today.month() as i32 - month_offset - 1).rem_euclid(12) + 1) as u32;
-                    let date =
-                        chrono::NaiveDate::from_ymd_opt(today.year(), target_month, 1).unwrap();
-                    date.format("%b").to_string()
-                })
-                .collect();
-            (bars, labels)
-        }
-    }
 }
 
 // ── Donut SVG ─────────────────────────────────────────────────────────────────
@@ -659,24 +449,33 @@ pub fn Dashboard() -> Element {
     let mut running: crate::RunningTimer = use_context();
     let mut toasts: Toasts = use_context();
     let user_settings: crate::UserSettings = use_context();
-
-    let timesheets_cache: TimesheetsCache = use_context();
     let activities_cache: ActivitiesCache = use_context();
-
-    let mut activities = use_signal(|| activities_cache.read().clone());
-    let mut recent = use_signal(|| timesheets_cache.read().clone());
 
     let mut selected_activity_id = use_signal(|| Option::<String>::None);
     let elapsed_secs: crate::RunningElapsed = use_context();
     let mut chart_period = use_signal(|| ChartPeriod::Week);
+    let mut member_id: Signal<Option<String>> = use_signal(|| None);
+    let mut can_filter_members = use_signal(|| false);
+    let mut members: Signal<Vec<api::member::MemberDto>> = use_signal(Vec::new);
+    let mut stats: Signal<Option<api::timesheet::DashboardStatsDto>> = use_signal(|| None);
+    let mut loading = use_signal(|| true);
 
     use_resource(move || async move {
-        if let Ok(list) = api::activity::list_activities().await {
-            activities.set(list);
+        loading.set(true);
+        let mid = member_id.read().clone();
+        let period: api::timesheet::DashboardPeriod = chart_period.read().clone().into();
+        if let Ok(s) = api::timesheet::dashboard_stats(mid, period).await {
+            // peek() avoids a reactive subscription that would restart this resource
+            // when members.set(list) fires below.
+            if s.can_filter_members && members.peek().is_empty() {
+                if let Ok(list) = api::member::list_members().await {
+                    members.set(list);
+                }
+            }
+            can_filter_members.set(s.can_filter_members);
+            stats.set(Some(s));
         }
-        if let Ok(list) = api::timesheet::list_timesheets().await {
-            recent.set(list);
-        }
+        loading.set(false);
     });
 
     let on_start = move |_| async move {
@@ -696,8 +495,12 @@ pub fn Dashboard() -> Element {
             match api::timesheet::stop_timesheet(id).await {
                 Ok(()) => {
                     running.set(None);
-                    if let Ok(list) = api::timesheet::list_timesheets().await {
-                        recent.set(list);
+                    // Re-fetch dashboard stats after stop so recent entries update.
+                    let mid = member_id.peek().clone();
+                    let period: api::timesheet::DashboardPeriod =
+                        chart_period.peek().clone().into();
+                    if let Ok(s) = api::timesheet::dashboard_stats(mid, period).await {
+                        stats.set(Some(s));
                     }
                 }
                 Err(e) => toasts.push_error(e.to_string()),
@@ -705,12 +508,63 @@ pub fn Dashboard() -> Element {
         }
     };
 
-    let stats = compute_stats(&recent.read(), &activities.read());
-    let (chart_bars, chart_labels) =
-        compute_chart_data(&recent.read(), &activities.read(), &chart_period.read());
+    let on_member_change = move |new_member: Option<String>| {
+        member_id.set(new_member);
+    };
+
+    // Derive rendering data from server stats.
+    let today_hours = stats.read().as_ref().map(|s| s.today_hours).unwrap_or(0.0);
+    let week_hours = stats.read().as_ref().map(|s| s.week_hours).unwrap_or(0.0);
+    let streak = stats.read().as_ref().map(|s| s.streak).unwrap_or(0);
+
+    let chart_bars: Vec<Vec<BarSegment>> = stats
+        .read()
+        .as_ref()
+        .map(|s| {
+            s.chart_bars
+                .iter()
+                .map(|pt| {
+                    pt.segments
+                        .iter()
+                        .map(|(_, name, color, hours)| BarSegment {
+                            name: name.clone(),
+                            color: color.clone(),
+                            hours: *hours,
+                        })
+                        .collect()
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    let chart_labels: Vec<String> = stats
+        .read()
+        .as_ref()
+        .map(|s| s.chart_bars.iter().map(|pt| pt.label.clone()).collect())
+        .unwrap_or_default();
     let has_data = chart_bars.iter().any(|segs| !segs.is_empty());
 
-    let activity_colors: std::collections::HashMap<String, String> = activities
+    let mix: Vec<ActivityMixItem> = stats
+        .read()
+        .as_ref()
+        .map(|s| {
+            s.activity_mix
+                .iter()
+                .map(|am| ActivityMixItem {
+                    name: am.activity_name.clone(),
+                    color: am.color.clone(),
+                    hours: am.hours,
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let recent_entries: Vec<api::timesheet::TimesheetDto> = stats
+        .read()
+        .as_ref()
+        .map(|s| s.recent_entries.clone())
+        .unwrap_or_default();
+
+    let activity_colors: std::collections::HashMap<String, String> = activities_cache
         .read()
         .iter()
         .map(|a| (a.id.clone(), a.color.clone()))
@@ -722,11 +576,20 @@ pub fn Dashboard() -> Element {
         DefaultLayout {
             div { class: "space-y-6",
 
+                // ── Member filter (workspace admins only) ────────────────────
+                if *can_filter_members.read() {
+                    MemberFilter {
+                        members,
+                        selected: member_id,
+                        on_change: on_member_change,
+                    }
+                }
+
                 // ── Quick Start / Running Timer ──────────────────────────────
                 match running.read().clone() {
                     Some(ts) => {
                         let act_name = ts.activity_id.as_ref()
-                            .and_then(|aid| activities.read().iter().find(|a| &a.id == aid).map(|a| a.name.clone()))
+                            .and_then(|aid| activities_cache.read().iter().find(|a| &a.id == aid).map(|a| a.name.clone()))
                             .unwrap_or_else(|| tid!("dashboard-unassigned"));
                         let e = *elapsed_secs.read();
                         rsx! {
@@ -770,7 +633,7 @@ pub fn Dashboard() -> Element {
                                         Icon { icon: HiLightningBolt, width: 14, height: 14 }
                                     }
                                     Select::<String> {
-                                        options: activities.read().iter()
+                                        options: activities_cache.read().iter()
                                             .map(|a| SelectOption::new(a.id.clone(), a.name.clone()))
                                             .collect(),
                                         value: selected_activity_id.read().clone(),
@@ -789,27 +652,50 @@ pub fn Dashboard() -> Element {
                     },
                 }
 
-                // ── KPI Cards (4) ─────────────────────────────────────────────
+                // ── KPI Cards ─────────────────────────────────────────────────
                 div { class: "dash-kpi-grid",
                     div { class: "dash-kpi-card",
                         span { class: "dash-kpi-label", {tid!("dashboard-today")} }
-                        span { class: "dash-kpi-value", "{fmt_hours(stats.today_hours)}" }
+                        if *loading.read() {
+                            Skeleton { class: "h-7 w-14 rounded" }
+                        } else {
+                            span { class: "dash-kpi-value", "{fmt_hours(today_hours)}" }
+                        }
                         span { class: "dash-kpi-sub", {tid!("dashboard-tracked")} }
                     }
                     div { class: "dash-kpi-card",
                         span { class: "dash-kpi-label", {tid!("dashboard-this-week")} }
-                        span { class: "dash-kpi-value", "{fmt_hours(stats.week_hours)}" }
+                        if *loading.read() {
+                            Skeleton { class: "h-7 w-14 rounded" }
+                        } else {
+                            span { class: "dash-kpi-value", "{fmt_hours(week_hours)}" }
+                        }
                         span { class: "dash-kpi-sub", {tid!("dashboard-tracked")} }
                     }
                     div { class: "dash-kpi-card",
                         span { class: "dash-kpi-label", {tid!("dashboard-streak")} }
-                        span { class: "dash-kpi-value", "{stats.streak}" }
+                        if *loading.read() {
+                            Skeleton { class: "h-7 w-10 rounded" }
+                        } else {
+                            span { class: "dash-kpi-value", "{streak}" }
+                        }
                         span { class: "dash-kpi-sub", {tid!("dashboard-streak-unit")} }
                     }
                 }
 
                 // ── Charts ───────────────────────────────────────────────────
-                if has_data {
+                if *loading.read() {
+                    div { class: "dash-charts-grid",
+                        div { class: "island dash-chart-island",
+                            div { class: "island-header",
+                                Skeleton { class: "h-4 w-32 rounded" }
+                            }
+                            div { class: "dash-chart-area",
+                                Skeleton { class: "w-full h-full rounded" }
+                            }
+                        }
+                    }
+                } else if has_data {
                     div { class: "dash-charts-grid",
 
                         // Hours per day — bar chart with period toggle
@@ -840,31 +726,34 @@ pub fn Dashboard() -> Element {
                         }
 
                         // Activity mix — donut chart
-                        if !stats.activity_mix.is_empty() {
+                        if !mix.is_empty() {
                             div { class: "island dash-chart-island",
                                 div { class: "island-header",
                                     span { class: "island-title", {tid!("dashboard-activity-mix")} }
                                 }
                                 div { class: "dash-chart-area dash-chart-area--donut",
-                                    DonutChart { mix: stats.activity_mix }
+                                    DonutChart { mix: mix.clone() }
                                 }
                             }
                         }
                     }
                 }
 
+                // Plugin-contributed dashboard widgets (§12.2 — dashboard.widgets).
+                PluginSlot::<PluginHostCtx> { name: "dashboard.widgets".to_string() }
+
                 // ── Recent Entries ───────────────────────────────────────────
-                if !recent.read().is_empty() {
+                if !recent_entries.is_empty() {
                     div { class: "island",
                         div { class: "island-header",
                             span { class: "island-title", {tid!("dashboard-recent-entries")} }
                         }
                         div { class: "flex flex-col",
-                            for ts in recent.read().iter().take(6) {
+                            for ts in recent_entries.iter() {
                                 {
                                     let ts = ts.clone();
                                     let act_name = ts.activity_id.as_ref()
-                                        .and_then(|aid| activities.read().iter().find(|a| &a.id == aid).map(|a| a.name.clone()))
+                                        .and_then(|aid| activities_cache.read().iter().find(|a| &a.id == aid).map(|a| a.name.clone()))
                                         .unwrap_or_else(|| "—".to_string());
                                     let act_color = ts.activity_id.as_ref()
                                         .and_then(|aid| activity_colors.get(aid).cloned())

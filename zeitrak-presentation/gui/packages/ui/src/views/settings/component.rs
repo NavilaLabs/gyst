@@ -3,12 +3,14 @@ use crate::components::atoms::{
     Button, ButtonVariant, Input, SearchableSelect, Select, SelectOption, ToastExt, Toasts,
 };
 use crate::layouts::DefaultLayout;
+use crate::PluginHostCtx;
 use api::invitation::InvitationDto;
 use api::member::MemberDto;
 use api::permissions::PermissionDto;
 use api::workspace_role::WorkspaceRoleDto;
 use chrono::NaiveDate;
 use dioxus::prelude::*;
+use dioxus_extism_frontend::PluginSlot;
 use dioxus_free_icons::icons::hi_solid_icons::{
     HiBadgeCheck, HiBell, HiCheck, HiDownload, HiMail, HiOfficeBuilding, HiPencil, HiPlus,
     HiRefresh, HiSave, HiShieldCheck, HiTag, HiTrash, HiUser, HiUsers, HiX,
@@ -190,6 +192,11 @@ pub fn Settings() -> Element {
 
     // ── SMTP settings state ───────────────────────────────────────────────────
     let is_admin = auth.cloned().flatten().map(|u| u.is_admin).unwrap_or(false);
+    let can_manage_workspace = auth
+        .cloned()
+        .flatten()
+        .map(|u| u.can_manage_workspace)
+        .unwrap_or(false);
     let mut smtp_auth_method = use_signal(|| "password".to_string());
     let mut smtp_host = use_signal(String::new);
     let mut smtp_port = use_signal(|| 587_u32);
@@ -238,8 +245,12 @@ pub fn Settings() -> Element {
 
     use_resource(move || async move {
         if let Ok(list) = api::workspace_role::list_roles_with_permissions().await {
-            if let Some(first) = list.first() {
-                invite_role_id.set(first.id.clone());
+            let default = list
+                .iter()
+                .find(|r| r.name == "standard")
+                .or_else(|| list.first());
+            if let Some(role) = default {
+                invite_role_id.set(role.id.clone());
             }
             roles_with_perms.set(list);
         }
@@ -299,7 +310,11 @@ pub fn Settings() -> Element {
         async move {
             smtp_saving.set(true);
             let pw_opt = if pw.is_empty() { None } else { Some(pw) };
-            let secret_opt = if secret.is_empty() { None } else { Some(secret) };
+            let secret_opt = if secret.is_empty() {
+                None
+            } else {
+                Some(secret)
+            };
             match api::smtp::save_smtp_config(
                 auth_method,
                 host,
@@ -308,10 +323,22 @@ pub fn Settings() -> Element {
                 from_address,
                 use_tls,
                 pw_opt,
-                if client_id.is_empty() { None } else { Some(client_id) },
+                if client_id.is_empty() {
+                    None
+                } else {
+                    Some(client_id)
+                },
                 secret_opt,
-                if tenant_id.is_empty() { None } else { Some(tenant_id) },
-                if oauth2_email.is_empty() { None } else { Some(oauth2_email) },
+                if tenant_id.is_empty() {
+                    None
+                } else {
+                    Some(tenant_id)
+                },
+                if oauth2_email.is_empty() {
+                    None
+                } else {
+                    Some(oauth2_email)
+                },
             )
             .await
             {
@@ -409,17 +436,21 @@ pub fn Settings() -> Element {
                         Icon { icon: HiUser, width: 14, height: 14 }
                         {tid!("settings-tab-my-settings")}
                     }
-                    button {
-                        class: if *active_tab.read() == Tab::Workspace { "tab-pill tab-pill--active" } else { "tab-pill" },
-                        onclick: move |_| active_tab.set(Tab::Workspace),
-                        Icon { icon: HiOfficeBuilding, width: 14, height: 14 }
-                        {tid!("settings-tab-workspace-settings")}
+                    if can_manage_workspace || is_admin {
+                        button {
+                            class: if *active_tab.read() == Tab::Workspace { "tab-pill tab-pill--active" } else { "tab-pill" },
+                            onclick: move |_| active_tab.set(Tab::Workspace),
+                            Icon { icon: HiOfficeBuilding, width: 14, height: 14 }
+                            {tid!("settings-tab-workspace-settings")}
+                        }
                     }
-                    button {
-                        class: if *active_tab.read() == Tab::Members { "tab-pill tab-pill--active" } else { "tab-pill" },
-                        onclick: move |_| active_tab.set(Tab::Members),
-                        Icon { icon: HiUsers, width: 14, height: 14 }
-                        {tid!("settings-tab-members")}
+                    if can_manage_workspace || is_admin {
+                        button {
+                            class: if *active_tab.read() == Tab::Members { "tab-pill tab-pill--active" } else { "tab-pill" },
+                            onclick: move |_| active_tab.set(Tab::Members),
+                            Icon { icon: HiUsers, width: 14, height: 14 }
+                            {tid!("settings-tab-members")}
+                        }
                     }
                     if is_admin {
                         button {
@@ -619,6 +650,9 @@ pub fn Settings() -> Element {
                             }
                         }
                         } // end settings-card-disabled (Security)
+
+                        // Plugin-contributed user settings sections (§12.2 — settings.sections).
+                        PluginSlot::<PluginHostCtx> { name: "settings.sections".to_string() }
                     }
                 }
 
@@ -955,6 +989,9 @@ pub fn Settings() -> Element {
                                 if *ws_saving.read() { {tid!("common-saving")} } else { {tid!("common-save-settings")} }
                             }
                         }
+
+                        // Plugin-contributed workspace settings sections (§12.2 — workspace.settings.sections).
+                        PluginSlot::<PluginHostCtx> { name: "workspace.settings.sections".to_string() }
                     }
                 }
 

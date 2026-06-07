@@ -9,7 +9,7 @@ async fn build_repo() -> Result<SmtpConfigRepositoryImpl> {
     Ok(SmtpConfigRepositoryImpl::new(pool, secret))
 }
 
-/// Initiates the Microsoft OAuth2 authorization code flow.
+/// Initiates the Microsoft `OAuth2` authorization code flow.
 ///
 /// Stores a random CSRF state in the admin database and returns the full
 /// authorization URL for the user to open in their browser.
@@ -19,8 +19,8 @@ async fn build_repo() -> Result<SmtpConfigRepositoryImpl> {
 /// Returns an error if no SMTP config row exists yet or the state cannot be saved.
 pub async fn initiate_microsoft_oauth2(client_id: &str, tenant_id: &str) -> Result<String> {
     use rand::Rng as _;
-    let state: String = rand::thread_rng()
-        .sample_iter(rand::distributions::Alphanumeric)
+    let state: String = rand::rng()
+        .sample_iter(rand::distr::Alphanumeric)
         .take(32)
         .map(char::from)
         .collect();
@@ -53,7 +53,7 @@ struct TokenResponse {
     refresh_token: String,
 }
 
-/// Handles the OAuth2 authorization callback.
+/// Handles the `OAuth2` authorization callback.
 ///
 /// Exchanges `code` for tokens and persists the `refresh_token` in the admin
 /// database.  The CSRF `state` is validated against the stored value.
@@ -95,12 +95,13 @@ pub async fn complete_microsoft_oauth2(code: String, state: String) -> Result<()
         ("client_secret", client_secret.as_str()),
         ("code", code.as_str()),
         ("redirect_uri", redirect_uri.as_str()),
-        ("scope", "https://outlook.office.com/SMTP.Send offline_access"),
+        (
+            "scope",
+            "https://outlook.office.com/SMTP.Send offline_access",
+        ),
     ];
 
-    let token_url = format!(
-        "https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
-    );
+    let token_url = format!("https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token");
 
     let http = reqwest::Client::new();
     let resp = http
@@ -125,12 +126,12 @@ pub async fn complete_microsoft_oauth2(code: String, state: String) -> Result<()
     Ok(())
 }
 
-/// Returns `true` if the OAuth2 authorization flow has completed successfully.
+/// Returns `true` if the `OAuth2` authorization flow has completed successfully.
 ///
 /// # Errors
 ///
 /// Returns an error if the admin database cannot be reached.
 pub async fn oauth2_status() -> Result<bool> {
     let repo = build_repo().await?;
-    Ok(repo.get().await?.map_or(false, |c| c.oauth2_authorized))
+    Ok(repo.get().await?.is_some_and(|c| c.oauth2_authorized))
 }

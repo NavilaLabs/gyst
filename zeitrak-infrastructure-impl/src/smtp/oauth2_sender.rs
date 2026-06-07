@@ -10,7 +10,7 @@ use zeitrak_infrastructure::email::{EmailSender, PersistedSmtpConfig};
 
 use crate::smtp::oauth2_cache::{CachedToken, TOKEN_CACHE};
 
-/// Microsoft OAuth2 token endpoint response (subset of fields we use).
+/// Microsoft `OAuth2` token endpoint response (subset of fields we use).
 #[derive(Deserialize)]
 struct TokenResponse {
     access_token: String,
@@ -38,7 +38,7 @@ impl OAuth2SmtpEmailSender {
     ///
     /// # Errors
     ///
-    /// Returns an error if any required OAuth2 field is missing.
+    /// Returns an error if any required `OAuth2` field is missing.
     pub fn new(config: PersistedSmtpConfig) -> anyhow::Result<Self> {
         Ok(Self {
             host: config.host,
@@ -90,7 +90,10 @@ impl OAuth2SmtpEmailSender {
             ("client_id", &self.client_id),
             ("client_secret", &self.client_secret),
             ("refresh_token", &self.refresh_token),
-            ("scope", "https://outlook.office.com/SMTP.Send offline_access"),
+            (
+                "scope",
+                "https://outlook.office.com/SMTP.Send offline_access",
+            ),
         ];
 
         let client = reqwest::Client::new();
@@ -112,16 +115,15 @@ impl OAuth2SmtpEmailSender {
             .await
             .map_err(|e| anyhow::anyhow!("failed to parse token response: {e}"))?;
 
-        let expires_at = Utc::now()
-            + Duration::seconds(
-                i64::try_from(token_resp.expires_in).unwrap_or(3600),
-            );
+        let expires_at =
+            Utc::now() + Duration::seconds(i64::try_from(token_resp.expires_in).unwrap_or(3600));
 
         let mut cache = TOKEN_CACHE.lock().await;
         *cache = Some(CachedToken {
             token: token_resp.access_token.clone(),
             expires_at,
         });
+        drop(cache);
 
         Ok(token_resp.access_token)
     }
@@ -172,7 +174,9 @@ impl EmailSender for OAuth2SmtpEmailSender {
         let email = Message::builder()
             .from(self.from_address.parse()?)
             .to(to.parse()?)
-            .subject(format!("You're invited to join {workspace_name} on Zeitrak"))
+            .subject(format!(
+                "You're invited to join {workspace_name} on Zeitrak"
+            ))
             .header(ContentType::TEXT_PLAIN)
             .body(body)?;
         self.send_message(email).await
@@ -202,9 +206,7 @@ impl EmailSender for OAuth2SmtpEmailSender {
         owner_email: &str,
         subscriber_email: &str,
     ) -> anyhow::Result<()> {
-        let body = format!(
-            "Someone joined the Zeitrak early access waitlist: {subscriber_email}"
-        );
+        let body = format!("Someone joined the Zeitrak early access waitlist: {subscriber_email}");
         let email = Message::builder()
             .from(self.from_address.parse()?)
             .to(owner_email.parse()?)

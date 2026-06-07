@@ -12,20 +12,46 @@ use zeitrak_core::{
 };
 use zeitrak_infrastructure_impl::tenant::timesheet::repositories::TimesheetRepository;
 
-pub async fn recent(workspace_id: &str, user_id: &str) -> Result<Vec<TimesheetRow>> {
+pub async fn recent(
+    workspace_id: &str,
+    user_id: &str,
+    page: u32,
+    page_size: u32,
+) -> Result<(Vec<TimesheetRow>, u64)> {
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = TimesheetRepository::from_pool(pool).await?;
     TimesheetQuery::new(repo)
-        .recent_for_user(user_id)
+        .recent_for_user(user_id, page, page_size)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
-pub async fn recent_all(workspace_id: &str) -> Result<Vec<TimesheetRow>> {
+pub async fn recent_all(
+    workspace_id: &str,
+    page: u32,
+    page_size: u32,
+    member_id: Option<&str>,
+) -> Result<(Vec<TimesheetRow>, u64)> {
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = TimesheetRepository::from_pool(pool).await?;
     TimesheetQuery::new(repo)
-        .recent_for_workspace()
+        .recent_for_workspace(page, page_size, member_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
+}
+
+/// Returns all completed timesheets from `since_rfc3339` to now, for a member or all members.
+///
+/// Used for dashboard KPI and chart aggregation.
+pub async fn stats_for_period(
+    workspace_id: &str,
+    member_id: Option<&str>,
+    since_rfc3339: &str,
+) -> Result<Vec<TimesheetRow>> {
+    let pool = super::tenant_pool(workspace_id).await?;
+    let repo = TimesheetRepository::from_pool(pool).await?;
+    TimesheetQuery::new(repo)
+        .stats_for_period(member_id, since_rfc3339)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))
 }
@@ -45,6 +71,12 @@ pub async fn start(
     activity_id: Option<&str>,
     description: Option<String>,
 ) -> Result<TimesheetRow> {
+    crate::plugin_hooks::run_pre(
+        "timesheet.Start",
+        serde_json::json!({ "workspace_id": workspace_id, "user_id": user_id }),
+    )
+    .await?;
+
     let pool = super::tenant_pool(workspace_id).await?;
 
     // Check for an already-running timer before starting a new one.
@@ -65,13 +97,26 @@ pub async fn start(
     let start_time = Utc::now().to_rfc3339();
     let timezone = "UTC".to_string();
 
-    TimesheetHandler::new(TimesheetRepository::from_pool(pool).await?)
+    let result = TimesheetHandler::new(TimesheetRepository::from_pool(pool).await?)
         .start(id, uid, aid, start_time, timezone, description)
         .await
-        .map_err(|e| anyhow::anyhow!("{e}"))
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    crate::plugin_hooks::run_post(
+        "timesheet.Start",
+        &serde_json::json!({ "workspace_id": workspace_id, "id": result.id().to_string() }),
+    )
+    .await;
+    Ok(result)
 }
 
 pub async fn stop(workspace_id: &str, timesheet_id: &str) -> Result<()> {
+    crate::plugin_hooks::run_pre(
+        "timesheet.Stop",
+        serde_json::json!({ "workspace_id": workspace_id, "timesheet_id": timesheet_id }),
+    )
+    .await?;
+
     let pool = super::tenant_pool(workspace_id).await?;
     let agg_id: TimesheetId = timesheet_id.parse()?;
 
@@ -94,7 +139,14 @@ pub async fn stop(workspace_id: &str, timesheet_id: &str) -> Result<()> {
     TimesheetHandler::new(TimesheetRepository::from_pool(pool).await?)
         .stop(agg_id, end_rfc, duration)
         .await
-        .map_err(|e| anyhow::anyhow!("{e}"))
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    crate::plugin_hooks::run_post(
+        "timesheet.Stop",
+        &serde_json::json!({ "workspace_id": workspace_id, "timesheet_id": timesheet_id }),
+    )
+    .await;
+    Ok(())
 }
 
 pub async fn update(
@@ -102,13 +154,26 @@ pub async fn update(
     timesheet_id: &str,
     description: Option<String>,
 ) -> Result<()> {
+    crate::plugin_hooks::run_pre(
+        "timesheet.Update",
+        serde_json::json!({ "workspace_id": workspace_id, "timesheet_id": timesheet_id }),
+    )
+    .await?;
+
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = TimesheetRepository::from_pool(pool).await?;
     let agg_id: TimesheetId = timesheet_id.parse()?;
     TimesheetHandler::new(repo)
         .update(agg_id, description)
         .await
-        .map_err(|e| anyhow::anyhow!("{e}"))
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    crate::plugin_hooks::run_post(
+        "timesheet.Update",
+        &serde_json::json!({ "workspace_id": workspace_id, "timesheet_id": timesheet_id }),
+    )
+    .await;
+    Ok(())
 }
 
 pub async fn reassign(workspace_id: &str, timesheet_id: &str, activity_id: &str) -> Result<()> {
@@ -158,13 +223,26 @@ pub async fn create_manual(
 }
 
 pub async fn cancel(workspace_id: &str, timesheet_id: &str) -> Result<()> {
+    crate::plugin_hooks::run_pre(
+        "timesheet.Cancel",
+        serde_json::json!({ "workspace_id": workspace_id, "timesheet_id": timesheet_id }),
+    )
+    .await?;
+
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = TimesheetRepository::from_pool(pool).await?;
     let agg_id: TimesheetId = timesheet_id.parse()?;
     TimesheetHandler::new(repo)
         .cancel(agg_id)
         .await
-        .map_err(|e| anyhow::anyhow!("{e}"))
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    crate::plugin_hooks::run_post(
+        "timesheet.Cancel",
+        &serde_json::json!({ "workspace_id": workspace_id, "timesheet_id": timesheet_id }),
+    )
+    .await;
+    Ok(())
 }
 
 pub async fn update_time(

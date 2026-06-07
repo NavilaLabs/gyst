@@ -3,10 +3,12 @@ use crate::components::atoms::{
     ToastExt, Toasts,
 };
 use crate::formatting;
+use crate::PluginHostCtx;
 use api::activity::ActivityDto;
 use api::timesheet::TimesheetDto;
 use api::timesheet_tag::TimesheetsTagDto;
 use dioxus::prelude::*;
+use dioxus_extism_frontend::PluginSlot;
 use dioxus_free_icons::icons::hi_solid_icons::{HiPencil, HiSave, HiTag, HiTrash, HiX};
 use dioxus_free_icons::Icon;
 use dioxus_i18n::tid;
@@ -16,8 +18,11 @@ pub(super) struct EntryTableProps {
     pub timesheets: Signal<Vec<TimesheetDto>>,
     pub activities: Signal<Vec<ActivityDto>>,
     pub all_tags: Signal<Vec<TimesheetsTagDto>>,
-    pub page: Signal<usize>,
+    pub page: Signal<u32>,
+    /// Server-reported total count used for pagination math.
+    pub total: Signal<u64>,
     pub loading: Signal<bool>,
+    pub on_page_change: EventHandler<u32>,
 }
 
 #[component]
@@ -28,7 +33,7 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
     let mut timesheets = props.timesheets;
     let activities = props.activities;
     let all_tags = props.all_tags;
-    let mut page = props.page;
+    let page = props.page;
 
     let mut editing_id = use_signal(|| Option::<String>::None);
     let mut edit_activity_id = use_signal(|| Option::<String>::None);
@@ -110,16 +115,11 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
         toasts.push_success("Timesheet updated");
     };
 
-    let total = timesheets.read().len();
-    let current_page = *page.read();
+    // Server already returned the correct page; total comes from the server.
+    let total = *props.total.read() as usize;
+    let current_page = *page.read() as usize;
     let page_size = 20_usize;
-    let page_items: Vec<TimesheetDto> = timesheets
-        .read()
-        .iter()
-        .skip(current_page * page_size)
-        .take(page_size)
-        .cloned()
-        .collect();
+    let page_items: Vec<TimesheetDto> = timesheets.read().clone();
 
     let ts_columns = vec![
         ColumnDef::new(tid!("timesheets-col-activity")),
@@ -142,7 +142,7 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                 page: current_page,
                 page_size,
                 loading: *props.loading.read(),
-                on_page_change: move |p| page.set(p),
+                on_page_change: move |p: usize| props.on_page_change.call(p as u32),
 
                 for ts in page_items {
                     {
@@ -181,6 +181,9 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                         }
                                         div { class: "flex flex-col gap-0.5",
                                         span { class: "text-xs text-secondary", "{act_name}" }
+                                        if let Some(ref member) = t.member_name {
+                                            span { class: "text-xs text-secondary opacity-60", "{member}" }
+                                        }
                                         if let Some(ref desc) = t.description {
                                             span { class: "text-xs text-secondary italic", "{desc}" }
                                         }
@@ -266,6 +269,8 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                                 },
                                                 Icon { icon: HiTrash, width: 14, height: 14 }
                                             }
+                                            // Plugin-contributed row actions (§12.2 — timesheet.row.actions).
+                                            PluginSlot::<PluginHostCtx> { name: "timesheet.row.actions".to_string() }
                                         }
                                     }
                                 }
@@ -331,6 +336,8 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                             {tid!("common-cancel")}
                                         }
                                     }
+                                    // Plugin-contributed detail sections (§12.2 — timesheet.detail.sections).
+                                    PluginSlot::<PluginHostCtx> { name: "timesheet.detail.sections".to_string() }
                                 }
                             }
 

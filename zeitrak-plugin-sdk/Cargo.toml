@@ -1,0 +1,13 @@
+[package]
+name = "zeitrak-plugin-sdk"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+dioxus-extism-pdk = { path = "../../dioxus-extism/crates/dioxus-extism-pdk" }
+paste             = "1"
+serde             = { workspace = true }
+serde_json        = { workspace = true }
+
+[lints]
+workspace = true

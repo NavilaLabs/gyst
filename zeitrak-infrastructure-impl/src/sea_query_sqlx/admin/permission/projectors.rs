@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use eventually_projection::{Projector, RawEvent};
 use sea_query::{DynIden, OnConflict, PostgresQueryBuilder, Query, SqliteQueryBuilder, TableRef};
 use sea_query_sqlx::SqlxBinder;
+use sqlx::AssertSqlSafe;
 use zeitrak_core::admin::permission::PermissionEvent;
 
 use crate::{DatabaseType, Pool, ScopeAdmin, StateConnected};
@@ -41,7 +42,7 @@ impl Projector for PermissionProjector {
                     DatabaseType::Postgres => query.build_sqlx(PostgresQueryBuilder),
                 };
 
-                sqlx::query_with(&sql, values)
+                sqlx::query_with(AssertSqlSafe(sql.as_str()), values)
                     .execute(self.pool.as_ref())
                     .await?;
 

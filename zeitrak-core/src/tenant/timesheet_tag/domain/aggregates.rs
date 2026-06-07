@@ -57,6 +57,8 @@ impl Aggregate for TimesheetTag {
     }
 }
 
+impl crate::snapshot_policy::SnapshotPolicy for TimesheetTag {}
+
 #[cfg(test)]
 mod tests {
     use super::*;

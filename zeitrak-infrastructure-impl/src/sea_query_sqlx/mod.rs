@@ -3,6 +3,8 @@ pub mod infrastructure;
 pub mod pluggable_projector;
 pub mod tenant;
 
+pub use admin::authorization::SqlAuthorizationRepository;
+
 pub use infrastructure::*;
 pub use pluggable_projector::PluggableProjector;
 

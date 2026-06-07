@@ -6,7 +6,7 @@ use eventually::aggregate::{Aggregate, Root};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
 use sea_query::{Alias, Condition, Expr, ExprTrait, JoinType, Order};
-use sqlx::{Row, any::AnyRow};
+use sqlx::{AssertSqlSafe, Row, any::AnyRow};
 use zeitrak_core::admin::workspace::{
     MemberRow, Workspace, WorkspaceEvent, WorkspaceId,
     WorkspaceRepository as WorkspaceRepositoryTrait, WorkspaceRow,
@@ -14,7 +14,9 @@ use zeitrak_core::admin::workspace::{
 use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 
 use crate::{
-    ConnectedAdminPool, infrastructure::read_model::SeaQueryReadModel, snapshot::SnapshotRepository,
+    ConnectedAdminPool,
+    infrastructure::{event_stream::current_stream_version, read_model::SeaQueryReadModel},
+    snapshot::SnapshotRepository,
 };
 
 const TABLE: &str = "projections__workspaces";
@@ -107,7 +109,7 @@ impl WorkspaceRepository {
             .order_by((Alias::new("w"), Alias::new("id")), Order::Asc)
             .to_owned();
         let (sql, values) = self.store.pool.build_query(&stmt);
-        let rows = sqlx::query_with(&sql, values)
+        let rows = sqlx::query_with(AssertSqlSafe(sql.as_str()), values)
             .fetch_all(self.store.pool.as_ref())
             .await?;
 
@@ -133,7 +135,7 @@ impl WorkspaceRepository {
             .to_owned();
 
         let (sql, arguments) = self.store.pool.build_query(&statement);
-        let row = sqlx::query_with(&sql, arguments)
+        let row = sqlx::query_with(AssertSqlSafe(sql.as_str()), arguments)
             .fetch_optional(self.store.pool.as_ref())
             .await?;
 
@@ -194,6 +196,18 @@ impl RowToRoot<AnyRow, Workspace> for WorkspaceRepository {
     }
 }
 
+impl WorkspaceRepository {
+    async fn row_to_root_versioned(&self, row: AnyRow) -> Result<Root<Workspace>, crate::Error> {
+        let root = self.row_to_root(row)?;
+        let version =
+            current_stream_version(&self.store.pool, &root.aggregate_id().to_string()).await?;
+        Ok(Root::rehydrate_from_state(
+            version,
+            root.to_aggregate_type::<Workspace>(),
+        ))
+    }
+}
+
 impl zeitrak_core::shared::repositories::Repository<Workspace, AnyRow> for WorkspaceRepository {}
 
 #[async_trait]
@@ -210,7 +224,11 @@ impl ReadRepository<Workspace, AnyRow> for WorkspaceRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
-        row.map(|r| self.row_to_root(r)).transpose()
+        if let Some(row) = row {
+            Ok(Some(self.row_to_root_versioned(row).await?))
+        } else {
+            Ok(None)
+        }
     }
 
     async fn find_many(&self, ids: Vec<WorkspaceId>) -> Result<Vec<Root<Workspace>>, crate::Error> {
@@ -226,14 +244,22 @@ impl ReadRepository<Workspace, AnyRow> for WorkspaceRepository {
         let rm = self.read_model();
         let stmt = rm.select().cond_where(filter).to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.row_to_root(row)).collect()
+        let mut roots = Vec::with_capacity(rows.len());
+        for row in rows {
+            roots.push(self.row_to_root_versioned(row).await?);
+        }
+        Ok(roots)
     }
 
     async fn all(&self) -> Result<Vec<Root<Workspace>>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm.select();
         let rows = rm.fetch_all_rows(&stmt).await?;
-        rows.into_iter().map(|row| self.row_to_root(row)).collect()
+        let mut roots = Vec::with_capacity(rows.len());
+        for row in rows {
+            roots.push(self.row_to_root_versioned(row).await?);
+        }
+        Ok(roots)
     }
 
     async fn count_by(&self, filter: Condition) -> Result<u64, crate::Error> {

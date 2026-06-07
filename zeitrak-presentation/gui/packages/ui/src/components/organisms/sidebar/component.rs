@@ -1,4 +1,6 @@
 use dioxus::prelude::*;
+use dioxus_extism_frontend::PluginSlot;
+use dioxus_extism_macros::overridable;
 use dioxus_free_icons::icons::hi_solid_icons::{
     HiChevronLeft, HiChevronRight, HiClock, HiCog, HiHashtag, HiHome, HiLogout, HiPlay, HiStop,
     HiTag,
@@ -7,6 +9,7 @@ use dioxus_free_icons::Icon;
 use dioxus_i18n::tid;
 
 use crate::components::atoms::{Button, ButtonVariant, Navbar, NavbarItem, ToastMessage, Toasts};
+use crate::PluginHostCtx;
 
 /// Mirrors the `AuthState` type alias from the `web` crate.
 type AuthState = Signal<Option<Option<api::auth::UserInfo>>>;
@@ -30,6 +33,7 @@ fn email_initials(email: &str) -> String {
     }
 }
 
+#[overridable]
 #[component]
 pub fn Sidebar() -> Element {
     let auth: AuthState = use_context();
@@ -171,6 +175,14 @@ pub fn Sidebar() -> Element {
                                 span { class: "sidebar-label", {tid!("sidebar-nav-settings")} }
                             }
                         }
+                    }
+
+                    // Plugin-contributed sidebar entries (§12.2 — sidebar.entries).
+                    PluginSlot::<PluginHostCtx> { name: "sidebar.entries".to_string() }
+
+                    // Plugin-contributed admin menu entries — only visible to admins (§12.2 — admin.menu).
+                    if user.is_admin {
+                        PluginSlot::<PluginHostCtx> { name: "admin.menu".to_string() }
                     }
                 }
             }

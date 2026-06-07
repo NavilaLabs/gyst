@@ -7,20 +7,19 @@ use sqlx::AnyPool;
 /// independent, all tests run **concurrently** without `#[serial]`.
 ///
 /// Security scenarios covered:
-///   - Admin flag correctly detected via role name                ✓
-///   - Non-admin roles do NOT grant admin                         ✓
-///   - Unknown users are never treated as admin                   ✓
-///   - Empty / zero-length `user_id` is safe                        ✓
-///   - SQL injection in `user_id` returns false (parameterised)     ✓
-///   - SQL injection in permission name returns false             ✓
-///   - Permission via role grant                                  ✓
-///   - Permission via direct user grant                           ✓
-///   - Absent permission returns false                            ✓
-///   - Role name "admin" is case-sensitive                        ✓
-///   - Permission in workspace A does NOT grant access in B       ✓
-///   - `require_admin` returns Ok for admins, Err for others      ✓
-///   - `require_permission` admin bypass works                    ✓
-///   - `require_permission` returns Err when permission absent    ✓
+///   - Admin flag correctly detected via `is_instance_admin` column ✓
+///   - Roles without `is_instance_admin` do NOT grant admin         ✓
+///   - Unknown users are never treated as admin                     ✓
+///   - Empty / zero-length `user_id` is safe                       ✓
+///   - SQL injection in `user_id` returns false (parameterised)    ✓
+///   - SQL injection in permission name returns false              ✓
+///   - Permission via role grant                                   ✓
+///   - Permission via direct user grant                            ✓
+///   - Absent permission returns false                             ✓
+///   - Permission in workspace A does NOT grant access in B        ✓
+///   - `require_admin` returns Ok for admins, Err for others       ✓
+///   - `require_permission` admin bypass works                     ✓
+///   - `require_permission` returns Err when permission absent     ✓
 use zeitrak::{auth::CurrentUser, authorization::AuthorizationService};
 use zeitrak_tests::TestFixture;
 
@@ -63,7 +62,7 @@ fn unknown_user() -> CurrentUser {
 ///
 /// State after seeding:
 /// - One workspace (`WORKSPACE_ID`)
-/// - `ADMIN_USER_ID` → "admin" role (no explicit permissions)
+/// - `ADMIN_USER_ID` → `is_instance_admin = true`, assigned to the "admin" role
 /// - `REGULAR_USER_ID` → "viewer" role + direct grant of `PERMISSION_NAME`
 /// - Viewer role has `PERMISSION_NAME` via role grant
 async fn seed(pool: &AnyPool) {
@@ -75,24 +74,31 @@ async fn seed(pool: &AnyPool) {
         .await
         .unwrap();
 
-    // 2. Users
-    for (id, name, email) in [
-        (ADMIN_USER_ID, "Admin User", "admin@test.com"),
-        (REGULAR_USER_ID, "Regular User", "user@test.com"),
-    ] {
-        sqlx::query(
-            "INSERT INTO projections__users (id, name, email, password) VALUES ($1, $2, $3, $4)",
-        )
-        .bind(id)
-        .bind(name)
-        .bind(email)
-        .bind("$2b$12$placeholder_hash")
-        .execute(pool)
-        .await
-        .unwrap();
-    }
+    // 2. Users — admin user gets is_instance_admin = 1
+    sqlx::query(
+        "INSERT INTO projections__users (id, name, email, password, is_instance_admin) \
+         VALUES ($1, $2, $3, $4, 1)",
+    )
+    .bind(ADMIN_USER_ID)
+    .bind("Admin User")
+    .bind("admin@test.com")
+    .bind("$2b$12$placeholder_hash")
+    .execute(pool)
+    .await
+    .unwrap();
 
-    // 3. Permission
+    sqlx::query(
+        "INSERT INTO projections__users (id, name, email, password) VALUES ($1, $2, $3, $4)",
+    )
+    .bind(REGULAR_USER_ID)
+    .bind("Regular User")
+    .bind("user@test.com")
+    .bind("$2b$12$placeholder_hash")
+    .execute(pool)
+    .await
+    .unwrap();
+
+    // 3. Add PERMISSION_NAME as a test-only permission
     sqlx::query("INSERT INTO permissions (id, name) VALUES ($1, $2)")
         .bind(PERMISSION_ID)
         .bind(PERMISSION_NAME)
@@ -101,7 +107,10 @@ async fn seed(pool: &AnyPool) {
         .unwrap();
 
     // 4. Workspace roles
-    for (id, name) in [(ADMIN_ROLE_ID, "admin"), (VIEWER_ROLE_ID, "viewer")] {
+    for (id, name) in [
+        (ADMIN_ROLE_ID, "workspace_admin"),
+        (VIEWER_ROLE_ID, "viewer"),
+    ] {
         sqlx::query(
             "INSERT INTO projections__workspace_roles (id, workspace_id, name) VALUES ($1, $2, $3)",
         )
@@ -132,7 +141,7 @@ async fn seed(pool: &AnyPool) {
 
     // 6. Role ↔ permission: viewer role gets PERMISSION_NAME
     sqlx::query(
-        "INSERT INTO projections__workspace_role_permissions (workspace_role_id, permission_id)
+        "INSERT INTO projections__workspace_role_permissions (workspace_role_id, permission_id) \
          VALUES ($1, $2)",
     )
     .bind(VIEWER_ROLE_ID)
@@ -141,7 +150,7 @@ async fn seed(pool: &AnyPool) {
     .await
     .unwrap();
 
-    // 7. Direct user ↔ permission: regular_user also has it directly
+    // 7. Direct user ↔ permission: regular_user also has PERMISSION_NAME directly
     sqlx::query(
         "INSERT INTO projections__workspace_user_permissions
          (workspace_id, user_id, permission_id) VALUES ($1, $2, $3)",
@@ -157,7 +166,7 @@ async fn seed(pool: &AnyPool) {
 // ── is_admin ──────────────────────────────────────────────────────────────────
 
 #[tokio::test]
-async fn is_admin_returns_true_for_user_with_admin_role() {
+async fn is_admin_returns_true_for_instance_admin_user() {
     let db = TestFixture::setup().await;
     seed(db.admin.as_ref()).await;
     assert!(
@@ -226,13 +235,14 @@ async fn is_admin_sql_injection_in_user_id_is_neutralised() {
     }
 }
 
-/// Role name "admin" is case-sensitive: "Admin" must not satisfy the check.
+/// A user assigned to a role named `workspace_admin` is NOT an instance admin
+/// unless their `is_instance_admin` column is set to true.
 #[tokio::test]
-async fn is_admin_role_name_matching_is_case_sensitive() {
+async fn is_admin_returns_false_for_workspace_admin_without_instance_admin_flag() {
     let db = TestFixture::setup().await;
     seed(db.admin.as_ref()).await;
 
-    let capital_role_id = "00000000-0000-0000-0000-000000000099";
+    let named_admin_role_id = "00000000-0000-0000-0000-000000000099";
 
     sqlx::query(
         "INSERT INTO projections__users (id, name, email, password) VALUES ($1, $2, $3, $4)",
@@ -245,12 +255,13 @@ async fn is_admin_role_name_matching_is_case_sensitive() {
     .await
     .unwrap();
 
+    // Role is named "workspace_admin" but the user does not have is_instance_admin = true.
     sqlx::query(
         "INSERT INTO projections__workspace_roles (id, workspace_id, name) VALUES ($1, $2, $3)",
     )
-    .bind(capital_role_id)
+    .bind(named_admin_role_id)
     .bind(WORKSPACE_ID)
-    .bind("Admin") // capital A — must NOT match "admin"
+    .bind("workspace_admin")
     .execute(db.admin.as_ref())
     .await
     .unwrap();
@@ -261,7 +272,7 @@ async fn is_admin_role_name_matching_is_case_sensitive() {
     )
     .bind(WORKSPACE_ID)
     .bind(UNRELATED_USER_ID)
-    .bind(capital_role_id)
+    .bind(named_admin_role_id)
     .execute(db.admin.as_ref())
     .await
     .unwrap();
@@ -270,7 +281,7 @@ async fn is_admin_role_name_matching_is_case_sensitive() {
         !AuthorizationService::is_admin_on(db.admin.as_ref(), UNRELATED_USER_ID)
             .await
             .unwrap(),
-        "role named 'Admin' (capital A) must not satisfy the 'admin' check"
+        "workspace_admin role alone must not grant instance admin — only is_instance_admin = true does"
     );
 }
 
@@ -339,7 +350,7 @@ async fn has_permission_returns_true_via_direct_user_grant() {
 async fn has_permission_returns_false_for_user_with_no_grant() {
     let db = TestFixture::setup().await;
     seed(db.admin.as_ref()).await;
-    // admin_user has the admin role but that role has no permissions seeded.
+    // admin_user has the admin role which carries admin.bypass but NOT PERMISSION_NAME.
     assert!(
         !AuthorizationService::has_permission_on(
             db.admin.as_ref(),
@@ -349,7 +360,7 @@ async fn has_permission_returns_false_for_user_with_no_grant() {
         )
         .await
         .unwrap(),
-        "admin role has no permission grants in this fixture — must return false"
+        "admin role does not hold PERMISSION_NAME — has_permission must return false"
     );
 }
 

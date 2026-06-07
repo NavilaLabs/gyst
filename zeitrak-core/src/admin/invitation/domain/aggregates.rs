@@ -116,6 +116,8 @@ impl Aggregate for Invitation {
     }
 }
 
+impl crate::snapshot_policy::SnapshotPolicy for Invitation {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
