@@ -14,7 +14,9 @@ pub trait TimesheetRepository<R>: Repository<Timesheet, R> + Send + Sync {
         + From<<Self as ReadRepository<Timesheet, R>>::Error>
         + From<<Self as WriteRepository<Timesheet>>::Error>;
 
-    /// Returns the most-recent 50 non-cancelled timesheets for a user, newest first.
+    /// Returns a page of non-cancelled timesheets for a user, newest first.
+    ///
+    /// Returns `(rows, total_count)` where `total_count` is the full un-paged count.
     ///
     /// # Errors
     ///
@@ -22,7 +24,9 @@ pub trait TimesheetRepository<R>: Repository<Timesheet, R> + Send + Sync {
     async fn recent_for_user(
         &self,
         user_id: &str,
-    ) -> Result<Vec<TimesheetRow>, <Self as TimesheetRepository<R>>::Error>;
+        page: u32,
+        page_size: u32,
+    ) -> Result<(Vec<TimesheetRow>, u64), <Self as TimesheetRepository<R>>::Error>;
 
     /// Returns the running timesheet for a user (`end_time` IS NULL), if any.
     ///
@@ -34,13 +38,32 @@ pub trait TimesheetRepository<R>: Repository<Timesheet, R> + Send + Sync {
         user_id: &str,
     ) -> Result<Option<TimesheetRow>, <Self as TimesheetRepository<R>>::Error>;
 
-    /// Returns the most-recent 50 non-cancelled timesheets across all users in
-    /// the workspace, newest first.
+    /// Returns a page of non-cancelled timesheets across all users in the workspace,
+    /// newest first. `member_id` optionally restricts results to a single user.
+    ///
+    /// Returns `(rows, total_count)` where `total_count` is the full un-paged count.
     ///
     /// # Errors
     ///
     /// Returns an error if the database query fails.
     async fn recent_for_workspace(
         &self,
+        page: u32,
+        page_size: u32,
+        member_id: Option<&str>,
+    ) -> Result<(Vec<TimesheetRow>, u64), <Self as TimesheetRepository<R>>::Error>;
+
+    /// Returns all completed (end\_time IS NOT NULL, not cancelled) timesheets
+    /// with `start_time >= since_rfc3339`, for a single member or all members.
+    ///
+    /// Used for dashboard KPI and chart aggregation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    async fn stats_for_period(
+        &self,
+        member_id: Option<&str>,
+        since_rfc3339: &str,
     ) -> Result<Vec<TimesheetRow>, <Self as TimesheetRepository<R>>::Error>;
 }

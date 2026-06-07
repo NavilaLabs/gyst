@@ -4,13 +4,13 @@ use crate::components::atoms::{
 };
 use crate::layouts::DefaultLayout;
 use crate::PluginHostCtx;
-use dioxus_extism_frontend::PluginSlot;
 use api::invitation::InvitationDto;
 use api::member::MemberDto;
 use api::permissions::PermissionDto;
 use api::workspace_role::WorkspaceRoleDto;
 use chrono::NaiveDate;
 use dioxus::prelude::*;
+use dioxus_extism_frontend::PluginSlot;
 use dioxus_free_icons::icons::hi_solid_icons::{
     HiBadgeCheck, HiBell, HiCheck, HiDownload, HiMail, HiOfficeBuilding, HiPencil, HiPlus,
     HiRefresh, HiSave, HiShieldCheck, HiTag, HiTrash, HiUser, HiUsers, HiX,
@@ -310,7 +310,11 @@ pub fn Settings() -> Element {
         async move {
             smtp_saving.set(true);
             let pw_opt = if pw.is_empty() { None } else { Some(pw) };
-            let secret_opt = if secret.is_empty() { None } else { Some(secret) };
+            let secret_opt = if secret.is_empty() {
+                None
+            } else {
+                Some(secret)
+            };
             match api::smtp::save_smtp_config(
                 auth_method,
                 host,
@@ -319,10 +323,22 @@ pub fn Settings() -> Element {
                 from_address,
                 use_tls,
                 pw_opt,
-                if client_id.is_empty() { None } else { Some(client_id) },
+                if client_id.is_empty() {
+                    None
+                } else {
+                    Some(client_id)
+                },
                 secret_opt,
-                if tenant_id.is_empty() { None } else { Some(tenant_id) },
-                if oauth2_email.is_empty() { None } else { Some(oauth2_email) },
+                if tenant_id.is_empty() {
+                    None
+                } else {
+                    Some(tenant_id)
+                },
+                if oauth2_email.is_empty() {
+                    None
+                } else {
+                    Some(oauth2_email)
+                },
             )
             .await
             {

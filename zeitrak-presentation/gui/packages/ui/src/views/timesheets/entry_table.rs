@@ -18,8 +18,11 @@ pub(super) struct EntryTableProps {
     pub timesheets: Signal<Vec<TimesheetDto>>,
     pub activities: Signal<Vec<ActivityDto>>,
     pub all_tags: Signal<Vec<TimesheetsTagDto>>,
-    pub page: Signal<usize>,
+    pub page: Signal<u32>,
+    /// Server-reported total count used for pagination math.
+    pub total: Signal<u64>,
     pub loading: Signal<bool>,
+    pub on_page_change: EventHandler<u32>,
 }
 
 #[component]
@@ -30,7 +33,7 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
     let mut timesheets = props.timesheets;
     let activities = props.activities;
     let all_tags = props.all_tags;
-    let mut page = props.page;
+    let page = props.page;
 
     let mut editing_id = use_signal(|| Option::<String>::None);
     let mut edit_activity_id = use_signal(|| Option::<String>::None);
@@ -112,16 +115,11 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
         toasts.push_success("Timesheet updated");
     };
 
-    let total = timesheets.read().len();
-    let current_page = *page.read();
+    // Server already returned the correct page; total comes from the server.
+    let total = *props.total.read() as usize;
+    let current_page = *page.read() as usize;
     let page_size = 20_usize;
-    let page_items: Vec<TimesheetDto> = timesheets
-        .read()
-        .iter()
-        .skip(current_page * page_size)
-        .take(page_size)
-        .cloned()
-        .collect();
+    let page_items: Vec<TimesheetDto> = timesheets.read().clone();
 
     let ts_columns = vec![
         ColumnDef::new(tid!("timesheets-col-activity")),
@@ -144,7 +142,7 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                 page: current_page,
                 page_size,
                 loading: *props.loading.read(),
-                on_page_change: move |p| page.set(p),
+                on_page_change: move |p: usize| props.on_page_change.call(p as u32),
 
                 for ts in page_items {
                     {

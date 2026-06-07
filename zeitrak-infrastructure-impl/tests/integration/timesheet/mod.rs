@@ -13,6 +13,10 @@ use zeitrak_tests::TestFixture;
 
 const TS_ID: &str = "069d0ce8-facb-7c90-b9d7-287ae4f17c91";
 const USER_ID: &str = "069d0ce8-facb-7c90-b9d7-287ae4f17c92";
+const USER_B: &str = "069d0ce8-facb-7c90-b9d7-287ae4f17c99";
+const TS_B: &str = "069d0ce8-facb-7c90-b9d7-287ae4f17c93";
+const TS_OLD: &str = "069d0ce8-facb-7c90-b9d7-287ae4f17c94";
+const TS_NEW: &str = "069d0ce8-facb-7c90-b9d7-287ae4f17c95";
 
 fn ts_id() -> TimesheetId {
     TS_ID.parse().unwrap()
@@ -248,10 +252,144 @@ pub mod tests {
             .await
             .unwrap();
 
-        let recent = repo
-            .recent_for_user(USER_ID)
+        let (rows, total) = repo
+            .recent_for_user(USER_ID, 0, 20)
             .await
             .expect("query must succeed");
-        assert!(!recent.is_empty(), "must return the started timesheet");
+        assert!(!rows.is_empty(), "must return the started timesheet");
+        assert_eq!(total, 1);
+    }
+
+    /// `recent_for_user` returns the correct page when offset is applied.
+    #[tokio::test]
+    async fn test_recent_for_user_pagination_offset() {
+        let db = TestFixture::setup().await;
+        let mut projector = TimesheetProjector::new(db.tenant.clone());
+        let repo = make_repository(&db).await;
+
+        // Project 25 timesheets with ascending start times so ordering is deterministic.
+        for i in 0..25u32 {
+            let ts_id = format!("069d0ce8-facb-7c90-b9d7-2{i:011}");
+            let ev = TimesheetEvent::Started {
+                id: ts_id.parse().unwrap(),
+                user_id: USER_ID.parse().unwrap(),
+                activity_id: None,
+                start_time: format!("2024-01-{:02}T09:00:00Z", (i % 28) + 1),
+                timezone: "UTC".to_string(),
+            };
+            projector
+                .handle(raw(&ts_id, 1, "TimesheetStarted", &ev))
+                .await
+                .unwrap();
+        }
+
+        let (page0, total0) = repo.recent_for_user(USER_ID, 0, 20).await.unwrap();
+        assert_eq!(total0, 25, "total must be 25");
+        assert_eq!(page0.len(), 20, "page 0 must have 20 items");
+
+        let (page1, total1) = repo.recent_for_user(USER_ID, 1, 20).await.unwrap();
+        assert_eq!(total1, 25, "total must still be 25 on page 1");
+        assert_eq!(page1.len(), 5, "page 1 must have the remaining 5 items");
+    }
+
+    /// `recent_for_workspace` with `member_id` filter returns only that member's timesheets.
+    #[tokio::test]
+    async fn test_recent_for_workspace_member_filter_isolates_user() {
+        let db = TestFixture::setup().await;
+        let mut projector = TimesheetProjector::new(db.tenant.clone());
+        let repo = make_repository(&db).await;
+
+        // Project one timesheet for USER_ID and one for USER_B.
+        projector
+            .handle(raw(TS_ID, 1, "TimesheetStarted", &started_event()))
+            .await
+            .unwrap();
+        let ev_b = TimesheetEvent::Started {
+            id: TS_B.parse().unwrap(),
+            user_id: USER_B.parse().unwrap(),
+            activity_id: None,
+            start_time: "2024-01-02T09:00:00Z".to_string(),
+            timezone: "UTC".to_string(),
+        };
+        projector
+            .handle(raw(TS_B, 1, "TimesheetStarted", &ev_b))
+            .await
+            .unwrap();
+
+        let (all_rows, all_total) = repo.recent_for_workspace(0, 20, None).await.unwrap();
+        assert_eq!(all_total, 2, "no filter must return both timesheets");
+        assert_eq!(all_rows.len(), 2);
+
+        let (user_rows, user_total) = repo
+            .recent_for_workspace(0, 20, Some(USER_ID))
+            .await
+            .unwrap();
+        assert_eq!(user_total, 1, "filter must return only USER_ID's timesheet");
+        assert_eq!(user_rows.len(), 1);
+        assert_eq!(user_rows[0].user_id().to_string(), USER_ID);
+    }
+
+    /// `stats_for_period` excludes timesheets outside the date window.
+    #[tokio::test]
+    async fn test_stats_for_period_excludes_rows_before_window() {
+        let db = TestFixture::setup().await;
+        let mut projector = TimesheetProjector::new(db.tenant.clone());
+        let repo = make_repository(&db).await;
+
+        // Project a timesheet before the window (2020) and one inside (2025).
+        let ev_old = TimesheetEvent::Started {
+            id: TS_OLD.parse().unwrap(),
+            user_id: USER_ID.parse().unwrap(),
+            activity_id: None,
+            start_time: "2020-01-01T09:00:00Z".to_string(),
+            timezone: "UTC".to_string(),
+        };
+        projector
+            .handle(raw(TS_OLD, 1, "TimesheetStarted", &ev_old))
+            .await
+            .unwrap();
+        projector
+            .handle(raw(
+                TS_OLD,
+                2,
+                "TimesheetStopped",
+                &TimesheetEvent::Stopped {
+                    end_time: "2020-01-01T10:00:00Z".to_string(),
+                    duration: 3600,
+                },
+            ))
+            .await
+            .unwrap();
+
+        let ev_new = TimesheetEvent::Started {
+            id: TS_NEW.parse().unwrap(),
+            user_id: USER_ID.parse().unwrap(),
+            activity_id: None,
+            start_time: "2025-06-01T09:00:00Z".to_string(),
+            timezone: "UTC".to_string(),
+        };
+        projector
+            .handle(raw(TS_NEW, 1, "TimesheetStarted", &ev_new))
+            .await
+            .unwrap();
+        projector
+            .handle(raw(
+                TS_NEW,
+                2,
+                "TimesheetStopped",
+                &TimesheetEvent::Stopped {
+                    end_time: "2025-06-01T10:00:00Z".to_string(),
+                    duration: 3600,
+                },
+            ))
+            .await
+            .unwrap();
+
+        let rows = repo
+            .stats_for_period(None, "2024-01-01T00:00:00Z")
+            .await
+            .unwrap();
+        assert_eq!(rows.len(), 1, "only the 2025 timesheet must be returned");
+        assert_eq!(rows[0].start_time(), "2025-06-01T09:00:00Z");
     }
 }

@@ -36,7 +36,9 @@ pub async fn send_invitation(
             details: None,
         })?;
 
-    let email_sender = zeitrak::email::email_sender_from_config().await.map_err(internal)?;
+    let email_sender = zeitrak::email::email_sender_from_config()
+        .await
+        .map_err(internal)?;
     let base_url = zeitrak::email::base_url();
 
     let current_user = zeitrak::auth::CurrentUser {
@@ -223,7 +225,9 @@ async fn _send_invitation(
             details: None,
         })?;
 
-    let email_sender = zeitrak::email::email_sender_from_config().await.map_err(internal)?;
+    let email_sender = zeitrak::email::email_sender_from_config()
+        .await
+        .map_err(internal)?;
     let base_url = zeitrak::email::base_url();
 
     let current_user = zeitrak::auth::CurrentUser {
@@ -302,7 +306,9 @@ async fn _register_and_accept(
 
     let email = invitation.email().to_string();
 
-    let email_sender = zeitrak::email::email_sender_from_config().await.map_err(internal)?;
+    let email_sender = zeitrak::email::email_sender_from_config()
+        .await
+        .map_err(internal)?;
     let base_url = zeitrak::email::base_url();
     let user_id = zeitrak::registration::register_user(
         name,

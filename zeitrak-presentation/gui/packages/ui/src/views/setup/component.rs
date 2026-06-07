@@ -1,6 +1,6 @@
 use crate::components::atoms::{
-    Button, ButtonVariant, Card, CardContent, CardFooter, Form, FormField, Input, Label,
-    Select, SelectOption, TabContent, TabList, TabTrigger, Tabs,
+    Button, ButtonVariant, Card, CardContent, CardFooter, Form, FormField, Input, Label, Select,
+    SelectOption, TabContent, TabList, TabTrigger, Tabs,
 };
 use crate::layouts::DefaultLayout;
 use dioxus::prelude::*;
@@ -88,8 +88,16 @@ pub fn Setup() -> Element {
             let skip = auth_method_val == "none";
 
             if !skip && !host_val.is_empty() {
-                let pw_opt = if pw_val.is_empty() { None } else { Some(pw_val) };
-                let secret_opt = if secret_val.is_empty() { None } else { Some(secret_val) };
+                let pw_opt = if pw_val.is_empty() {
+                    None
+                } else {
+                    Some(pw_val)
+                };
+                let secret_opt = if secret_val.is_empty() {
+                    None
+                } else {
+                    Some(secret_val)
+                };
 
                 if let Err(e) = api::smtp::setup_save_smtp_config(
                     auth_method_val,
@@ -99,10 +107,22 @@ pub fn Setup() -> Element {
                     from_address_val,
                     use_tls_val,
                     pw_opt,
-                    if client_id_val.is_empty() { None } else { Some(client_id_val) },
+                    if client_id_val.is_empty() {
+                        None
+                    } else {
+                        Some(client_id_val)
+                    },
                     secret_opt,
-                    if tenant_id_val.is_empty() { None } else { Some(tenant_id_val) },
-                    if oauth2_email_val.is_empty() { None } else { Some(oauth2_email_val) },
+                    if tenant_id_val.is_empty() {
+                        None
+                    } else {
+                        Some(tenant_id_val)
+                    },
+                    if oauth2_email_val.is_empty() {
+                        None
+                    } else {
+                        Some(oauth2_email_val)
+                    },
                 )
                 .await
                 {
@@ -112,10 +132,17 @@ pub fn Setup() -> Element {
                 }
             }
 
-            match api::setup::setup("admin".to_string(), email_val, password_val, workspace_name_val)
-                .await
+            match api::setup::setup(
+                "admin".to_string(),
+                email_val,
+                password_val,
+                workspace_name_val,
+            )
+            .await
             {
-                Ok(()) => { navigator.push("/login"); }
+                Ok(()) => {
+                    navigator.push("/login");
+                }
                 Err(e) => {
                     error.set(Some(e.to_string()));
                     submitting.set(false);
@@ -131,10 +158,17 @@ pub fn Setup() -> Element {
         async move {
             submitting.set(true);
             error.set(None);
-            match api::setup::setup("admin".to_string(), email_val, password_val, workspace_name_val)
-                .await
+            match api::setup::setup(
+                "admin".to_string(),
+                email_val,
+                password_val,
+                workspace_name_val,
+            )
+            .await
             {
-                Ok(()) => { navigator.push("/login"); }
+                Ok(()) => {
+                    navigator.push("/login");
+                }
                 Err(e) => {
                     error.set(Some(e.to_string()));
                     submitting.set(false);
@@ -145,8 +179,14 @@ pub fn Setup() -> Element {
 
     let auth_method_options = vec![
         SelectOption::new("none".to_string(), tid!("setup-smtp-auth-method-none")),
-        SelectOption::new("password".to_string(), tid!("setup-smtp-auth-method-password")),
-        SelectOption::new("xoauth2".to_string(), tid!("setup-smtp-auth-method-xoauth2")),
+        SelectOption::new(
+            "password".to_string(),
+            tid!("setup-smtp-auth-method-password"),
+        ),
+        SelectOption::new(
+            "xoauth2".to_string(),
+            tid!("setup-smtp-auth-method-xoauth2"),
+        ),
     ];
 
     let current_tab = active_tab.read().clone().unwrap_or_default();

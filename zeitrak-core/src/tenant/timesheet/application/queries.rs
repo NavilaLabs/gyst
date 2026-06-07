@@ -15,9 +15,24 @@ pub trait TimesheetQueryTrait<R> {
 
     async fn find_by_id(&self, id: TimesheetId) -> Result<Option<Root<Timesheet>>, Self::Error>;
     async fn find_all(&self) -> Result<Vec<Root<Timesheet>>, Self::Error>;
-    async fn recent_for_user(&self, user_id: &str) -> Result<Vec<TimesheetRow>, Self::Error>;
+    async fn recent_for_user(
+        &self,
+        user_id: &str,
+        page: u32,
+        page_size: u32,
+    ) -> Result<(Vec<TimesheetRow>, u64), Self::Error>;
     async fn running_for_user(&self, user_id: &str) -> Result<Option<TimesheetRow>, Self::Error>;
-    async fn recent_for_workspace(&self) -> Result<Vec<TimesheetRow>, Self::Error>;
+    async fn recent_for_workspace(
+        &self,
+        page: u32,
+        page_size: u32,
+        member_id: Option<&str>,
+    ) -> Result<(Vec<TimesheetRow>, u64), Self::Error>;
+    async fn stats_for_period(
+        &self,
+        member_id: Option<&str>,
+        since_rfc3339: &str,
+    ) -> Result<Vec<TimesheetRow>, Self::Error>;
 }
 
 #[derive(Debug, Clone)]
@@ -46,15 +61,39 @@ where
         self.repository.all().await.map_err(Into::into)
     }
 
-    async fn recent_for_user(&self, user_id: &str) -> Result<Vec<TimesheetRow>, Self::Error> {
-        self.repository.recent_for_user(user_id).await
+    async fn recent_for_user(
+        &self,
+        user_id: &str,
+        page: u32,
+        page_size: u32,
+    ) -> Result<(Vec<TimesheetRow>, u64), Self::Error> {
+        self.repository
+            .recent_for_user(user_id, page, page_size)
+            .await
     }
 
     async fn running_for_user(&self, user_id: &str) -> Result<Option<TimesheetRow>, Self::Error> {
         self.repository.running_for_user(user_id).await
     }
 
-    async fn recent_for_workspace(&self) -> Result<Vec<TimesheetRow>, Self::Error> {
-        self.repository.recent_for_workspace().await
+    async fn recent_for_workspace(
+        &self,
+        page: u32,
+        page_size: u32,
+        member_id: Option<&str>,
+    ) -> Result<(Vec<TimesheetRow>, u64), Self::Error> {
+        self.repository
+            .recent_for_workspace(page, page_size, member_id)
+            .await
+    }
+
+    async fn stats_for_period(
+        &self,
+        member_id: Option<&str>,
+        since_rfc3339: &str,
+    ) -> Result<Vec<TimesheetRow>, Self::Error> {
+        self.repository
+            .stats_for_period(member_id, since_rfc3339)
+            .await
     }
 }

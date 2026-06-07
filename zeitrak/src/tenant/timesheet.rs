@@ -12,20 +12,46 @@ use zeitrak_core::{
 };
 use zeitrak_infrastructure_impl::tenant::timesheet::repositories::TimesheetRepository;
 
-pub async fn recent(workspace_id: &str, user_id: &str) -> Result<Vec<TimesheetRow>> {
+pub async fn recent(
+    workspace_id: &str,
+    user_id: &str,
+    page: u32,
+    page_size: u32,
+) -> Result<(Vec<TimesheetRow>, u64)> {
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = TimesheetRepository::from_pool(pool).await?;
     TimesheetQuery::new(repo)
-        .recent_for_user(user_id)
+        .recent_for_user(user_id, page, page_size)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
-pub async fn recent_all(workspace_id: &str) -> Result<Vec<TimesheetRow>> {
+pub async fn recent_all(
+    workspace_id: &str,
+    page: u32,
+    page_size: u32,
+    member_id: Option<&str>,
+) -> Result<(Vec<TimesheetRow>, u64)> {
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = TimesheetRepository::from_pool(pool).await?;
     TimesheetQuery::new(repo)
-        .recent_for_workspace()
+        .recent_for_workspace(page, page_size, member_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
+}
+
+/// Returns all completed timesheets from `since_rfc3339` to now, for a member or all members.
+///
+/// Used for dashboard KPI and chart aggregation.
+pub async fn stats_for_period(
+    workspace_id: &str,
+    member_id: Option<&str>,
+    since_rfc3339: &str,
+) -> Result<Vec<TimesheetRow>> {
+    let pool = super::tenant_pool(workspace_id).await?;
+    let repo = TimesheetRepository::from_pool(pool).await?;
+    TimesheetQuery::new(repo)
+        .stats_for_period(member_id, since_rfc3339)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))
 }

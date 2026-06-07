@@ -57,7 +57,9 @@ async fn _register(name: String, email: String, password: String) -> Result<(), 
     use dioxus::fullstack::extract;
     use tower_sessions::Session;
 
-    let email_sender = zeitrak::email::email_sender_from_config().await.map_err(internal)?;
+    let email_sender = zeitrak::email::email_sender_from_config()
+        .await
+        .map_err(internal)?;
     let base_url = zeitrak::email::base_url();
     let user_id = zeitrak::registration::register_user(
         name,

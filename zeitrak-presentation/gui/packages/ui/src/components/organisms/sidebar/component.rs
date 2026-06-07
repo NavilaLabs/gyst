@@ -8,8 +8,8 @@ use dioxus_free_icons::icons::hi_solid_icons::{
 use dioxus_free_icons::Icon;
 use dioxus_i18n::tid;
 
-use crate::PluginHostCtx;
 use crate::components::atoms::{Button, ButtonVariant, Navbar, NavbarItem, ToastMessage, Toasts};
+use crate::PluginHostCtx;
 
 /// Mirrors the `AuthState` type alias from the `web` crate.
 type AuthState = Signal<Option<Option<api::auth::UserInfo>>>;

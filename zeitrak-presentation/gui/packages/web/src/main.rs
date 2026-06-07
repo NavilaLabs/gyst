@@ -21,7 +21,7 @@ use ui::{
         VerifyEmailPending,
     },
     ActivitiesCache, GlobalStyles, RunningElapsed, RunningTimer, SidebarOpen, TagsCache,
-    TimesheetsCache, UserSettings, WorkspaceSettings, FAVICON,
+    UserSettings, WorkspaceSettings, FAVICON,
 };
 use unic_langid::langid;
 
@@ -34,9 +34,13 @@ pub type AuthState = Signal<Option<Option<UserInfo>>>;
 
 #[component]
 fn Landing() -> Element {
+    let nav = use_navigator();
+
     #[cfg(feature = "landing")]
-    rsx! { LandingPage {} }
-    #[cfg(not(feature = "landing"))]
+    return rsx! { LandingPage {} };
+
+    // When the landing page feature is disabled, redirect directly to the app.
+    nav.replace(Route::Dashboard {});
     rsx! {}
 }
 
@@ -127,9 +131,7 @@ fn main() {
 /// stores it in the admin database, then redirects back to the settings page.
 #[cfg(feature = "server")]
 async fn oauth2_callback_handler(
-    axum::extract::Query(params): axum::extract::Query<
-        std::collections::HashMap<String, String>,
-    >,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
 ) -> axum::response::Response {
     use axum::response::IntoResponse as _;
 
@@ -140,8 +142,7 @@ async fn oauth2_callback_handler(
         Ok(()) => axum::response::Redirect::to("/settings?smtp=authorized").into_response(),
         Err(e) => {
             let msg = urlencoding::encode(&e.to_string()).into_owned();
-            axum::response::Redirect::to(&format!("/settings?smtp=error&msg={msg}"))
-                .into_response()
+            axum::response::Redirect::to(&format!("/settings?smtp=error&msg={msg}")).into_response()
         }
     }
 }
@@ -230,7 +231,7 @@ fn App() -> Element {
     use_context_provider(|| resolver);
 
     let tween = use_signal(|| Tween {
-        duration: std::time::Duration::from_millis(500),
+        duration: std::time::Duration::from_millis(200),
         easing: easer::functions::Cubic::ease_in_out,
     });
     use_context_provider(|| tween);
@@ -319,7 +320,6 @@ fn Layout() -> Element {
     // Provide entity caches — views read from these to avoid the empty-then-loaded flash.
     let mut activities_cache: ActivitiesCache = use_context_provider(|| Signal::new(Vec::new()));
     let mut tags_cache: TagsCache = use_context_provider(|| Signal::new(Vec::new()));
-    let mut timesheets_cache: TimesheetsCache = use_context_provider(|| Signal::new(Vec::new()));
 
     // Provide user and workspace settings with sane defaults; refreshed after login.
     let mut user_settings: UserSettings = use_context_provider(|| {
@@ -395,9 +395,6 @@ fn Layout() -> Element {
         if let Ok(list) = api::timesheet_tag::list_tags().await {
             tags_cache.set(list);
         }
-        if let Ok(list) = api::timesheet::list_timesheets().await {
-            timesheets_cache.set(list);
-        }
     });
 
     let route: Route = use_route();
@@ -461,13 +458,18 @@ fn Layout() -> Element {
 #[component]
 fn RequireSetupComplete() -> Element {
     let nav = use_navigator();
+    let route: Route = use_route();
     let complete = use_resource(|| async { api::setup::is_setup_complete().await });
 
     match complete.value().cloned() {
         None => rsx! {},
         Some(Ok(true)) => rsx! { Outlet::<Route> {} },
         Some(Ok(false)) | Some(Err(_)) => {
-            nav.replace(Route::Setup {});
+            // Guard against re-firing when this component is in the leaving side
+            // of an AnimatedOutlet transition that already landed on /setup.
+            if !matches!(route, Route::Setup {}) {
+                nav.replace(Route::Setup {});
+            }
             rsx! {}
         }
     }
@@ -477,13 +479,16 @@ fn RequireSetupComplete() -> Element {
 #[component]
 fn RequireSetupIncomplete() -> Element {
     let nav = use_navigator();
+    let route: Route = use_route();
     let complete = use_resource(|| async { api::setup::is_setup_complete().await });
 
     match complete.value().cloned() {
         None => rsx! {},
         Some(Err(_)) | Some(Ok(false)) => rsx! { Outlet::<Route> {} },
         Some(Ok(true)) => {
-            nav.replace(Route::Login {});
+            if !matches!(route, Route::Login {}) {
+                nav.replace(Route::Login {});
+            }
             rsx! {}
         }
     }
@@ -494,15 +499,18 @@ fn RequireSetupIncomplete() -> Element {
 #[component]
 fn RequireAuth() -> Element {
     let nav = use_navigator();
+    let route: Route = use_route();
     let auth: AuthState = use_context();
 
     match auth.cloned() {
         None => rsx! {},
         Some(None) => {
-            nav.replace(Route::Login {});
+            if !matches!(route, Route::Login {}) {
+                nav.replace(Route::Login {});
+            }
             rsx! {}
         }
-        Some(Some(_)) => rsx! { AnimatedOutlet::<Route> {} },
+        Some(Some(_)) => rsx! { Outlet::<Route> {} },
     }
 }
 
@@ -511,15 +519,19 @@ fn RequireAuth() -> Element {
 #[component]
 fn RequireWorkspace() -> Element {
     let nav = use_navigator();
+    let route: Route = use_route();
     let auth: AuthState = use_context();
 
     match auth.cloned() {
         Some(Some(user)) if user.workspace_id.is_some() => {
-            rsx! { AnimatedOutlet::<Route> {} }
+            rsx! { Outlet::<Route> {} }
         }
         Some(Some(_)) => {
-            // Authenticated but no workspace selected yet.
-            nav.replace(Route::SelectWorkspace {});
+            // Guard against re-firing when this component is in the leaving side
+            // of an AnimatedOutlet transition that already landed on /select-workspace.
+            if !matches!(route, Route::SelectWorkspace {}) {
+                nav.replace(Route::SelectWorkspace {});
+            }
             rsx! {}
         }
         // Loading or unauthenticated — RequireAuth above handles these.
@@ -531,12 +543,15 @@ fn RequireWorkspace() -> Element {
 #[component]
 fn RequireAdmin() -> Element {
     let nav = use_navigator();
+    let route: Route = use_route();
     let auth: AuthState = use_context();
 
     match auth.cloned() {
         Some(Some(user)) if user.is_admin => rsx! { Outlet::<Route> {} },
         Some(Some(_)) => {
-            nav.replace(Route::Dashboard {});
+            if !matches!(route, Route::Dashboard {}) {
+                nav.replace(Route::Dashboard {});
+            }
             rsx! {}
         }
         // Loading or unauthenticated — RequireAuth handles these cases above us.
