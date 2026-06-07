@@ -30,7 +30,9 @@ pub struct SmtpConfigDto {
     pub oauth2_authorized: bool,
 }
 
-fn repo_from_pool(pool: zeitrak_infrastructure_impl::ConnectedAdminPool) -> SmtpConfigRepositoryImpl {
+fn repo_from_pool(
+    pool: zeitrak_infrastructure_impl::ConnectedAdminPool,
+) -> SmtpConfigRepositoryImpl {
     let secret = CONFIG.application().security().authentication_secret();
     SmtpConfigRepositoryImpl::new(pool, secret)
 }
@@ -97,8 +99,10 @@ pub async fn save_smtp_config(
 
     let resolved_password =
         password.map_or_else(|| existing.as_ref().and_then(|e| e.password.clone()), Some);
-    let resolved_secret =
-        client_secret.map_or_else(|| existing.as_ref().and_then(|e| e.client_secret.clone()), Some);
+    let resolved_secret = client_secret.map_or_else(
+        || existing.as_ref().and_then(|e| e.client_secret.clone()),
+        Some,
+    );
 
     let parsed_auth_method = if auth_method == "xoauth2" {
         SmtpAuthMethod::XOAuth2
@@ -108,9 +112,7 @@ pub async fn save_smtp_config(
 
     // Preserve oauth2_authorized and refresh_token from the existing row when
     // the caller does not clear them.
-    let oauth2_authorized = existing
-        .as_ref()
-        .is_some_and(|e| e.oauth2_authorized);
+    let oauth2_authorized = existing.as_ref().is_some_and(|e| e.oauth2_authorized);
     let refresh_token = existing.as_ref().and_then(|e| e.refresh_token.clone());
 
     let config = PersistedSmtpConfig {

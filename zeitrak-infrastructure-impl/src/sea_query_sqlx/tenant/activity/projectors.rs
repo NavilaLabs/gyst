@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use eventually_projection::{Projector, RawEvent};
 use sea_query::{Condition, DynIden, Expr, ExprTrait, OnConflict, Query, TableRef};
 use sea_query_sqlx::SqlxBinder;
+use sqlx::AssertSqlSafe;
 use zeitrak_core::tenant::activity::ActivityEvent;
 
 use crate::{ConnectedTenantPool, DatabaseType};
@@ -54,7 +55,7 @@ impl Projector for ActivityProjector {
                     .to_owned();
 
                 let (sql, values) = self.pool.build_query(&query);
-                sqlx::query_with(&sql, values)
+                sqlx::query_with(AssertSqlSafe(sql.as_str()), values)
                     .execute(self.pool.as_ref())
                     .await?;
             }
@@ -85,7 +86,7 @@ impl Projector for ActivityProjector {
                     DatabaseType::Sqlite => query.build_sqlx(sea_query::SqliteQueryBuilder),
                     DatabaseType::Postgres => query.build_sqlx(sea_query::PostgresQueryBuilder),
                 };
-                sqlx::query_with(&sql, values)
+                sqlx::query_with(AssertSqlSafe(sql.as_str()), values)
                     .execute(self.pool.as_ref())
                     .await?;
             }

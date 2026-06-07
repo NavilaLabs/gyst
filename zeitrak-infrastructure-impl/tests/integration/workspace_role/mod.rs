@@ -26,9 +26,9 @@ fn workspace_id() -> WorkspaceId {
         .parse()
         .expect("valid UUID")
 }
-/// Use a seeded permission ID from the admin migrations seed.
+/// Use a seeded permission ID from the admin migrations seed (timesheet.create).
 fn perm_id() -> PermissionId {
-    "01100000-0000-7000-8000-000000000001"
+    "01100000-0000-7000-8000-000000000007"
         .parse()
         .expect("valid seeded permission UUID")
 }

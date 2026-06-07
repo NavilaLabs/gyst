@@ -12,5 +12,4 @@ pub struct CachedToken {
 pub type TokenCache = Arc<Mutex<Option<CachedToken>>>;
 
 /// Application-global token cache — shared across all email sends.
-pub static TOKEN_CACHE: LazyLock<TokenCache> =
-    LazyLock::new(|| Arc::new(Mutex::new(None)));
+pub static TOKEN_CACHE: LazyLock<TokenCache> = LazyLock::new(|| Arc::new(Mutex::new(None)));

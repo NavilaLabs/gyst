@@ -14,6 +14,7 @@ use zeitrak_core::admin::{
         WorkspaceRoleWithPermissionsRow,
     },
 };
+use zeitrak_core::permissions as p;
 use zeitrak_core::shared::repositories::ReadRepository;
 use zeitrak_infrastructure::database::Migrate;
 use zeitrak_infrastructure_impl::{
@@ -37,6 +38,7 @@ pub struct WorkspaceInfo {
 /// Creates the workspace, default roles (admin + standard), seeds all permissions onto
 /// the admin role, seeds the standard set of permissions onto the standard role, and
 /// initialises the tenant `SQLite` database.
+#[allow(clippy::too_many_lines)]
 pub async fn create_workspace_for_user(
     user_id: UserId,
     workspace_name: String,
@@ -73,32 +75,61 @@ pub async fn create_workspace_for_user(
             .ok_or_else(|| anyhow::anyhow!("permission '{name}' not seeded in database"))
     };
 
-    // --- Admin role: all permissions ---
-    let admin_role_id = WorkspaceRoleId::new();
-    let role_cmd =
-        WorkspaceRoleCommand::new(WorkspaceRoleRepository::from_pool(pool.clone()).await?);
-    let _ = role_cmd
+    // --- Workspace admin role: all workspace-scoped permissions ---
+    let workspace_admin_role_id = WorkspaceRoleId::new();
+    let _ = WorkspaceRoleCommand::new(WorkspaceRoleRepository::from_pool(pool.clone()).await?)
         .create(
-            admin_role_id.clone(),
+            workspace_admin_role_id.clone(),
             workspace_id.clone(),
-            Some("admin".to_string()),
+            Some("workspace_admin".to_string()),
         )
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    for (perm_id, _) in &all_perms {
-        WorkspaceRoleCommand::new(WorkspaceRoleRepository::from_pool(pool.clone()).await?)
-            .grant_permission(admin_role_id.clone(), perm_id.clone())
-            .await
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let workspace_admin_permissions = [
+        p::ACTIVITY_CREATE,
+        p::ACTIVITY_READ,
+        p::ACTIVITY_UPDATE,
+        p::ACTIVITY_DELETE,
+        p::ACTIVITY_EXPORT,
+        p::MEMBER_CREATE,
+        p::MEMBER_READ,
+        p::MEMBER_UPDATE,
+        p::MEMBER_DELETE,
+        p::MEMBER_EXPORT,
+        p::ROLE_CREATE,
+        p::ROLE_READ,
+        p::ROLE_UPDATE,
+        p::ROLE_DELETE,
+        p::ROLE_EXPORT,
+        p::TAG_CREATE,
+        p::TAG_READ,
+        p::TAG_UPDATE,
+        p::TAG_DELETE,
+        p::TAG_EXPORT,
+        p::TIMESHEET_CREATE,
+        p::TIMESHEET_READ,
+        p::TIMESHEET_UPDATE,
+        p::TIMESHEET_DELETE,
+        p::TIMESHEET_EXPORT,
+        p::TIMESHEET_READ_ALL,
+    ];
+
+    for perm_name in workspace_admin_permissions {
+        if let Ok(perm_id) = perm_id_for(perm_name) {
+            WorkspaceRoleCommand::new(WorkspaceRoleRepository::from_pool(pool.clone()).await?)
+                .grant_permission(workspace_admin_role_id.clone(), perm_id)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+        }
     }
 
     WorkspaceCommand::new(WorkspaceRepository::from_pool(pool.clone()).await?)
-        .assign_user_role(workspace_id.clone(), user_id, admin_role_id)
+        .assign_user_role(workspace_id.clone(), user_id, workspace_admin_role_id)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    // --- Standard role: limited permissions ---
+    // --- Standard role: basic self-service permissions ---
     let standard_role_id = WorkspaceRoleId::new();
     let _ = WorkspaceRoleCommand::new(WorkspaceRoleRepository::from_pool(pool.clone()).await?)
         .create(
@@ -110,10 +141,13 @@ pub async fn create_workspace_for_user(
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let standard_permissions = [
-        zeitrak_core::permissions::TIMESHEET_CREATE,
-        zeitrak_core::permissions::TIMESHEET_UPDATE,
-        zeitrak_core::permissions::TIMESHEET_EXPORT,
-        zeitrak_core::permissions::TIMESHEET_CANCEL,
+        p::ACTIVITY_READ,
+        p::TAG_READ,
+        p::TIMESHEET_CREATE,
+        p::TIMESHEET_READ,
+        p::TIMESHEET_UPDATE,
+        p::TIMESHEET_DELETE,
+        p::TIMESHEET_EXPORT,
     ];
 
     for perm_name in standard_permissions {
@@ -492,12 +526,12 @@ pub async fn revoke_member_permission(
 pub async fn remove_member(workspace_id: &str, user_id: &str) -> Result<()> {
     let pool = Pool::connect_admin().await?;
 
-    // Guard: prevent removing the last admin.
+    // Guard: prevent removing the last workspace_admin.
     let admin_count: i64 = sqlx::query(
         "SELECT COUNT(DISTINCT wur.user_id) \
          FROM projections__workspace_user_roles wur \
          JOIN projections__workspace_roles wr ON wur.workspace_role_id = wr.id \
-         WHERE wur.workspace_id = ? AND wr.name = 'admin'",
+         WHERE wur.workspace_id = ? AND wr.name = 'workspace_admin'",
     )
     .bind(workspace_id)
     .fetch_one(pool.as_ref())
@@ -507,11 +541,11 @@ pub async fn remove_member(workspace_id: &str, user_id: &str) -> Result<()> {
     .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     if admin_count <= 1 {
-        let is_admin: i64 = sqlx::query(
+        let is_workspace_admin: i64 = sqlx::query(
             "SELECT COUNT(*) \
              FROM projections__workspace_user_roles wur \
              JOIN projections__workspace_roles wr ON wur.workspace_role_id = wr.id \
-             WHERE wur.workspace_id = ? AND wur.user_id = ? AND wr.name = 'admin'",
+             WHERE wur.workspace_id = ? AND wur.user_id = ? AND wr.name = 'workspace_admin'",
         )
         .bind(workspace_id)
         .bind(user_id)
@@ -521,8 +555,8 @@ pub async fn remove_member(workspace_id: &str, user_id: &str) -> Result<()> {
         .try_get(0)
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-        if is_admin > 0 {
-            anyhow::bail!("cannot remove the last admin of a workspace");
+        if is_workspace_admin > 0 {
+            anyhow::bail!("cannot remove the last workspace admin");
         }
     }
 

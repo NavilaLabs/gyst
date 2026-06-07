@@ -14,6 +14,9 @@ pub struct TimesheetDto {
     pub description: Option<String>,
     pub timezone: String,
     pub tags: Vec<TimesheetsTagDto>,
+    /// Display name of the member who created this timesheet.
+    /// Populated only when the caller has `timesheet.read_all` access.
+    pub member_name: Option<String>,
 }
 
 #[get("/api/timesheets/recent")]
@@ -161,6 +164,7 @@ pub async fn cancel_timesheet(timesheet_id: String) -> Result<(), ServerFnError>
 fn row_to_dto(
     r: zeitrak::core::tenant::timesheet::TimesheetRow,
     tags: Vec<TimesheetsTagDto>,
+    member_name: Option<String>,
 ) -> TimesheetDto {
     TimesheetDto {
         id: r.id().to_string(),
@@ -172,14 +176,18 @@ fn row_to_dto(
         description: r.description().map(String::from),
         timezone: r.timezone().to_string(),
         tags,
+        member_name,
     }
 }
 
 #[cfg(feature = "server")]
 async fn _list_timesheets() -> Result<Vec<TimesheetDto>, ServerFnError> {
+    use std::collections::HashMap;
+
     use crate::session;
     use zeitrak::authentication::CurrentUser;
     use zeitrak::authorization::AuthorizationService;
+    use zeitrak::core::permissions;
 
     let (user, workspace_id) = session::session_workspace().await?;
 
@@ -190,8 +198,16 @@ async fn _list_timesheets() -> Result<Vec<TimesheetDto>, ServerFnError> {
     let is_admin = AuthorizationService::is_admin(&current_user.id)
         .await
         .map_err(session::internal)?;
+    let can_read_all = is_admin
+        || AuthorizationService::has_permission(
+            &current_user.id,
+            &workspace_id,
+            permissions::TIMESHEET_READ_ALL,
+        )
+        .await
+        .map_err(session::internal)?;
 
-    let rows = if is_admin {
+    let rows = if can_read_all {
         zeitrak::tenant::timesheet::recent_all(&workspace_id)
             .await
             .map_err(session::internal)?
@@ -199,6 +215,18 @@ async fn _list_timesheets() -> Result<Vec<TimesheetDto>, ServerFnError> {
         zeitrak::tenant::timesheet::recent(&workspace_id, &user.id)
             .await
             .map_err(session::internal)?
+    };
+
+    // Build user_id → display name map when viewing all workspace timesheets.
+    let member_names: HashMap<String, String> = if can_read_all {
+        zeitrak::workspace::list_workspace_members(&workspace_id)
+            .await
+            .map_err(session::internal)?
+            .into_iter()
+            .map(|m| (m.user_id, m.name))
+            .collect()
+    } else {
+        HashMap::new()
     };
 
     let ids: Vec<String> = rows.iter().map(|r| r.id().to_string()).collect();
@@ -212,6 +240,12 @@ async fn _list_timesheets() -> Result<Vec<TimesheetDto>, ServerFnError> {
         .into_iter()
         .map(|r| {
             let id = r.id().to_string();
+            let member_name = if can_read_all {
+                let uid = r.user_id().to_string();
+                member_names.get(uid.as_str()).cloned()
+            } else {
+                None
+            };
             let tags = tags_map
                 .remove(&id)
                 .unwrap_or_default()
@@ -221,7 +255,7 @@ async fn _list_timesheets() -> Result<Vec<TimesheetDto>, ServerFnError> {
                     name: t.name().to_string(),
                 })
                 .collect();
-            row_to_dto(r, tags)
+            row_to_dto(r, tags, member_name)
         })
         .collect())
 }
@@ -234,7 +268,7 @@ async fn _running_timesheet() -> Result<Option<TimesheetDto>, ServerFnError> {
     let row = zeitrak::tenant::timesheet::running(&workspace_id, &user.id)
         .await
         .map_err(session::internal)?;
-    Ok(row.map(|r| row_to_dto(r, vec![])))
+    Ok(row.map(|r| row_to_dto(r, vec![], None)))
 }
 
 #[cfg(feature = "server")]
@@ -256,7 +290,7 @@ async fn _start_timesheet(
     )
     .await
     .map_err(session::internal)?;
-    Ok(row_to_dto(r, vec![]))
+    Ok(row_to_dto(r, vec![], None))
 }
 
 #[cfg(feature = "server")]
@@ -328,7 +362,7 @@ async fn _create_timesheet_manual(
     )
     .await
     .map_err(session::internal)?;
-    Ok(row_to_dto(r, vec![]))
+    Ok(row_to_dto(r, vec![], None))
 }
 
 #[cfg(feature = "server")]
@@ -359,7 +393,7 @@ async fn _cancel_timesheet(timesheet_id: String) -> Result<(), ServerFnError> {
     use zeitrak::core::permissions;
 
     let (user, workspace_id) = session::session_workspace().await?;
-    session::require_permission(&user, permissions::TIMESHEET_CANCEL).await?;
+    session::require_permission(&user, permissions::TIMESHEET_DELETE).await?;
 
     zeitrak::tenant::timesheet::cancel(&workspace_id, &timesheet_id)
         .await

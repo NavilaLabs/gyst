@@ -102,46 +102,30 @@ impl DomainEvent {
 /// `plugin_id`).
 fn envelope_to_domain_event(env: &DomainEventEnvelope) -> Option<DomainEvent> {
     match env.aggregate_type {
-        "activity" => {
-            serde_json::from_value(env.payload.clone())
-                .ok()
-                .map(DomainEvent::Activity)
-        }
-        "timesheet" => {
-            serde_json::from_value(env.payload.clone())
-                .ok()
-                .map(DomainEvent::Timesheet)
-        }
-        "timesheet_tag" => {
-            serde_json::from_value(env.payload.clone())
-                .ok()
-                .map(DomainEvent::TimesheetTag)
-        }
-        "user" => {
-            serde_json::from_value(env.payload.clone())
-                .ok()
-                .map(DomainEvent::User)
-        }
-        "workspace" => {
-            serde_json::from_value(env.payload.clone())
-                .ok()
-                .map(DomainEvent::Workspace)
-        }
-        "workspace_role" => {
-            serde_json::from_value(env.payload.clone())
-                .ok()
-                .map(DomainEvent::WorkspaceRole)
-        }
-        "invitation" => {
-            serde_json::from_value(env.payload.clone())
-                .ok()
-                .map(DomainEvent::Invitation)
-        }
-        "permission" => {
-            serde_json::from_value(env.payload.clone())
-                .ok()
-                .map(DomainEvent::Permission)
-        }
+        "activity" => serde_json::from_value(env.payload.clone())
+            .ok()
+            .map(DomainEvent::Activity),
+        "timesheet" => serde_json::from_value(env.payload.clone())
+            .ok()
+            .map(DomainEvent::Timesheet),
+        "timesheet_tag" => serde_json::from_value(env.payload.clone())
+            .ok()
+            .map(DomainEvent::TimesheetTag),
+        "user" => serde_json::from_value(env.payload.clone())
+            .ok()
+            .map(DomainEvent::User),
+        "workspace" => serde_json::from_value(env.payload.clone())
+            .ok()
+            .map(DomainEvent::Workspace),
+        "workspace_role" => serde_json::from_value(env.payload.clone())
+            .ok()
+            .map(DomainEvent::WorkspaceRole),
+        "invitation" => serde_json::from_value(env.payload.clone())
+            .ok()
+            .map(DomainEvent::Invitation),
+        "permission" => serde_json::from_value(env.payload.clone())
+            .ok()
+            .map(DomainEvent::Permission),
         _ => Some(DomainEvent::Plugin {
             plugin_id: String::new(),
             aggregate: env.aggregate_type.to_string(),
@@ -173,10 +157,7 @@ pub struct PluginEventBus {
 impl PluginEventBus {
     /// Create a new bus with the given broadcast channel capacity.
     #[must_use]
-    pub fn new(
-        capacity: usize,
-        subscriptions: Arc<RwLock<HashMap<String, Vec<String>>>>,
-    ) -> Self {
+    pub fn new(capacity: usize, subscriptions: Arc<RwLock<HashMap<String, Vec<String>>>>) -> Self {
         let (sender, _) = tokio::sync::broadcast::channel(capacity);
         Self {
             sender,
@@ -266,12 +247,14 @@ mod tests {
         let subs = make_subs();
         subs.write().unwrap().insert(
             "plugin-a".to_string(),
-            vec!["TimesheetStopped".to_string(), "ActivityCreated".to_string()],
+            vec![
+                "TimesheetStopped".to_string(),
+                "ActivityCreated".to_string(),
+            ],
         );
-        subs.write().unwrap().insert(
-            "plugin-b".to_string(),
-            vec!["ActivityCreated".to_string()],
-        );
+        subs.write()
+            .unwrap()
+            .insert("plugin-b".to_string(), vec!["ActivityCreated".to_string()]);
 
         let bus = PluginEventBus::new(DEFAULT_BUS_CAPACITY, Arc::clone(&subs));
         let mut result = bus.subscribers_for("ActivityCreated");

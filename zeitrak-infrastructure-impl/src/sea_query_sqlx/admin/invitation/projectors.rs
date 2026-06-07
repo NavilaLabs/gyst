@@ -5,6 +5,7 @@ use sea_query::{
     SqliteQueryBuilder, TableRef,
 };
 use sea_query_sqlx::SqlxBinder;
+use sqlx::AssertSqlSafe;
 use zeitrak_core::admin::invitation::InvitationEvent;
 
 use crate::{DatabaseType, Pool, ScopeAdmin, StateConnected};
@@ -72,7 +73,7 @@ impl Projector for InvitationProjector {
                     DatabaseType::Postgres => query.build_sqlx(PostgresQueryBuilder),
                 };
 
-                sqlx::query_with(&sql, values)
+                sqlx::query_with(AssertSqlSafe(sql.as_str()), values)
                     .execute(self.pool.as_ref())
                     .await?;
             }
@@ -91,7 +92,7 @@ impl Projector for InvitationProjector {
                     DatabaseType::Postgres => query.build_sqlx(PostgresQueryBuilder),
                 };
 
-                sqlx::query_with(&sql, values)
+                sqlx::query_with(AssertSqlSafe(sql.as_str()), values)
                     .execute(self.pool.as_ref())
                     .await?;
             }
@@ -110,7 +111,7 @@ impl Projector for InvitationProjector {
                     DatabaseType::Postgres => query.build_sqlx(PostgresQueryBuilder),
                 };
 
-                sqlx::query_with(&sql, values)
+                sqlx::query_with(AssertSqlSafe(sql.as_str()), values)
                     .execute(self.pool.as_ref())
                     .await?;
             }

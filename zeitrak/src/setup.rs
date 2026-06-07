@@ -59,7 +59,13 @@ pub async fn setup_application(
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    // 2–5. Create the workspace, admin role, assign user, init tenant DB.
+    // 2. Grant instance-admin flag to the first user.
+    UserCommand::new(UserRepository::from_pool(pool.clone()).await?)
+        .grant_instance_admin(user_id.clone())
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    // 3–6. Create the workspace, workspace_admin role, assign user, init tenant DB.
     create_workspace_for_user(user_id, workspace_name).await?;
 
     Ok(())

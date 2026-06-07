@@ -30,8 +30,7 @@ use dioxus_extism_protocol::{HookCall, PluginId, SessionCtx};
 /// Path to the compiled WASM artifact relative to the workspace root.
 fn wasm_path() -> PathBuf {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    PathBuf::from(manifest_dir)
-        .join("../target/wasm32-unknown-unknown/release/leave_requests.wasm")
+    PathBuf::from(manifest_dir).join("../target/wasm32-unknown-unknown/release/leave_requests.wasm")
 }
 
 /// Skip the test if the WASM file does not exist (wasm32 target not installed).
@@ -80,7 +79,13 @@ async fn aggregate_initial_state_export_is_callable() {
     let session = SessionCtx::default();
 
     let result: Result<serde_json::Value, _> = runtime
-        .call_plugin(&plugin_id, "leave_request__initial_state", &(), &session, &())
+        .call_plugin(
+            &plugin_id,
+            "leave_request__initial_state",
+            &(),
+            &session,
+            &(),
+        )
         .await;
 
     assert!(
@@ -128,7 +133,13 @@ async fn aggregate_submit_command_produces_submitted_event() {
 
     // First get the initial state.
     let initial_state: serde_json::Value = runtime
-        .call_plugin(&plugin_id, "leave_request__initial_state", &(), &session, &())
+        .call_plugin(
+            &plugin_id,
+            "leave_request__initial_state",
+            &(),
+            &session,
+            &(),
+        )
         .await
         .expect("initial state must be callable");
 

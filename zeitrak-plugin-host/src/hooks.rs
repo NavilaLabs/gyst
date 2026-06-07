@@ -56,12 +56,7 @@ impl HookRegistry {
     /// Returns all hooks matching `(service, command, phase)`, sorted by
     /// priority ascending then `plugin_id` lexicographic.
     #[must_use]
-    pub fn lookup(
-        &self,
-        service: &str,
-        command: &str,
-        phase: &HookPhase,
-    ) -> Vec<&RegisteredHook> {
+    pub fn lookup(&self, service: &str, command: &str, phase: &HookPhase) -> Vec<&RegisteredHook> {
         let mut matching: Vec<&RegisteredHook> = self
             .hooks
             .iter()
@@ -92,7 +87,13 @@ impl HookRegistry {
 mod tests {
     use super::*;
 
-    fn make_hook(plugin_id: &str, service: &str, command: &str, phase: HookPhase, priority: i32) -> RegisteredHook {
+    fn make_hook(
+        plugin_id: &str,
+        service: &str,
+        command: &str,
+        phase: HookPhase,
+        priority: i32,
+    ) -> RegisteredHook {
         RegisteredHook {
             plugin_id: plugin_id.to_string(),
             service: service.to_string(),

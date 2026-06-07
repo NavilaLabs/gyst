@@ -23,9 +23,6 @@
 pub mod aggregate_host;
 pub mod audit;
 pub mod capabilities;
-pub mod quota;
-pub mod projector_bridge;
-pub mod storage;
 pub mod error;
 pub mod event_bus;
 pub mod hook_dispatcher;
@@ -33,7 +30,10 @@ pub mod hooks;
 pub mod host_ctx;
 pub mod manifest;
 pub mod manifest_handlers;
+pub mod projector_bridge;
+pub mod quota;
 pub mod registries;
+pub mod storage;
 pub mod trust;
 
 pub use error::PluginHostError;
@@ -53,8 +53,8 @@ use crate::capabilities::build_permission_capability_check;
 use crate::hook_dispatcher::HookDispatcher;
 use crate::hooks::HookRegistry;
 use crate::manifest_handlers::{
-    ZeitrakAggregatesHandler, ZeitrakAppHandler, ZeitrakEventsHandler, ZeitrakHooksHandler,
-    ZeitrakPermissionsHandler, ZeitrakProjectionsHandler, CORE_DOMAIN_EVENTS,
+    CORE_DOMAIN_EVENTS, ZeitrakAggregatesHandler, ZeitrakAppHandler, ZeitrakEventsHandler,
+    ZeitrakHooksHandler, ZeitrakPermissionsHandler, ZeitrakProjectionsHandler,
 };
 use crate::registries::{AggregateRegistry, ProjectionRegistry};
 
@@ -100,14 +100,16 @@ impl PluginHost {
             Arc::new(RwLock::new(HashSet::new()));
 
         let known_events: Arc<RwLock<HashSet<String>>> = Arc::new(RwLock::new(
-            CORE_DOMAIN_EVENTS.iter().map(|s| (*s).to_string()).collect(),
+            CORE_DOMAIN_EVENTS
+                .iter()
+                .map(|s| (*s).to_string())
+                .collect(),
         ));
 
         let event_subscriptions: Arc<RwLock<HashMap<String, Vec<String>>>> =
             Arc::new(RwLock::new(HashMap::new()));
 
-        let hook_registry: Arc<RwLock<HookRegistry>> =
-            Arc::new(RwLock::new(HookRegistry::new()));
+        let hook_registry: Arc<RwLock<HookRegistry>> = Arc::new(RwLock::new(HookRegistry::new()));
 
         let aggregate_registry: Arc<RwLock<AggregateRegistry>> =
             Arc::new(RwLock::new(AggregateRegistry::new()));
@@ -123,20 +125,18 @@ impl PluginHost {
         // * Instance   — workspace-admin install; may also replace core tracking
         //                routes: `/timesheets` and `/activities`
         // * SignedInstance — trust-root verified; may replace any route
-        let route_replace_policy = |_plugin_id: &PluginId,
-                                    route: &str,
-                                    ctx: &CallContext<'_, ZeitrakHostCtx>|
-         -> bool {
-            match ctx.host.trust_tier {
-                ZeitrakTrustTier::SignedInstance => true,
-                ZeitrakTrustTier::Instance => {
-                    route.starts_with("/plugin/")
-                        || route.starts_with("/timesheets")
-                        || route.starts_with("/activities")
+        let route_replace_policy =
+            |_plugin_id: &PluginId, route: &str, ctx: &CallContext<'_, ZeitrakHostCtx>| -> bool {
+                match ctx.host.trust_tier {
+                    ZeitrakTrustTier::SignedInstance => true,
+                    ZeitrakTrustTier::Instance => {
+                        route.starts_with("/plugin/")
+                            || route.starts_with("/timesheets")
+                            || route.starts_with("/activities")
+                    }
+                    ZeitrakTrustTier::Tenant => route.starts_with("/plugin/"),
                 }
-                ZeitrakTrustTier::Tenant => route.starts_with("/plugin/"),
-            }
-        };
+            };
 
         let runtime = PluginRuntime::<ZeitrakHostCtx>::builder()
             .with_manifest_extension("zeitrak.app", Arc::new(ZeitrakAppHandler))
@@ -159,16 +159,17 @@ impl PluginHost {
             )
             .with_manifest_extension(
                 "zeitrak.aggregates",
-                Arc::new(ZeitrakAggregatesHandler::new(Arc::clone(&aggregate_registry))),
+                Arc::new(ZeitrakAggregatesHandler::new(Arc::clone(
+                    &aggregate_registry,
+                ))),
             )
             .with_manifest_extension(
                 "zeitrak.projections",
-                Arc::new(ZeitrakProjectionsHandler::new(Arc::clone(&projection_registry))),
+                Arc::new(ZeitrakProjectionsHandler::new(Arc::clone(
+                    &projection_registry,
+                ))),
             )
-            .with_capability_check_ctx(
-                "zeitrak.permission",
-                build_permission_capability_check(),
-            )
+            .with_capability_check_ctx("zeitrak.permission", build_permission_capability_check())
             .with_audit_sink(Arc::new(audit_sink))
             .with_route_replace_policy_ctx(route_replace_policy)
             .build()

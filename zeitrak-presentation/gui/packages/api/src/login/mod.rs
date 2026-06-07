@@ -55,6 +55,7 @@ async fn _login(email: String, password: String) -> Result<(), ServerFnError> {
                 id: current_user.id,
                 email: current_user.email,
                 is_admin,
+                can_manage_workspace: false,
                 workspace_id,
             },
         )

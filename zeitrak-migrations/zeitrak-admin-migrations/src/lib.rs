@@ -26,6 +26,9 @@ mod m20260516_000001_create_waitlist_signups;
 mod m20260518_000001_create_smtp_config;
 mod m20260605_000001_seed_admin_bypass_permission;
 mod m20260606_000001_create_plugin_audit_table;
+mod m20260607_000001_refine_permissions;
+mod m20260607_000002_instance_admin;
+mod m20260607_000003_backfill_standard_permissions;
 
 pub struct Migrator;
 
@@ -62,6 +65,9 @@ impl MigratorTrait for Migrator {
             Box::new(m20260518_000001_create_smtp_config::Migration),
             Box::new(m20260605_000001_seed_admin_bypass_permission::Migration),
             Box::new(m20260606_000001_create_plugin_audit_table::Migration),
+            Box::new(m20260607_000001_refine_permissions::Migration),
+            Box::new(m20260607_000002_instance_admin::Migration),
+            Box::new(m20260607_000003_backfill_standard_permissions::Migration),
         ]
     }
 }

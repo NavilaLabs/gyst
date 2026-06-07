@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 anyhow = { version = "1", optional = true }
 dioxus = { workspace = true, features = ["fullstack"] }
+dioxus-extism-protocol = { workspace = true }
 zeitrak = { path = "../../../../zeitrak", optional = true }
 serde = { version = "1", features = ["derive"] }
 tower-sessions = { version = "0.14", optional = true }

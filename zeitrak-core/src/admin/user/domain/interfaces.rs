@@ -68,6 +68,15 @@ pub trait UserRepository<R>: Repository<User, R> + Send + Sync {
     async fn has_at_least_one_user(&self) -> Result<bool, <Self as UserRepository<R>>::Error> {
         Ok(self.count().await? > 0)
     }
+
+    /// Returns `true` if any user already has the `is_instance_admin` flag set.
+    ///
+    /// Used to enforce the single-instance-admin invariant before granting the flag.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database count query fails.
+    async fn instance_admin_exists(&self) -> Result<bool, <Self as UserRepository<R>>::Error>;
 }
 
 #[cfg(test)]
@@ -201,6 +210,10 @@ pub mod in_memory_repository {
             _token: &str,
         ) -> Result<Option<UserId>, StubError> {
             Ok(None)
+        }
+
+        async fn instance_admin_exists(&self) -> Result<bool, StubError> {
+            Ok(false)
         }
     }
 }

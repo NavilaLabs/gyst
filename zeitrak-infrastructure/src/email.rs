@@ -124,9 +124,5 @@ pub trait SmtpConfigRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an error if the state does not match or the database write fails.
-    async fn complete_oauth2(
-        &self,
-        actual_state: &str,
-        refresh_token: &str,
-    ) -> anyhow::Result<()>;
+    async fn complete_oauth2(&self, actual_state: &str, refresh_token: &str) -> anyhow::Result<()>;
 }

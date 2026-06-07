@@ -83,10 +83,7 @@ impl RowToRoot<AnyRow, Permission> for PermissionRepository {
 }
 
 impl PermissionRepository {
-    async fn row_to_root_versioned(
-        &self,
-        row: AnyRow,
-    ) -> Result<Root<Permission>, crate::Error> {
+    async fn row_to_root_versioned(&self, row: AnyRow) -> Result<Root<Permission>, crate::Error> {
         let root = self.row_to_root(row)?;
         let version =
             current_stream_version(&self.store.pool, &root.aggregate_id().to_string()).await?;

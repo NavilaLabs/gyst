@@ -1,8 +1,10 @@
 use std::process::Command;
 
 fn main() {
-    let plugin_dir =
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../examples/plugins/leave-requests");
+    let plugin_dir = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../examples/plugins/leave-requests"
+    );
     println!("cargo:rerun-if-changed={plugin_dir}/src");
     println!("cargo:rerun-if-changed={plugin_dir}/Cargo.toml");
 

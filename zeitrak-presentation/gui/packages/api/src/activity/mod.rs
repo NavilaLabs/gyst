@@ -80,8 +80,10 @@ pub async fn update_activity(
 #[cfg(feature = "server")]
 async fn _list_activities() -> Result<Vec<ActivityDto>, ServerFnError> {
     use crate::session;
+    use zeitrak::core::permissions;
 
-    let (_, workspace_id) = session::session_workspace().await?;
+    let (user, workspace_id) = session::session_workspace().await?;
+    session::require_permission(&user, permissions::ACTIVITY_READ).await?;
     let rows = zeitrak::tenant::activity::list(&workspace_id)
         .await
         .map_err(session::internal)?;

@@ -19,6 +19,7 @@ pub struct User {
     pub language: String,
     pub is_verified: bool,
     pub verification_token: Option<String>,
+    pub is_instance_admin: bool,
 }
 
 impl User {
@@ -71,6 +72,7 @@ impl Aggregate for User {
                 language: "en".to_string(),
                 is_verified: false,
                 verification_token: None,
+                is_instance_admin: false,
             }),
             (Some(_), UserEvent::Created { .. }) => Err(user::Error::AlreadyExists),
             (None, _) => Err(user::Error::NotFound),
@@ -94,6 +96,10 @@ impl Aggregate for User {
             (Some(mut user), UserEvent::Verified {}) => {
                 user.is_verified = true;
                 user.verification_token = None;
+                Ok(user)
+            }
+            (Some(mut user), UserEvent::InstanceAdminGranted {}) => {
+                user.is_instance_admin = true;
                 Ok(user)
             }
         }

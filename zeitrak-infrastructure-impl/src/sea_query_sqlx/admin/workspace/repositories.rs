@@ -6,7 +6,7 @@ use eventually::aggregate::{Aggregate, Root};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
 use sea_query::{Alias, Condition, Expr, ExprTrait, JoinType, Order};
-use sqlx::{Row, any::AnyRow};
+use sqlx::{AssertSqlSafe, Row, any::AnyRow};
 use zeitrak_core::admin::workspace::{
     MemberRow, Workspace, WorkspaceEvent, WorkspaceId,
     WorkspaceRepository as WorkspaceRepositoryTrait, WorkspaceRow,
@@ -109,7 +109,7 @@ impl WorkspaceRepository {
             .order_by((Alias::new("w"), Alias::new("id")), Order::Asc)
             .to_owned();
         let (sql, values) = self.store.pool.build_query(&stmt);
-        let rows = sqlx::query_with(&sql, values)
+        let rows = sqlx::query_with(AssertSqlSafe(sql.as_str()), values)
             .fetch_all(self.store.pool.as_ref())
             .await?;
 
@@ -135,7 +135,7 @@ impl WorkspaceRepository {
             .to_owned();
 
         let (sql, arguments) = self.store.pool.build_query(&statement);
-        let row = sqlx::query_with(&sql, arguments)
+        let row = sqlx::query_with(AssertSqlSafe(sql.as_str()), arguments)
             .fetch_optional(self.store.pool.as_ref())
             .await?;
 

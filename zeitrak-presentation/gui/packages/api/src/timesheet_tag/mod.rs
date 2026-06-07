@@ -147,7 +147,7 @@ async fn _create_tag(name: String) -> Result<TimesheetsTagDto, ServerFnError> {
     use zeitrak::core::permissions;
 
     let (user, workspace_id) = session::session_workspace().await?;
-    session::require_permission(&user, permissions::TAG_MANAGE).await?;
+    session::require_permission(&user, permissions::TAG_CREATE).await?;
 
     zeitrak::tenant::timesheet_tag::create(&workspace_id, name)
         .await
@@ -164,7 +164,7 @@ async fn _rename_tag(id: String, name: String) -> Result<(), ServerFnError> {
     use zeitrak::core::permissions;
 
     let (user, workspace_id) = session::session_workspace().await?;
-    session::require_permission(&user, permissions::TAG_MANAGE).await?;
+    session::require_permission(&user, permissions::TAG_UPDATE).await?;
 
     zeitrak::tenant::timesheet_tag::rename(&workspace_id, &id, name)
         .await
@@ -177,7 +177,7 @@ async fn _tag_timesheet(tag_id: String, timesheet_id: String) -> Result<(), Serv
     use zeitrak::core::permissions;
 
     let (user, workspace_id) = session::session_workspace().await?;
-    session::require_permission(&user, permissions::TAG_MANAGE).await?;
+    session::require_permission(&user, permissions::TAG_UPDATE).await?;
 
     zeitrak::tenant::timesheet_tag::tag_timesheet(&workspace_id, &tag_id, &timesheet_id)
         .await
@@ -190,7 +190,7 @@ async fn _untag_timesheet(tag_id: String, timesheet_id: String) -> Result<(), Se
     use zeitrak::core::permissions;
 
     let (user, workspace_id) = session::session_workspace().await?;
-    session::require_permission(&user, permissions::TAG_MANAGE).await?;
+    session::require_permission(&user, permissions::TAG_UPDATE).await?;
 
     zeitrak::tenant::timesheet_tag::untag_timesheet(&workspace_id, &tag_id, &timesheet_id)
         .await
@@ -203,7 +203,7 @@ async fn _delete_tag(id: String) -> Result<(), ServerFnError> {
     use zeitrak::core::permissions;
 
     let (user, workspace_id) = session::session_workspace().await?;
-    session::require_permission(&user, permissions::TAG_MANAGE).await?;
+    session::require_permission(&user, permissions::TAG_DELETE).await?;
 
     zeitrak::tenant::timesheet_tag::delete(&workspace_id, &id)
         .await

@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use embassy_futures::join::join;
 use sea_query::{Expr, ExprTrait, PostgresQueryBuilder, Query};
 use sea_query_sqlx::SqlxBinder;
-use sqlx::Row;
+use sqlx::{AssertSqlSafe, Row};
 use tracing::info;
 use zeitrak_infrastructure::{
     config::CONFIG,
@@ -152,7 +152,7 @@ impl InitializationStrategy for PostgresInitializationStrategy {
                     .to_owned(),
             ))
             .build_sqlx(PostgresQueryBuilder);
-        let result = sqlx::query_with(&sql, values)
+        let result = sqlx::query_with(AssertSqlSafe(sql.as_str()), values)
             .fetch_one(pool.as_ref())
             .await?;
 
@@ -170,7 +170,9 @@ impl InitializationStrategy for PostgresInitializationStrategy {
         let database_name = CONFIG.database().databases().admin().name();
         info!("Initializing admin database: {}", database_name);
         let query = format!(r#"CREATE DATABASE "{database_name}""#);
-        sqlx::query(query.as_str()).execute(pool.as_ref()).await?;
+        sqlx::query(AssertSqlSafe(query.as_str()))
+            .execute(pool.as_ref())
+            .await?;
 
         Ok(())
     }
@@ -198,7 +200,9 @@ impl InitializationStrategy for PostgresInitializationStrategy {
 
         info!("Initializing tenant database: {}", database_name);
         let query = format!(r#"CREATE DATABASE "{database_name}""#);
-        sqlx::query(query.as_str()).execute(pool.as_ref()).await?;
+        sqlx::query(AssertSqlSafe(query.as_str()))
+            .execute(pool.as_ref())
+            .await?;
 
         Ok(())
     }

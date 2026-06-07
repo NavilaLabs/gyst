@@ -1,57 +1,80 @@
 //! Permission name constants following the `<aggregate>.<action>` convention.
 //!
 //! These are the canonical string keys stored in the `permissions` table.
-//! A user holding the [`ADMIN_BYPASS`] permission bypasses all other permission
-//! checks — only regular users with an explicit role or direct grant need the
-//! remaining constants.
+//! Instance admin status is stored as `is_instance_admin` on the user — not
+//! as a permission.  All users receive explicit per-aggregate permissions via
+//! their roles.
 //!
-//! Naming rule: `<aggregate>.<action>`, e.g. `customer.create`.
+//! Naming rule: `<aggregate>.<action>`, e.g. `activity.create`.
 //! Event names are internal implementation details and are intentionally
 //! kept separate from permission names.
 
-// Admin / cross-cutting
-/// Grants unconditional access to every operation across all workspaces.
-///
-/// Assign this permission to an admin workspace role instead of hardcoding
-/// role names in the authorization service.
-pub const ADMIN_BYPASS: &str = "admin.bypass";
-
 // Activity domain
 pub const ACTIVITY_CREATE: &str = "activity.create";
+pub const ACTIVITY_READ: &str = "activity.read";
 pub const ACTIVITY_UPDATE: &str = "activity.update";
 pub const ACTIVITY_DELETE: &str = "activity.delete";
+pub const ACTIVITY_EXPORT: &str = "activity.export";
 
 // Timesheet domain
 pub const TIMESHEET_CREATE: &str = "timesheet.create";
+pub const TIMESHEET_READ: &str = "timesheet.read";
 pub const TIMESHEET_UPDATE: &str = "timesheet.update";
+pub const TIMESHEET_DELETE: &str = "timesheet.delete";
 pub const TIMESHEET_EXPORT: &str = "timesheet.export";
-pub const TIMESHEET_CANCEL: &str = "timesheet.cancel";
+/// Grants access to all workspace members' timesheets, not just the user's own.
+pub const TIMESHEET_READ_ALL: &str = "timesheet.read_all";
 
-// Cross-cutting
-pub const TAG_MANAGE: &str = "tag.manage";
+// Tag domain
+pub const TAG_CREATE: &str = "tag.create";
+pub const TAG_READ: &str = "tag.read";
+pub const TAG_UPDATE: &str = "tag.update";
+pub const TAG_DELETE: &str = "tag.delete";
+pub const TAG_EXPORT: &str = "tag.export";
 
 // Member management
-pub const MEMBER_INVITE: &str = "member.invite";
-pub const MEMBER_MANAGE: &str = "member.manage";
+pub const MEMBER_CREATE: &str = "member.create";
+pub const MEMBER_READ: &str = "member.read";
+pub const MEMBER_UPDATE: &str = "member.update";
+pub const MEMBER_DELETE: &str = "member.delete";
+pub const MEMBER_EXPORT: &str = "member.export";
 
 // Role management
-pub const ROLE_MANAGE: &str = "role.manage";
+pub const ROLE_CREATE: &str = "role.create";
+pub const ROLE_READ: &str = "role.read";
+pub const ROLE_UPDATE: &str = "role.update";
+pub const ROLE_DELETE: &str = "role.delete";
+pub const ROLE_EXPORT: &str = "role.export";
 
 /// Every built-in permission that must be seeded in the database.
 /// Used by migrations and initial setup logic.
 pub const ALL: &[&str] = &[
-    ADMIN_BYPASS,
     ACTIVITY_CREATE,
+    ACTIVITY_READ,
     ACTIVITY_UPDATE,
     ACTIVITY_DELETE,
+    ACTIVITY_EXPORT,
     TIMESHEET_CREATE,
+    TIMESHEET_READ,
     TIMESHEET_UPDATE,
+    TIMESHEET_DELETE,
     TIMESHEET_EXPORT,
-    TIMESHEET_CANCEL,
-    TAG_MANAGE,
-    MEMBER_INVITE,
-    MEMBER_MANAGE,
-    ROLE_MANAGE,
+    TIMESHEET_READ_ALL,
+    TAG_CREATE,
+    TAG_READ,
+    TAG_UPDATE,
+    TAG_DELETE,
+    TAG_EXPORT,
+    MEMBER_CREATE,
+    MEMBER_READ,
+    MEMBER_UPDATE,
+    MEMBER_DELETE,
+    MEMBER_EXPORT,
+    ROLE_CREATE,
+    ROLE_READ,
+    ROLE_UPDATE,
+    ROLE_DELETE,
+    ROLE_EXPORT,
 ];
 
 // ── Plugin-extensible registry ────────────────────────────────────────────────

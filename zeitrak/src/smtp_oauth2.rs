@@ -19,8 +19,8 @@ async fn build_repo() -> Result<SmtpConfigRepositoryImpl> {
 /// Returns an error if no SMTP config row exists yet or the state cannot be saved.
 pub async fn initiate_microsoft_oauth2(client_id: &str, tenant_id: &str) -> Result<String> {
     use rand::Rng as _;
-    let state: String = rand::thread_rng()
-        .sample_iter(rand::distributions::Alphanumeric)
+    let state: String = rand::rng()
+        .sample_iter(rand::distr::Alphanumeric)
         .take(32)
         .map(char::from)
         .collect();
@@ -95,12 +95,13 @@ pub async fn complete_microsoft_oauth2(code: String, state: String) -> Result<()
         ("client_secret", client_secret.as_str()),
         ("code", code.as_str()),
         ("redirect_uri", redirect_uri.as_str()),
-        ("scope", "https://outlook.office.com/SMTP.Send offline_access"),
+        (
+            "scope",
+            "https://outlook.office.com/SMTP.Send offline_access",
+        ),
     ];
 
-    let token_url = format!(
-        "https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
-    );
+    let token_url = format!("https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token");
 
     let http = reqwest::Client::new();
     let resp = http

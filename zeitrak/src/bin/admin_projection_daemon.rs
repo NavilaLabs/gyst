@@ -38,12 +38,13 @@ async fn main() -> Result<()> {
     // Add the global_position column + trigger that the projection runner needs.
     // This is idempotent — safe to call on every startup.
     ProjectionRunner::new(pool.clone().into_pool(), ProjectionSource::AllStreams)
+        .await
         .run_migrations()
         .await?;
 
     let backoff = BackoffConfig {
-        min_idle_ms: 20,
-        max_idle_ms: 200,
+        min_idle: Duration::from_millis(20),
+        max_idle: Duration::from_millis(200),
         ..Default::default()
     };
 
@@ -53,7 +54,7 @@ async fn main() -> Result<()> {
     // This guarantees events are applied sequentially across all projection
     // tables, preventing FK race conditions between independent runners.
     daemon.register_with_config(
-        ProjectionRunner::new(pool.clone().into_pool(), ProjectionSource::AllStreams),
+        ProjectionRunner::new(pool.clone().into_pool(), ProjectionSource::AllStreams).await,
         AdminProjector::new(pool.clone()),
         SqlCheckpoint::new(pool.clone().into_pool(), "admin_projection").await?,
         backoff,

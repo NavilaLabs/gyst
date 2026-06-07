@@ -31,9 +31,10 @@ use std::sync::Arc;
 
 use dioxus_extism_host::PluginRuntime;
 use dioxus_extism_protocol::PluginId;
-use sqlparser::ast::{visit_relations, Statement};
+use sqlparser::ast::{Statement, visit_relations};
 use sqlparser::dialect::GenericDialect;
 use sqlparser::parser::Parser;
+use sqlx::AssertSqlSafe;
 use sqlx::Column as _;
 use sqlx::Row as _;
 use thiserror::Error;
@@ -89,7 +90,9 @@ pub enum StorageError {
     Database(#[from] sqlx::Error),
 
     /// An unsupported `StateScope` was requested for a KV operation.
-    #[error("KV operation with PerSession scope requires a session_id; use global scope or pass session_id")]
+    #[error(
+        "KV operation with PerSession scope requires a session_id; use global scope or pass session_id"
+    )]
     UnsupportedScope,
 }
 
@@ -100,8 +103,8 @@ pub enum StorageError {
 /// Returns `Err(StorageError)` on any violation.
 fn check_table_prefix(plugin_id: &str, sql: &str) -> Result<Vec<Statement>, StorageError> {
     let dialect = GenericDialect {};
-    let statements = Parser::parse_sql(&dialect, sql)
-        .map_err(|e| StorageError::ParseError(e.to_string()))?;
+    let statements =
+        Parser::parse_sql(&dialect, sql).map_err(|e| StorageError::ParseError(e.to_string()))?;
 
     let prefix = make_plugin_prefix(plugin_id);
 
@@ -152,7 +155,8 @@ pub struct PluginStorageService {
 
 impl std::fmt::Debug for PluginStorageService {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PluginStorageService").finish_non_exhaustive()
+        f.debug_struct("PluginStorageService")
+            .finish_non_exhaustive()
     }
 }
 
@@ -211,11 +215,7 @@ impl PluginStorageService {
     /// # Errors
     ///
     /// Currently infallible; signature is compatible with future persistence backends.
-    pub async fn kv_delete(
-        &self,
-        plugin: &PluginId,
-        key: &str,
-    ) -> Result<(), PluginHostError> {
+    pub async fn kv_delete(&self, plugin: &PluginId, key: &str) -> Result<(), PluginHostError> {
         // Clear the key by writing Value::Null; the host treats Null as absent.
         self.runtime
             .set_plugin_state(
@@ -239,7 +239,7 @@ impl PluginStorageService {
     pub async fn migrate(&self, sql: &str) -> Result<(), StorageError> {
         let mut tx = self.pool.begin().await?;
         for stmt in sql.split(';').map(str::trim).filter(|s| !s.is_empty()) {
-            sqlx::query(stmt).execute(&mut *tx).await?;
+            sqlx::query(AssertSqlSafe(stmt)).execute(&mut *tx).await?;
         }
         tx.commit().await?;
         Ok(())
@@ -341,11 +341,7 @@ impl PluginAdminStorageService {
     /// # Errors
     ///
     /// Currently infallible; signature is compatible with future persistence backends.
-    pub async fn kv_delete(
-        &self,
-        plugin: &PluginId,
-        key: &str,
-    ) -> Result<(), PluginHostError> {
+    pub async fn kv_delete(&self, plugin: &PluginId, key: &str) -> Result<(), PluginHostError> {
         self.runtime
             .set_plugin_state(
                 plugin,
@@ -365,7 +361,7 @@ impl PluginAdminStorageService {
     pub async fn migrate(&self, sql: &str) -> Result<(), StorageError> {
         let mut tx = self.pool.begin().await?;
         for stmt in sql.split(';').map(str::trim).filter(|s| !s.is_empty()) {
-            sqlx::query(stmt).execute(&mut *tx).await?;
+            sqlx::query(AssertSqlSafe(stmt)).execute(&mut *tx).await?;
         }
         tx.commit().await?;
         Ok(())
@@ -409,7 +405,7 @@ async fn execute_query_raw(
     sql: &str,
     params: Vec<serde_json::Value>,
 ) -> Result<Vec<serde_json::Value>, StorageError> {
-    let mut query = sqlx::query(sql);
+    let mut query = sqlx::query(AssertSqlSafe(sql));
     for param in params {
         match param {
             serde_json::Value::Null => query = query.bind(Option::<String>::None),
@@ -450,7 +446,9 @@ async fn execute_query_raw(
                     row.try_get::<Option<f64>, _>(name)
                         .ok()
                         .flatten()
-                        .and_then(|f| serde_json::Number::from_f64(f).map(serde_json::Value::Number))
+                        .and_then(|f| {
+                            serde_json::Number::from_f64(f).map(serde_json::Value::Number)
+                        })
                 })
                 .or_else(|| {
                     row.try_get::<Option<bool>, _>(name)
@@ -495,10 +493,7 @@ mod tests {
 
     #[test]
     fn check_table_prefix_rejects_foreign_table() {
-        let result = check_table_prefix(
-            "my-org/leave-guard",
-            "SELECT * FROM users",
-        );
+        let result = check_table_prefix("my-org/leave-guard", "SELECT * FROM users");
         assert!(
             matches!(result, Err(StorageError::TableAccessDenied { .. })),
             "expected TableAccessDenied, got: {result:?}"

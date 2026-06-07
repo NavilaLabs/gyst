@@ -1,5 +1,5 @@
 use sea_query::{Alias, Expr, ExprTrait};
-use sqlx::Row as _;
+use sqlx::{AssertSqlSafe, Row as _};
 
 use crate::sea_query_sqlx::infrastructure::pool::ConnectionProvider;
 
@@ -24,11 +24,10 @@ pub async fn current_stream_version(
         .and_where(Expr::col(Alias::new("event_stream_id")).eq(stream_id))
         .to_owned();
     let (sql, arguments) = provider.build_query(&stmt);
-    let row = sqlx::query_with(&sql, arguments)
+    let row = sqlx::query_with(AssertSqlSafe(sql.as_str()), arguments)
         .fetch_optional(provider.any_pool())
         .await?;
     Ok(row.map_or(0, |r| {
-        r.try_get::<i64, _>(0usize)
-            .map_or(0, i64::cast_unsigned)
+        r.try_get::<i64, _>(0usize).map_or(0, i64::cast_unsigned)
     }))
 }

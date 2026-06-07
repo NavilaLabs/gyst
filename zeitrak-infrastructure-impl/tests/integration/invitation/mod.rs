@@ -221,9 +221,7 @@ pub mod tests {
             .await
             .expect("create must succeed");
 
-        cmd.revoke(id.clone())
-            .await
-            .expect("revoke must succeed");
+        cmd.revoke(id.clone()).await.expect("revoke must succeed");
 
         let repo2 = make_repository(&db).await;
         let loaded = repo2.get(&id).await.expect("get must succeed");
@@ -247,15 +245,16 @@ pub mod tests {
             .await
             .expect("projector must handle InvitationCreated");
 
-        let row = sqlx::query(
-            "SELECT status FROM projections__invitations WHERE id = ?",
-        )
-        .bind(id.to_string())
-        .fetch_optional(db.admin.as_ref())
-        .await
-        .expect("query must succeed");
+        let row = sqlx::query("SELECT status FROM projections__invitations WHERE id = ?")
+            .bind(id.to_string())
+            .fetch_optional(db.admin.as_ref())
+            .await
+            .expect("query must succeed");
 
-        assert!(row.is_some(), "projection row must exist after InvitationCreated");
+        assert!(
+            row.is_some(),
+            "projection row must exist after InvitationCreated"
+        );
         let status: String = row.unwrap().try_get("status").unwrap();
         assert_eq!(status, "pending");
     }
@@ -290,13 +289,11 @@ pub mod tests {
             .await
             .expect("InvitationAccepted must be handled");
 
-        let row = sqlx::query(
-            "SELECT status FROM projections__invitations WHERE id = ?",
-        )
-        .bind(id.to_string())
-        .fetch_one(db.admin.as_ref())
-        .await
-        .expect("row must exist");
+        let row = sqlx::query("SELECT status FROM projections__invitations WHERE id = ?")
+            .bind(id.to_string())
+            .fetch_one(db.admin.as_ref())
+            .await
+            .expect("row must exist");
         assert_eq!(row.try_get::<String, _>("status").unwrap(), "accepted");
     }
 
@@ -327,13 +324,11 @@ pub mod tests {
             .await
             .expect("InvitationRevoked must be handled");
 
-        let row = sqlx::query(
-            "SELECT status FROM projections__invitations WHERE id = ?",
-        )
-        .bind(id.to_string())
-        .fetch_one(db.admin.as_ref())
-        .await
-        .expect("row must exist");
+        let row = sqlx::query("SELECT status FROM projections__invitations WHERE id = ?")
+            .bind(id.to_string())
+            .fetch_one(db.admin.as_ref())
+            .await
+            .expect("row must exist");
         assert_eq!(row.try_get::<String, _>("status").unwrap(), "revoked");
     }
 
@@ -386,7 +381,10 @@ pub mod tests {
 
         projector.handle(raw_created_event(&id)).await.unwrap();
         let result = projector.handle(raw_created_event(&id)).await;
-        assert!(result.is_ok(), "duplicate InvitationCreated must be ignored");
+        assert!(
+            result.is_ok(),
+            "duplicate InvitationCreated must be ignored"
+        );
     }
 
     /// The projector ignores unknown event types without error.
@@ -407,6 +405,9 @@ pub mod tests {
             })
             .await;
 
-        assert!(result.is_ok(), "unknown event type must not produce an error");
+        assert!(
+            result.is_ok(),
+            "unknown event type must not produce an error"
+        );
     }
 }

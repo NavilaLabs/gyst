@@ -9,11 +9,11 @@ pub mod auth {
 }
 pub mod email;
 pub mod error;
-pub mod smtp_config;
-pub mod smtp_oauth2;
 pub mod invitation;
 pub mod registration;
 pub mod setup;
+pub mod smtp_config;
+pub mod smtp_oauth2;
 pub mod tenant;
 pub mod user_settings;
 #[cfg(feature = "landing")]

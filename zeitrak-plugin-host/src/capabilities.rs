@@ -36,11 +36,14 @@ pub fn is_admin_permission(permission: &str) -> bool {
 ///     .build()
 ///     .await?;
 /// ```
-pub fn build_permission_capability_check() -> impl Fn(&PluginId, &serde_json::Value, &dioxus_extism_protocol::CallContext<'_, ZeitrakHostCtx>) -> Result<(), String>
-       + Send
-       + Sync
-       + 'static
-{
+pub fn build_permission_capability_check() -> impl Fn(
+    &PluginId,
+    &serde_json::Value,
+    &dioxus_extism_protocol::CallContext<'_, ZeitrakHostCtx>,
+) -> Result<(), String>
++ Send
++ Sync
++ 'static {
     |_plugin_id, value, ctx| {
         let permission = value
             .as_str()

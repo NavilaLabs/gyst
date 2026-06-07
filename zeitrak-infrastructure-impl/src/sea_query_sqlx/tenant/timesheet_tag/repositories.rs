@@ -6,7 +6,7 @@ use eventually::aggregate::{Aggregate, Root};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
 use sea_query::{Alias, Condition, Expr, ExprTrait, JoinType, Order};
-use sqlx::{Row, any::AnyRow};
+use sqlx::{AssertSqlSafe, Row, any::AnyRow};
 use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
 use zeitrak_core::tenant::timesheet_tag::{
     TimesheetTag, TimesheetTagEvent, TimesheetTagId,
@@ -90,7 +90,7 @@ impl TimesheetTagRepository {
             .order_by((Alias::new("t"), Alias::new("name")), Order::Asc)
             .to_owned();
         let (sql, values) = self.store.pool.build_query(&stmt);
-        let rows = sqlx::query_with(&sql, values)
+        let rows = sqlx::query_with(AssertSqlSafe(sql.as_str()), values)
             .fetch_all(self.store.pool.as_ref())
             .await?;
         rows.into_iter().map(|r| Self::map_row(&r)).collect()
@@ -125,7 +125,7 @@ impl TimesheetTagRepository {
             .order_by((Alias::new("t"), Alias::new("name")), Order::Asc)
             .to_owned();
         let (sql, values) = self.store.pool.build_query(&stmt);
-        let rows = sqlx::query_with(&sql, values)
+        let rows = sqlx::query_with(AssertSqlSafe(sql.as_str()), values)
             .fetch_all(self.store.pool.as_ref())
             .await?;
         let mut result: HashMap<String, Vec<TimesheetTagRow>> = HashMap::new();
@@ -159,10 +159,7 @@ impl RowToRoot<AnyRow, TimesheetTag> for TimesheetTagRepository {
 }
 
 impl TimesheetTagRepository {
-    async fn row_to_root_versioned(
-        &self,
-        row: AnyRow,
-    ) -> Result<Root<TimesheetTag>, crate::Error> {
+    async fn row_to_root_versioned(&self, row: AnyRow) -> Result<Root<TimesheetTag>, crate::Error> {
         let root = self.row_to_root(row)?;
         let version =
             current_stream_version(&self.store.pool, &root.aggregate_id().to_string()).await?;

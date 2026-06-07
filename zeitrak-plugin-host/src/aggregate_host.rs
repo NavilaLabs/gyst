@@ -36,8 +36,8 @@ use std::sync::{Arc, Mutex, OnceLock};
 use async_trait::async_trait;
 use dioxus_extism_host::PluginRuntime;
 use dioxus_extism_protocol::{PluginId, SessionCtx};
-use eventually::aggregate::{self, Aggregate, Root};
 use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
+use eventually::aggregate::{self, Aggregate, Root};
 use eventually::message::Message as EMessage;
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
@@ -342,15 +342,9 @@ impl Aggregate for PluginAggregate {
         let host_ctx = system_host_ctx();
 
         let new_state = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(
-                runtime.call_plugin::<_, serde_json::Value>(
-                    &plugin_id,
-                    &fn_name,
-                    &input,
-                    &session,
-                    &host_ctx,
-                ),
-            )
+            tokio::runtime::Handle::current().block_on(runtime.call_plugin::<_, serde_json::Value>(
+                &plugin_id, &fn_name, &input, &session, &host_ctx,
+            ))
         })
         .map_err(|e| PluginAggregateError::WasmCallFailed(e.to_string()))?;
 
@@ -409,13 +403,10 @@ impl PluginAggregateHost {
         // Register so apply() can find the runtime after serde round-trips.
         register_plugin_runtime(&plugin_id, Arc::clone(&runtime));
 
-        let store = Repository::<PluginAggregate, _, _>::new(
-            pool,
-            Json::default(),
-            Json::default(),
-        )
-        .await?
-        .with_snapshot_every(snapshot_every);
+        let store =
+            Repository::<PluginAggregate, _, _>::new(pool, Json::default(), Json::default())
+                .await?
+                .with_snapshot_every(snapshot_every);
 
         Ok(Self {
             store,
@@ -438,10 +429,7 @@ impl PluginAggregateHost {
     /// # Errors
     ///
     /// Returns `GetError` on storage failures.
-    pub async fn load(
-        &self,
-        uuid: &str,
-    ) -> Result<Option<Root<PluginAggregate>>, GetError> {
+    pub async fn load(&self, uuid: &str) -> Result<Option<Root<PluginAggregate>>, GetError> {
         match self.store.get(&self.stream_id(uuid)).await {
             Ok(root) => Ok(Some(root)),
             Err(GetError::NotFound) => Ok(None),

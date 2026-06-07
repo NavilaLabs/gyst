@@ -113,7 +113,10 @@ impl HookDispatcher {
         I: Serialize + DeserializeOwned,
     {
         let Some((service, command)) = parse_hook_key(key) else {
-            tracing::warn!(key, "HookDispatcher::pre: invalid hook key format, skipping");
+            tracing::warn!(
+                key,
+                "HookDispatcher::pre: invalid hook key format, skipping"
+            );
             return Ok(cmd);
         };
 
@@ -147,11 +150,7 @@ impl HookDispatcher {
             match self
                 .runtime
                 .call_plugin::<HookCall, HookResult>(
-                    &plugin_id,
-                    &fn_name,
-                    &hook_call,
-                    session,
-                    host_ctx,
+                    &plugin_id, &fn_name, &hook_call, session, host_ctx,
                 )
                 .await
             {
@@ -185,12 +184,20 @@ impl HookDispatcher {
     /// Run all post-hooks for `key`, fire-and-forget.
     ///
     /// Errors from individual hooks are logged but never returned.
-    pub async fn post<I>(&self, key: &str, result: &I, session: &SessionCtx, host_ctx: &ZeitrakHostCtx)
-    where
+    pub async fn post<I>(
+        &self,
+        key: &str,
+        result: &I,
+        session: &SessionCtx,
+        host_ctx: &ZeitrakHostCtx,
+    ) where
         I: Serialize + Sync,
     {
         let Some((service, command)) = parse_hook_key(key) else {
-            tracing::warn!(key, "HookDispatcher::post: invalid hook key format, skipping");
+            tracing::warn!(
+                key,
+                "HookDispatcher::post: invalid hook key format, skipping"
+            );
             return;
         };
 
@@ -219,11 +226,7 @@ impl HookDispatcher {
             if let Err(e) = self
                 .runtime
                 .call_plugin::<HookCall, serde_json::Value>(
-                    &plugin_id,
-                    &fn_name,
-                    &hook_call,
-                    session,
-                    host_ctx,
+                    &plugin_id, &fn_name, &hook_call, session, host_ctx,
                 )
                 .await
             {
@@ -257,7 +260,10 @@ mod tests {
     #[test]
     fn parse_hook_key_handles_multi_part_command() {
         let result = parse_hook_key("workspace_role.grantPermission");
-        assert_eq!(result, Some(("workspace_role", "GrantPermission".to_string())));
+        assert_eq!(
+            result,
+            Some(("workspace_role", "GrantPermission".to_string()))
+        );
     }
 
     #[test]

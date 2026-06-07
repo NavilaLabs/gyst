@@ -7,7 +7,7 @@ use eventually::aggregate::{Aggregate, Root};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
 use sea_query::{Alias, Condition, Expr, ExprTrait};
-use sqlx::{Row, any::AnyRow};
+use sqlx::{AssertSqlSafe, Row, any::AnyRow};
 use zeitrak_core::admin::user::{
     User, UserEvent, UserId, UserRepository as UserRepositoryTrait, UserRow,
 };
@@ -78,6 +78,10 @@ impl UserRepository {
             .try_get::<bool, _>("is_verified")
             .or_else(|_| row.try_get::<i64, _>("is_verified").map(|v| v != 0))
             .unwrap_or(false);
+        let is_instance_admin: bool = row
+            .try_get::<bool, _>("is_instance_admin")
+            .or_else(|_| row.try_get::<i64, _>("is_instance_admin").map(|v| v != 0))
+            .unwrap_or(false);
         Ok(UserRow::new_with_settings(
             id,
             name,
@@ -86,6 +90,7 @@ impl UserRepository {
             date_format,
             language,
             is_verified,
+            is_instance_admin,
         ))
     }
 
@@ -144,6 +149,10 @@ impl RowToRoot<AnyRow, User> for UserRepository {
             .try_get::<bool, _>("is_verified")
             .or_else(|_| row.try_get::<i64, _>("is_verified").map(|v| v != 0))
             .unwrap_or(false);
+        let is_instance_admin: bool = row
+            .try_get::<bool, _>("is_instance_admin")
+            .or_else(|_| row.try_get::<i64, _>("is_instance_admin").map(|v| v != 0))
+            .unwrap_or(false);
         let verification_token: Option<String> = row.try_get("verification_token").unwrap_or(None);
         let user = User::apply(
             None,
@@ -173,6 +182,12 @@ impl RowToRoot<AnyRow, User> for UserRepository {
         let user = if is_verified {
             User::apply(Some(user), UserEvent::Verified {})
                 .expect("Verified event on Some state is infallible")
+        } else {
+            user
+        };
+        let user = if is_instance_admin {
+            User::apply(Some(user), UserEvent::InstanceAdminGranted {})
+                .expect("InstanceAdminGranted event on Some state is infallible")
         } else {
             user
         };
@@ -267,7 +282,7 @@ impl UserRepositoryTrait<AnyRow> for UserRepository {
             .and_where(Expr::col(Alias::new("email")).eq(email))
             .to_owned();
         let (sql, arguments) = self.store.pool.build_query(&statement);
-        let row = sqlx::query_with(&sql, arguments)
+        let row = sqlx::query_with(AssertSqlSafe(sql.as_str()), arguments)
             .fetch_optional(self.store.pool.as_ref())
             .await?;
         row.map(|r| {
@@ -287,7 +302,7 @@ impl UserRepositoryTrait<AnyRow> for UserRepository {
             .and_where(Expr::col(Alias::new("verification_token")).eq(token))
             .to_owned();
         let (sql, arguments) = self.store.pool.build_query(&statement);
-        let row = sqlx::query_with(&sql, arguments)
+        let row = sqlx::query_with(AssertSqlSafe(sql.as_str()), arguments)
             .fetch_optional(self.store.pool.as_ref())
             .await?;
         row.map(|r| {
@@ -312,7 +327,7 @@ impl UserRepositoryTrait<AnyRow> for UserRepository {
 
         tracing::debug!(sql = %sql, "find_credentials_by_email");
 
-        let row = sqlx::query_with(&sql, arguments)
+        let row = sqlx::query_with(AssertSqlSafe(sql.as_str()), arguments)
             .fetch_optional(self.store.pool.as_ref())
             .await?;
 
@@ -323,5 +338,19 @@ impl UserRepositoryTrait<AnyRow> for UserRepository {
             Ok((id, email, hash))
         })
         .transpose()
+    }
+
+    async fn instance_admin_exists(&self) -> Result<bool, crate::Error> {
+        let statement = sea_query::Query::select()
+            .expr(sea_query::Expr::col(Alias::new("id")))
+            .from(Alias::new(TABLE))
+            .and_where(sea_query::Expr::col(Alias::new("is_instance_admin")).eq(true))
+            .limit(1)
+            .to_owned();
+        let (sql, arguments) = self.store.pool.build_query(&statement);
+        let row = sqlx::query_with(AssertSqlSafe(sql.as_str()), arguments)
+            .fetch_optional(self.store.pool.as_ref())
+            .await?;
+        Ok(row.is_some())
     }
 }

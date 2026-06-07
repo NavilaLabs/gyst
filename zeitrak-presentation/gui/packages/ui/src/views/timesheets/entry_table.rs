@@ -183,6 +183,9 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                         }
                                         div { class: "flex flex-col gap-0.5",
                                         span { class: "text-xs text-secondary", "{act_name}" }
+                                        if let Some(ref member) = t.member_name {
+                                            span { class: "text-xs text-secondary opacity-60", "{member}" }
+                                        }
                                         if let Some(ref desc) = t.description {
                                             span { class: "text-xs text-secondary italic", "{desc}" }
                                         }

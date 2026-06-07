@@ -33,7 +33,10 @@ async fn smtp_config_repository_roundtrip() {
     let fixture = TestFixture::setup().await;
     let repo = make_repo(&fixture);
 
-    assert!(repo.get().await.unwrap().is_none(), "fresh DB must have no config");
+    assert!(
+        repo.get().await.unwrap().is_none(),
+        "fresh DB must have no config"
+    );
 
     let config = password_config();
     repo.save(&config).await.unwrap();
@@ -100,7 +103,9 @@ async fn oauth2_state_flow_succeeds() {
     repo.set_oauth2_state("csrf-state-abc123").await.unwrap();
 
     let refresh = "my-refresh-token-value";
-    repo.complete_oauth2("csrf-state-abc123", refresh).await.unwrap();
+    repo.complete_oauth2("csrf-state-abc123", refresh)
+        .await
+        .unwrap();
 
     let loaded = repo.get().await.unwrap().unwrap();
     assert!(loaded.oauth2_authorized);

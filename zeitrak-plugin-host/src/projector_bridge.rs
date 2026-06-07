@@ -170,8 +170,8 @@ impl Projector for PluginProjector {
             return Ok(());
         }
 
-        let payload = serde_json::from_slice(&event.payload_bytes)
-            .unwrap_or(serde_json::Value::Null);
+        let payload =
+            serde_json::from_slice(&event.payload_bytes).unwrap_or(serde_json::Value::Null);
 
         let projection_event = PluginProjectionEvent {
             stream_id: event.stream_id,

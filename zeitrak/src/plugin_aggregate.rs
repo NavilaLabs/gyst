@@ -24,9 +24,9 @@ use std::sync::Arc;
 use anyhow::Context;
 use dioxus_extism_protocol::SessionCtx;
 use zeitrak_infrastructure_impl::ConnectedTenantPool;
+use zeitrak_plugin_host::PluginHost;
 use zeitrak_plugin_host::aggregate_host::{PluginAggregateHost, PluginEvent};
 use zeitrak_plugin_host::host_ctx::ZeitrakHostCtx;
-use zeitrak_plugin_host::PluginHost;
 
 /// Execute a command on a plugin-authored aggregate.
 ///
@@ -62,9 +62,10 @@ pub async fn execute_plugin_command(
     let runtime = Arc::clone(plugin_host.runtime());
     let any_pool = pool.as_ref().clone();
 
-    let host = PluginAggregateHost::new(any_pool, runtime, plugin_id, aggregate_type, snapshot_every)
-        .await
-        .context("initialising plugin aggregate repository")?;
+    let host =
+        PluginAggregateHost::new(any_pool, runtime, plugin_id, aggregate_type, snapshot_every)
+            .await
+            .context("initialising plugin aggregate repository")?;
 
     host.execute_command(aggregate_uuid, command, session, host_ctx)
         .await

@@ -1,0 +1,21 @@
+[plugin]
+id      = "com.zeitrak.greeting"
+version = "0.1.0"
+name    = "Zeitrak Greeting"
+description = """
+Built-in greeting plugin.
+
+Displays a personalised welcome screen for 3 seconds after login
+(login.greeting slot) and contributes a "Hello, <email>" card to
+the dashboard (dashboard.widgets slot).
+"""
+
+# Manifest fields understood by the plugin runtime at load time.
+# These mirror what GreetingPlugin::manifest() returns at the WASM level.
+
+[slots]
+"login.greeting"   = { priority = "high" }
+"dashboard.widgets" = { priority = "normal" }
+
+[extensions]
+"zeitrak.app" = {}

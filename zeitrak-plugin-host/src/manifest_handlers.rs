@@ -101,10 +101,7 @@ pub const ZEITRAK_APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-fn validation_failed(
-    namespace: &str,
-    message: impl Into<String>,
-) -> ManifestExtensionError {
+fn validation_failed(namespace: &str, message: impl Into<String>) -> ManifestExtensionError {
     ManifestExtensionError::ValidationFailed {
         namespace: namespace.to_string(),
         message: message.into(),
@@ -134,21 +131,19 @@ impl ManifestExtensionHandler for ZeitrakAppHandler {
         plugin_id: &PluginId,
         value: &serde_json::Value,
     ) -> Result<(), ManifestExtensionError> {
-        let ext: ZeitrakAppExtension =
-            serde_json::from_value(value.clone()).map_err(|e| {
-                validation_failed(
-                    "zeitrak.app",
-                    format!("invalid extension value for plugin `{}`: {e}", plugin_id.0),
-                )
-            })?;
+        let ext: ZeitrakAppExtension = serde_json::from_value(value.clone()).map_err(|e| {
+            validation_failed(
+                "zeitrak.app",
+                format!("invalid extension value for plugin `{}`: {e}", plugin_id.0),
+            )
+        })?;
 
         let requirement = VersionReq::parse(&ext.min_version).map_err(|e| {
             validation_failed(
                 "zeitrak.app",
                 format!(
                     "plugin `{}` has invalid min_version `{}`: {e}",
-                    plugin_id.0,
-                    ext.min_version
+                    plugin_id.0, ext.min_version
                 ),
             )
         })?;
@@ -164,7 +159,8 @@ impl ManifestExtensionHandler for ZeitrakAppHandler {
             return Err(validation_failed(
                 "zeitrak.app",
                 format!(
-                    "plugin `{}` requires zeitrak {requirement} but host is {host_version}", plugin_id.0
+                    "plugin `{}` requires zeitrak {requirement} but host is {host_version}",
+                    plugin_id.0
                 ),
             ));
         }
@@ -239,7 +235,8 @@ impl ManifestExtensionHandler for ZeitrakPermissionsHandler {
                     "zeitrak.permissions",
                     format!(
                         "plugin `{}` may not contribute a permission in the \
-                         reserved `admin.` namespace: `{name}`", plugin_id.0
+                         reserved `admin.` namespace: `{name}`",
+                        plugin_id.0
                     ),
                 ));
             }
@@ -249,7 +246,8 @@ impl ManifestExtensionHandler for ZeitrakPermissionsHandler {
                 return Err(validation_failed(
                     "zeitrak.permissions",
                     format!(
-                        "plugin `{}` attempts to re-register core permission `{name}`", plugin_id.0
+                        "plugin `{}` attempts to re-register core permission `{name}`",
+                        plugin_id.0
                     ),
                 ));
             }
@@ -273,7 +271,10 @@ impl ManifestExtensionHandler for ZeitrakPermissionsHandler {
 
         {
             let mut registry = self.registry.write().map_err(|e| {
-                load_failed("zeitrak.permissions", format!("registry lock poisoned: {e}"))
+                load_failed(
+                    "zeitrak.permissions",
+                    format!("registry lock poisoned: {e}"),
+                )
             })?;
             for name in ext.contributed {
                 registry.insert(name);
@@ -319,7 +320,8 @@ impl ZeitrakAggregatesHandler {
 
 impl std::fmt::Debug for ZeitrakAggregatesHandler {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ZeitrakAggregatesHandler").finish_non_exhaustive()
+        f.debug_struct("ZeitrakAggregatesHandler")
+            .finish_non_exhaustive()
     }
 }
 
@@ -329,16 +331,12 @@ impl ManifestExtensionHandler for ZeitrakAggregatesHandler {
         plugin_id: &PluginId,
         value: &serde_json::Value,
     ) -> Result<(), ManifestExtensionError> {
-        let decls: Vec<AggregateDecl> =
-            serde_json::from_value(value.clone()).map_err(|e| {
-                validation_failed(
-                    "zeitrak.aggregates",
-                    format!(
-                        "invalid extension value for plugin `{}`: {e}",
-                        plugin_id.0
-                    ),
-                )
-            })?;
+        let decls: Vec<AggregateDecl> = serde_json::from_value(value.clone()).map_err(|e| {
+            validation_failed(
+                "zeitrak.aggregates",
+                format!("invalid extension value for plugin `{}`: {e}", plugin_id.0),
+            )
+        })?;
 
         let registry = self.registry.read().map_err(|e| {
             validation_failed(
@@ -353,7 +351,10 @@ impl ManifestExtensionHandler for ZeitrakAggregatesHandler {
             if decl.name.is_empty() {
                 return Err(validation_failed(
                     "zeitrak.aggregates",
-                    format!("plugin `{}` declared an aggregate with an empty name", plugin_id.0),
+                    format!(
+                        "plugin `{}` declared an aggregate with an empty name",
+                        plugin_id.0
+                    ),
                 ));
             }
 
@@ -400,16 +401,12 @@ impl ManifestExtensionHandler for ZeitrakAggregatesHandler {
         plugin_id: &PluginId,
         value: &serde_json::Value,
     ) -> Result<(), ManifestExtensionError> {
-        let decls: Vec<AggregateDecl> =
-            serde_json::from_value(value.clone()).map_err(|e| {
-                load_failed(
-                    "zeitrak.aggregates",
-                    format!(
-                        "invalid extension value for plugin `{}`: {e}",
-                        plugin_id.0
-                    ),
-                )
-            })?;
+        let decls: Vec<AggregateDecl> = serde_json::from_value(value.clone()).map_err(|e| {
+            load_failed(
+                "zeitrak.aggregates",
+                format!("invalid extension value for plugin `{}`: {e}", plugin_id.0),
+            )
+        })?;
 
         {
             let mut registry = self.registry.write().map_err(|e| {
@@ -459,7 +456,8 @@ impl ZeitrakProjectionsHandler {
 
 impl std::fmt::Debug for ZeitrakProjectionsHandler {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ZeitrakProjectionsHandler").finish_non_exhaustive()
+        f.debug_struct("ZeitrakProjectionsHandler")
+            .finish_non_exhaustive()
     }
 }
 
@@ -469,16 +467,12 @@ impl ManifestExtensionHandler for ZeitrakProjectionsHandler {
         plugin_id: &PluginId,
         value: &serde_json::Value,
     ) -> Result<(), ManifestExtensionError> {
-        let decls: Vec<ProjectionDecl> =
-            serde_json::from_value(value.clone()).map_err(|e| {
-                validation_failed(
-                    "zeitrak.projections",
-                    format!(
-                        "invalid extension value for plugin `{}`: {e}",
-                        plugin_id.0
-                    ),
-                )
-            })?;
+        let decls: Vec<ProjectionDecl> = serde_json::from_value(value.clone()).map_err(|e| {
+            validation_failed(
+                "zeitrak.projections",
+                format!("invalid extension value for plugin `{}`: {e}", plugin_id.0),
+            )
+        })?;
 
         let registry = self.registry.read().map_err(|e| {
             validation_failed(
@@ -494,7 +488,10 @@ impl ManifestExtensionHandler for ZeitrakProjectionsHandler {
             if decl.name.is_empty() {
                 return Err(validation_failed(
                     "zeitrak.projections",
-                    format!("plugin `{}` declared a projection with an empty name", plugin_id.0),
+                    format!(
+                        "plugin `{}` declared a projection with an empty name",
+                        plugin_id.0
+                    ),
                 ));
             }
             if decl.table.is_empty() {
@@ -555,16 +552,12 @@ impl ManifestExtensionHandler for ZeitrakProjectionsHandler {
         plugin_id: &PluginId,
         value: &serde_json::Value,
     ) -> Result<(), ManifestExtensionError> {
-        let decls: Vec<ProjectionDecl> =
-            serde_json::from_value(value.clone()).map_err(|e| {
-                load_failed(
-                    "zeitrak.projections",
-                    format!(
-                        "invalid extension value for plugin `{}`: {e}",
-                        plugin_id.0
-                    ),
-                )
-            })?;
+        let decls: Vec<ProjectionDecl> = serde_json::from_value(value.clone()).map_err(|e| {
+            load_failed(
+                "zeitrak.projections",
+                format!("invalid extension value for plugin `{}`: {e}", plugin_id.0),
+            )
+        })?;
 
         {
             let mut registry = self.registry.write().map_err(|e| {
@@ -626,7 +619,8 @@ impl ZeitrakEventsHandler {
 
 impl std::fmt::Debug for ZeitrakEventsHandler {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ZeitrakEventsHandler").finish_non_exhaustive()
+        f.debug_struct("ZeitrakEventsHandler")
+            .finish_non_exhaustive()
     }
 }
 
@@ -636,13 +630,12 @@ impl ManifestExtensionHandler for ZeitrakEventsHandler {
         plugin_id: &PluginId,
         value: &serde_json::Value,
     ) -> Result<(), ManifestExtensionError> {
-        let ext: ZeitrakEventsExtension =
-            serde_json::from_value(value.clone()).map_err(|e| {
-                validation_failed(
-                    "zeitrak.events",
-                    format!("invalid extension value for plugin `{}`: {e}", plugin_id.0),
-                )
-            })?;
+        let ext: ZeitrakEventsExtension = serde_json::from_value(value.clone()).map_err(|e| {
+            validation_failed(
+                "zeitrak.events",
+                format!("invalid extension value for plugin `{}`: {e}", plugin_id.0),
+            )
+        })?;
 
         let known = self.known_events.read().map_err(|e| {
             validation_failed("zeitrak.events", format!("known-events lock poisoned: {e}"))
@@ -669,13 +662,12 @@ impl ManifestExtensionHandler for ZeitrakEventsHandler {
         plugin_id: &PluginId,
         value: &serde_json::Value,
     ) -> Result<(), ManifestExtensionError> {
-        let ext: ZeitrakEventsExtension =
-            serde_json::from_value(value.clone()).map_err(|e| {
-                load_failed(
-                    "zeitrak.events",
-                    format!("invalid extension value for plugin `{}`: {e}", plugin_id.0),
-                )
-            })?;
+        let ext: ZeitrakEventsExtension = serde_json::from_value(value.clone()).map_err(|e| {
+            load_failed(
+                "zeitrak.events",
+                format!("invalid extension value for plugin `{}`: {e}", plugin_id.0),
+            )
+        })?;
 
         {
             let mut subs = self.subscriptions.write().map_err(|e| {
@@ -719,7 +711,8 @@ impl ZeitrakHooksHandler {
 
 impl std::fmt::Debug for ZeitrakHooksHandler {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ZeitrakHooksHandler").finish_non_exhaustive()
+        f.debug_struct("ZeitrakHooksHandler")
+            .finish_non_exhaustive()
     }
 }
 
@@ -729,13 +722,12 @@ impl ManifestExtensionHandler for ZeitrakHooksHandler {
         plugin_id: &PluginId,
         value: &serde_json::Value,
     ) -> Result<(), ManifestExtensionError> {
-        let ext: ZeitrakHooksExtension =
-            serde_json::from_value(value.clone()).map_err(|e| {
-                validation_failed(
-                    "zeitrak.hooks",
-                    format!("invalid extension value for plugin `{}`: {e}", plugin_id.0),
-                )
-            })?;
+        let ext: ZeitrakHooksExtension = serde_json::from_value(value.clone()).map_err(|e| {
+            validation_failed(
+                "zeitrak.hooks",
+                format!("invalid extension value for plugin `{}`: {e}", plugin_id.0),
+            )
+        })?;
 
         for hook in &ext.command_hooks {
             let valid = KNOWN_HOOK_TARGETS
@@ -760,13 +752,12 @@ impl ManifestExtensionHandler for ZeitrakHooksHandler {
         plugin_id: &PluginId,
         value: &serde_json::Value,
     ) -> Result<(), ManifestExtensionError> {
-        let ext: ZeitrakHooksExtension =
-            serde_json::from_value(value.clone()).map_err(|e| {
-                load_failed(
-                    "zeitrak.hooks",
-                    format!("invalid extension value for plugin `{}`: {e}", plugin_id.0),
-                )
-            })?;
+        let ext: ZeitrakHooksExtension = serde_json::from_value(value.clone()).map_err(|e| {
+            load_failed(
+                "zeitrak.hooks",
+                format!("invalid extension value for plugin `{}`: {e}", plugin_id.0),
+            )
+        })?;
 
         let hooks = ext.command_hooks.into_iter().map(|entry| RegisteredHook {
             plugin_id: plugin_id.0.clone(),
@@ -778,10 +769,7 @@ impl ManifestExtensionHandler for ZeitrakHooksHandler {
 
         {
             let mut registry = self.registry.write().map_err(|e| {
-                load_failed(
-                    "zeitrak.hooks",
-                    format!("hook registry lock poisoned: {e}"),
-                )
+                load_failed("zeitrak.hooks", format!("hook registry lock poisoned: {e}"))
             })?;
             registry.register(hooks);
         }
@@ -929,7 +917,9 @@ mod tests {
         // Load first plugin with the name
         let value_a = serde_json::json!([{ "name": "leave_request", "events": [] }]);
         let id_a = PluginId("plugin-a".to_string());
-        handler.on_load(&id_a, &value_a).expect("first load must succeed");
+        handler
+            .on_load(&id_a, &value_a)
+            .expect("first load must succeed");
 
         // Second plugin tries to claim the same name
         let value_b = serde_json::json!([{ "name": "leave_request", "events": [] }]);
@@ -983,7 +973,9 @@ mod tests {
 
         let value_a = serde_json::json!([{ "name": "proj_a", "table": "leaves", "events": [] }]);
         let id_a = PluginId("plugin-a".to_string());
-        handler.on_load(&id_a, &value_a).expect("first load must succeed");
+        handler
+            .on_load(&id_a, &value_a)
+            .expect("first load must succeed");
 
         let value_b = serde_json::json!([{ "name": "proj_b", "table": "leaves", "events": [] }]);
         let id_b = PluginId("plugin-b".to_string());
@@ -994,7 +986,8 @@ mod tests {
     fn projections_handler_on_load_registers_and_on_unload_removes() {
         let registry = make_projection_registry();
         let handler = ZeitrakProjectionsHandler::new(Arc::clone(&registry));
-        let value = serde_json::json!([{ "name": "pending_leaves", "table": "pending", "events": [] }]);
+        let value =
+            serde_json::json!([{ "name": "pending_leaves", "table": "pending", "events": [] }]);
         let id = PluginId("test-plugin".to_string());
 
         handler.on_load(&id, &value).expect("on_load must succeed");
@@ -1021,8 +1014,7 @@ mod tests {
 
     #[test]
     fn events_handler_accepts_known_event_names() {
-        let handler =
-            ZeitrakEventsHandler::new(make_known_events(), make_subscriptions());
+        let handler = ZeitrakEventsHandler::new(make_known_events(), make_subscriptions());
         let value = json!({ "subscriptions": ["TimesheetStopped", "ActivityCreated"] });
         let id = PluginId("test-plugin".to_string());
         assert!(handler.validate(&id, &value).is_ok());
@@ -1030,8 +1022,7 @@ mod tests {
 
     #[test]
     fn events_handler_rejects_unknown_event_name() {
-        let handler =
-            ZeitrakEventsHandler::new(make_known_events(), make_subscriptions());
+        let handler = ZeitrakEventsHandler::new(make_known_events(), make_subscriptions());
         let value = json!({ "subscriptions": ["LeaveSubmitted"] });
         let id = PluginId("test-plugin".to_string());
         assert!(handler.validate(&id, &value).is_err());

@@ -8,6 +8,7 @@
 /// which lives server-side and carries the full authorization repository.
 /// The frontend type contains only the fields that survive serialization and
 /// make sense in a WASM context.
+use dioxus_extism_protocol::SessionContextProvider;
 use serde::{Deserialize, Serialize};
 
 /// Frontend-safe plugin host context.
@@ -21,8 +22,20 @@ use serde::{Deserialize, Serialize};
 pub struct ZeitrakPluginCtx {
     /// Authenticated user ID, or `None` while loading / unauthenticated.
     pub user_id: Option<String>,
+    /// Authenticated user email, or `None` while loading / unauthenticated.
+    pub email: Option<String>,
     /// Active workspace ID, or `None` while no workspace is selected.
     pub workspace_id: Option<String>,
     /// Whether the current user has the workspace-admin role.
     pub is_admin: bool,
+}
+
+impl SessionContextProvider for ZeitrakPluginCtx {
+    fn session_user_id(&self) -> Option<&str> {
+        self.user_id.as_deref()
+    }
+
+    fn session_email(&self) -> Option<&str> {
+        self.email.as_deref()
+    }
 }

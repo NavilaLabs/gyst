@@ -81,6 +81,7 @@ async fn _register(name: String, email: String, password: String) -> Result<(), 
                 id: user_id.to_string(),
                 email,
                 is_admin,
+                can_manage_workspace: false,
                 workspace_id: None,
             },
         )

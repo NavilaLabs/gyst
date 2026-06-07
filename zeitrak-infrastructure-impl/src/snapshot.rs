@@ -14,7 +14,7 @@ use eventually::aggregate::{Aggregate, Root};
 use eventually::message::Message as _;
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
-use eventually_any::upcasting::{UpcasterChain, Upcaster};
+use eventually_any::upcasting::{Upcaster, UpcasterChain};
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::Value;
 use zeitrak_core::event_upcaster::{EventUpcaster, UpcastError};
@@ -99,9 +99,9 @@ where
         upcasters: Vec<Arc<dyn EventUpcaster>>,
         schema_version: u32,
     ) -> Result<Self, sqlx::migrate::MigrateError> {
-        let chain = upcasters
-            .into_iter()
-            .fold(UpcasterChain::new(), |c, u| c.register(ZeitrakUpcasterBridge(u)));
+        let chain = upcasters.into_iter().fold(UpcasterChain::new(), |c, u| {
+            c.register(ZeitrakUpcasterBridge(u))
+        });
         let store = Repository::new(pool.as_ref().clone(), Json::default(), Json::default())
             .await?
             .with_upcaster_chain(chain)

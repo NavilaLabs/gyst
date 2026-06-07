@@ -280,6 +280,7 @@ fn Layout() -> Element {
         Arc::new(match auth.read().as_ref().and_then(Option::as_ref) {
             Some(user) => ZeitrakPluginCtx {
                 user_id: Some(user.id.clone()),
+                email: Some(user.email.clone()),
                 workspace_id: user.workspace_id.clone(),
                 is_admin: user.is_admin,
             },

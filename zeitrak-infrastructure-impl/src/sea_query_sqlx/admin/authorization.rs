@@ -2,7 +2,6 @@ use std::collections::HashSet;
 
 use async_trait::async_trait;
 use sqlx::AnyPool;
-use zeitrak_core::permissions;
 use zeitrak_infrastructure::authorization::{AuthorizationError, AuthorizationRepository};
 
 /// SQL-backed implementation of [`AuthorizationRepository`].
@@ -28,16 +27,11 @@ impl AuthorizationRepository for SqlAuthorizationRepository {
     async fn is_admin(&self, user_id: &str) -> Result<bool, AuthorizationError> {
         let count: i64 = sqlx::query_scalar(
             "SELECT COUNT(*)
-             FROM projections__workspace_user_roles wur
-             JOIN projections__workspace_role_permissions wrp
-               ON wur.workspace_role_id = wrp.workspace_role_id
-             JOIN permissions p
-               ON wrp.permission_id = p.id
-             WHERE wur.user_id = $1
-               AND p.name = $2",
+             FROM projections__users
+             WHERE id = $1
+               AND is_instance_admin = true",
         )
         .bind(user_id)
-        .bind(permissions::ADMIN_BYPASS)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| AuthorizationError::Storage(e.to_string()))?;

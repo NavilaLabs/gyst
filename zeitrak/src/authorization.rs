@@ -100,10 +100,7 @@ impl AuthorizationService {
     /// # Errors
     ///
     /// Returns an error if the pool cannot be acquired or the query fails.
-    pub async fn user_permissions(
-        user_id: &str,
-        workspace_id: &str,
-    ) -> Result<HashSet<String>> {
+    pub async fn user_permissions(user_id: &str, workspace_id: &str) -> Result<HashSet<String>> {
         Ok(Self::repo()
             .await?
             .user_permissions(user_id, workspace_id)
@@ -172,7 +169,10 @@ impl AuthorizationService {
         if repo.is_admin(&user.id).await? {
             return Ok(());
         }
-        if repo.has_permission(&user.id, workspace_id, permission).await? {
+        if repo
+            .has_permission(&user.id, workspace_id, permission)
+            .await?
+        {
             Ok(())
         } else {
             bail!("forbidden")

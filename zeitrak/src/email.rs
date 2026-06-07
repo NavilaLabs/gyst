@@ -49,7 +49,9 @@ fn build_from_persisted(p: PersistedSmtpConfig) -> Result<Box<dyn EmailSender>> 
             Ok(Box::new(sender))
         }
         SmtpAuthMethod::XOAuth2 => {
-            anyhow::bail!("OAuth2 SMTP is configured but not yet authorized — complete the Microsoft authorization flow first")
+            anyhow::bail!(
+                "OAuth2 SMTP is configured but not yet authorized — complete the Microsoft authorization flow first"
+            )
         }
         _ => build_from_static_config(),
     }

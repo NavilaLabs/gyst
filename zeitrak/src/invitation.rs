@@ -24,7 +24,7 @@ use zeitrak_core::permissions;
 
 /// Creates a workspace invitation and sends an email to the invitee.
 ///
-/// Requires the `member.invite` permission in the given workspace.
+/// Requires the `member.create` permission in the given workspace.
 ///
 /// # Errors
 ///
@@ -39,7 +39,7 @@ pub async fn invite_member(
     email_sender: &dyn EmailSender,
     base_url: &str,
 ) -> Result<InvitationId> {
-    AuthorizationService::require_permission(invited_by, workspace_id, permissions::MEMBER_INVITE)
+    AuthorizationService::require_permission(invited_by, workspace_id, permissions::MEMBER_CREATE)
         .await?;
 
     let pool = Pool::connect_admin().await?;
@@ -186,7 +186,7 @@ pub async fn list_pending_invitations_for_email(email: &str) -> Result<Vec<Invit
 
 /// Revokes a pending invitation on behalf of a workspace admin.
 ///
-/// Requires the `member.invite` permission in the invitation's workspace.
+/// Requires the `member.create` permission in the invitation's workspace.
 ///
 /// # Errors
 ///
@@ -205,26 +205,20 @@ pub async fn revoke_invitation(token: &str, revoked_by: &CurrentUser) -> Result<
     AuthorizationService::require_permission(
         revoked_by,
         &row.workspace_id.to_string(),
-        permissions::MEMBER_INVITE,
+        permissions::MEMBER_CREATE,
     )
     .await?;
 
-    crate::plugin_hooks::run_pre(
-        "invitation.Revoke",
-        serde_json::json!({ "token": token }),
-    )
-    .await?;
+    crate::plugin_hooks::run_pre("invitation.Revoke", serde_json::json!({ "token": token }))
+        .await?;
 
     InvitationCommand::new(InvitationRepository::from_pool(pool).await?)
         .revoke(row.id().clone())
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    crate::plugin_hooks::run_post(
-        "invitation.Revoke",
-        &serde_json::json!({ "token": token }),
-    )
-    .await;
+    crate::plugin_hooks::run_post("invitation.Revoke", &serde_json::json!({ "token": token }))
+        .await;
     Ok(())
 }
 

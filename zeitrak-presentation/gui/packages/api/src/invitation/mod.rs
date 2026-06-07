@@ -14,7 +14,7 @@ pub struct InvitationDto {
 
 /// Sends a workspace invitation to an email address.
 ///
-/// Requires the `member.invite` permission in the current workspace.
+/// Requires the `member.create` permission in the current workspace.
 /// Returns the new invitation ID on success.
 #[server]
 #[post("/api/invitations/send")]
@@ -26,7 +26,7 @@ pub async fn send_invitation(
     use crate::session::{internal, require_permission, session_workspace};
 
     let (user, workspace_id) = session_workspace().await?;
-    require_permission(&user, zeitrak::core::permissions::MEMBER_INVITE).await?;
+    require_permission(&user, zeitrak::core::permissions::MEMBER_CREATE).await?;
 
     let role_id: zeitrak::core::admin::workspace_role::WorkspaceRoleId = workspace_role_id
         .parse()
@@ -154,7 +154,7 @@ pub async fn list_my_invitations() -> Result<Vec<InvitationDto>, ServerFnError> 
 
 /// Revokes a pending invitation by its token.
 ///
-/// Requires the `member.invite` permission in the invitation's workspace.
+/// Requires the `member.create` permission in the invitation's workspace.
 #[post("/api/invitations/revoke")]
 pub async fn revoke_invitation(token: String) -> Result<(), ServerFnError> {
     #[cfg(feature = "server")]
@@ -213,7 +213,7 @@ async fn _send_invitation(
     use crate::session::{internal, require_permission, session_workspace};
 
     let (user, workspace_id) = session_workspace().await?;
-    require_permission(&user, zeitrak::core::permissions::MEMBER_INVITE).await?;
+    require_permission(&user, zeitrak::core::permissions::MEMBER_CREATE).await?;
 
     let role_id: zeitrak::core::admin::workspace_role::WorkspaceRoleId = workspace_role_id
         .parse()
@@ -321,6 +321,14 @@ async fn _register_and_accept(
     let is_admin = zeitrak::authorization::AuthorizationService::is_admin(&user_id.to_string())
         .await
         .map_err(internal)?;
+    let can_manage_workspace = is_admin
+        || zeitrak::authorization::AuthorizationService::has_permission(
+            &user_id.to_string(),
+            &workspace_id.to_string(),
+            zeitrak::core::permissions::ROLE_CREATE,
+        )
+        .await
+        .unwrap_or(false);
 
     let session: Session = extract().await?;
     session
@@ -330,6 +338,7 @@ async fn _register_and_accept(
                 id: user_id.to_string(),
                 email,
                 is_admin,
+                can_manage_workspace,
                 workspace_id: Some(workspace_id.to_string()),
             },
         )

@@ -187,11 +187,13 @@ impl TestFixture {
 
         // Postgres does not support parameters in CREATE DATABASE, so raw DDL
         // with escaped identifiers is the correct approach here.
-        sqlx::query(&format!("CREATE DATABASE \"{admin_db}\""))
+        let create_admin = format!("CREATE DATABASE \"{admin_db}\"");
+        let create_tenant = format!("CREATE DATABASE \"{tenant_db}\"");
+        sqlx::query(sqlx::AssertSqlSafe(create_admin.as_str()))
             .execute(&bootstrap)
             .await
             .unwrap_or_else(|e| panic!("must create admin test DB {admin_db}: {e}"));
-        sqlx::query(&format!("CREATE DATABASE \"{tenant_db}\""))
+        sqlx::query(sqlx::AssertSqlSafe(create_tenant.as_str()))
             .execute(&bootstrap)
             .await
             .unwrap_or_else(|e| panic!("must create tenant test DB {tenant_db}: {e}"));

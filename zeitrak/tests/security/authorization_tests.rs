@@ -7,9 +7,9 @@ use sqlx::AnyPool;
 /// independent, all tests run **concurrently** without `#[serial]`.
 ///
 /// Security scenarios covered:
-///   - Admin flag correctly detected via `admin.bypass` permission ✓
-///   - Roles without `admin.bypass` do NOT grant admin             ✓
-///   - Unknown users are never treated as admin                    ✓
+///   - Admin flag correctly detected via `is_instance_admin` column ✓
+///   - Roles without `is_instance_admin` do NOT grant admin         ✓
+///   - Unknown users are never treated as admin                     ✓
 ///   - Empty / zero-length `user_id` is safe                       ✓
 ///   - SQL injection in `user_id` returns false (parameterised)    ✓
 ///   - SQL injection in permission name returns false              ✓
@@ -34,8 +34,6 @@ const ADMIN_ROLE_ID: &str = "00000000-0000-0000-0000-000000000020";
 const VIEWER_ROLE_ID: &str = "00000000-0000-0000-0000-000000000021";
 const PERMISSION_ID: &str = "00000000-0000-0000-0000-000000000030";
 const PERMISSION_NAME: &str = "workspace.read";
-// Deterministic UUID from the admin-bypass migration (0x11 in the series).
-const ADMIN_BYPASS_PERMISSION_ID: &str = "01100000-0000-7000-8000-000000000011";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -64,7 +62,7 @@ fn unknown_user() -> CurrentUser {
 ///
 /// State after seeding:
 /// - One workspace (`WORKSPACE_ID`)
-/// - `ADMIN_USER_ID` → "admin" role with the `admin.bypass` permission
+/// - `ADMIN_USER_ID` → `is_instance_admin = true`, assigned to the "admin" role
 /// - `REGULAR_USER_ID` → "viewer" role + direct grant of `PERMISSION_NAME`
 /// - Viewer role has `PERMISSION_NAME` via role grant
 async fn seed(pool: &AnyPool) {
@@ -76,25 +74,31 @@ async fn seed(pool: &AnyPool) {
         .await
         .unwrap();
 
-    // 2. Users
-    for (id, name, email) in [
-        (ADMIN_USER_ID, "Admin User", "admin@test.com"),
-        (REGULAR_USER_ID, "Regular User", "user@test.com"),
-    ] {
-        sqlx::query(
-            "INSERT INTO projections__users (id, name, email, password) VALUES ($1, $2, $3, $4)",
-        )
-        .bind(id)
-        .bind(name)
-        .bind(email)
-        .bind("$2b$12$placeholder_hash")
-        .execute(pool)
-        .await
-        .unwrap();
-    }
+    // 2. Users — admin user gets is_instance_admin = 1
+    sqlx::query(
+        "INSERT INTO projections__users (id, name, email, password, is_instance_admin) \
+         VALUES ($1, $2, $3, $4, 1)",
+    )
+    .bind(ADMIN_USER_ID)
+    .bind("Admin User")
+    .bind("admin@test.com")
+    .bind("$2b$12$placeholder_hash")
+    .execute(pool)
+    .await
+    .unwrap();
 
-    // 3. Permissions: admin.bypass (already seeded by migration, but we add
-    //    PERMISSION_NAME as a test-only permission here)
+    sqlx::query(
+        "INSERT INTO projections__users (id, name, email, password) VALUES ($1, $2, $3, $4)",
+    )
+    .bind(REGULAR_USER_ID)
+    .bind("Regular User")
+    .bind("user@test.com")
+    .bind("$2b$12$placeholder_hash")
+    .execute(pool)
+    .await
+    .unwrap();
+
+    // 3. Add PERMISSION_NAME as a test-only permission
     sqlx::query("INSERT INTO permissions (id, name) VALUES ($1, $2)")
         .bind(PERMISSION_ID)
         .bind(PERMISSION_NAME)
@@ -103,7 +107,10 @@ async fn seed(pool: &AnyPool) {
         .unwrap();
 
     // 4. Workspace roles
-    for (id, name) in [(ADMIN_ROLE_ID, "admin"), (VIEWER_ROLE_ID, "viewer")] {
+    for (id, name) in [
+        (ADMIN_ROLE_ID, "workspace_admin"),
+        (VIEWER_ROLE_ID, "viewer"),
+    ] {
         sqlx::query(
             "INSERT INTO projections__workspace_roles (id, workspace_id, name) VALUES ($1, $2, $3)",
         )
@@ -132,21 +139,16 @@ async fn seed(pool: &AnyPool) {
         .unwrap();
     }
 
-    // 6. Role ↔ permission: admin role gets admin.bypass; viewer role gets PERMISSION_NAME
-    for (role_id, perm_id) in [
-        (ADMIN_ROLE_ID, ADMIN_BYPASS_PERMISSION_ID),
-        (VIEWER_ROLE_ID, PERMISSION_ID),
-    ] {
-        sqlx::query(
-            "INSERT INTO projections__workspace_role_permissions (workspace_role_id, permission_id)
-             VALUES ($1, $2)",
-        )
-        .bind(role_id)
-        .bind(perm_id)
-        .execute(pool)
-        .await
-        .unwrap();
-    }
+    // 6. Role ↔ permission: viewer role gets PERMISSION_NAME
+    sqlx::query(
+        "INSERT INTO projections__workspace_role_permissions (workspace_role_id, permission_id) \
+         VALUES ($1, $2)",
+    )
+    .bind(VIEWER_ROLE_ID)
+    .bind(PERMISSION_ID)
+    .execute(pool)
+    .await
+    .unwrap();
 
     // 7. Direct user ↔ permission: regular_user also has PERMISSION_NAME directly
     sqlx::query(
@@ -164,7 +166,7 @@ async fn seed(pool: &AnyPool) {
 // ── is_admin ──────────────────────────────────────────────────────────────────
 
 #[tokio::test]
-async fn is_admin_returns_true_for_user_with_admin_role() {
+async fn is_admin_returns_true_for_instance_admin_user() {
     let db = TestFixture::setup().await;
     seed(db.admin.as_ref()).await;
     assert!(
@@ -233,10 +235,10 @@ async fn is_admin_sql_injection_in_user_id_is_neutralised() {
     }
 }
 
-/// A user whose role does not carry `admin.bypass` is never treated as admin,
-/// regardless of the role's name.
+/// A user assigned to a role named `workspace_admin` is NOT an instance admin
+/// unless their `is_instance_admin` column is set to true.
 #[tokio::test]
-async fn is_admin_returns_false_without_admin_bypass_permission() {
+async fn is_admin_returns_false_for_workspace_admin_without_instance_admin_flag() {
     let db = TestFixture::setup().await;
     seed(db.admin.as_ref()).await;
 
@@ -253,13 +255,13 @@ async fn is_admin_returns_false_without_admin_bypass_permission() {
     .await
     .unwrap();
 
-    // Role is named "admin" but has no admin.bypass permission assigned.
+    // Role is named "workspace_admin" but the user does not have is_instance_admin = true.
     sqlx::query(
         "INSERT INTO projections__workspace_roles (id, workspace_id, name) VALUES ($1, $2, $3)",
     )
     .bind(named_admin_role_id)
     .bind(WORKSPACE_ID)
-    .bind("admin")
+    .bind("workspace_admin")
     .execute(db.admin.as_ref())
     .await
     .unwrap();
@@ -279,7 +281,7 @@ async fn is_admin_returns_false_without_admin_bypass_permission() {
         !AuthorizationService::is_admin_on(db.admin.as_ref(), UNRELATED_USER_ID)
             .await
             .unwrap(),
-        "role name alone must not grant admin — only the admin.bypass permission does"
+        "workspace_admin role alone must not grant instance admin — only is_instance_admin = true does"
     );
 }
 

@@ -67,36 +67,52 @@ mod tests {
     use super::*;
 
     fn tag(verified: bool) -> TrustTag {
-        TrustTag { verified, signer_key_id: None }
+        TrustTag {
+            verified,
+            signer_key_id: None,
+        }
     }
 
     #[test]
     fn trust_root_with_verified_signature_yields_signed_instance() {
-        let ctx = InstallContext { installer: Installer::TrustRoot };
-        assert_eq!(map_trust_tag(&tag(true), &ctx), ZeitrakTrustTier::SignedInstance);
+        let ctx = InstallContext {
+            installer: Installer::TrustRoot,
+        };
+        assert_eq!(
+            map_trust_tag(&tag(true), &ctx),
+            ZeitrakTrustTier::SignedInstance
+        );
     }
 
     #[test]
     fn trust_root_without_signature_falls_back_to_tenant() {
-        let ctx = InstallContext { installer: Installer::TrustRoot };
+        let ctx = InstallContext {
+            installer: Installer::TrustRoot,
+        };
         assert_eq!(map_trust_tag(&tag(false), &ctx), ZeitrakTrustTier::Tenant);
     }
 
     #[test]
     fn instance_admin_verified_yields_instance() {
-        let ctx = InstallContext { installer: Installer::InstanceAdmin };
+        let ctx = InstallContext {
+            installer: Installer::InstanceAdmin,
+        };
         assert_eq!(map_trust_tag(&tag(true), &ctx), ZeitrakTrustTier::Instance);
     }
 
     #[test]
     fn instance_admin_unverified_yields_instance() {
-        let ctx = InstallContext { installer: Installer::InstanceAdmin };
+        let ctx = InstallContext {
+            installer: Installer::InstanceAdmin,
+        };
         assert_eq!(map_trust_tag(&tag(false), &ctx), ZeitrakTrustTier::Instance);
     }
 
     #[test]
     fn workspace_admin_yields_tenant() {
-        let ctx = InstallContext { installer: Installer::WorkspaceAdmin };
+        let ctx = InstallContext {
+            installer: Installer::WorkspaceAdmin,
+        };
         assert_eq!(map_trust_tag(&tag(false), &ctx), ZeitrakTrustTier::Tenant);
     }
 }

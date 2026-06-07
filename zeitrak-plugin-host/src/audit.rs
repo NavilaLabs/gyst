@@ -61,7 +61,10 @@ impl PluginAuditSink {
                 .bind(&row.occurred_at)
                 // Record the caller as the primary plugin_id for the audit row;
                 // the target is appended to function_name for full traceability.
-                .bind(format!("{} → {}", row.caller_plugin_id, row.target_plugin_id))
+                .bind(format!(
+                    "{} → {}",
+                    row.caller_plugin_id, row.target_plugin_id
+                ))
                 .bind(&row.function_name)
                 .bind("cross-plugin") // trust_tier is unknown at this call site
                 .bind(row.outcome)
@@ -86,12 +89,8 @@ impl CrossPluginAuditSink for PluginAuditSink {
                 let ms = duration.as_millis() as i64;
                 ("allowed", None, Some(ms))
             }
-            CallOutcome::Denied { reason } => {
-                ("denied", Some(format!("{reason:?}")), None)
-            }
-            CallOutcome::Failed { error_kind } => {
-                ("failed", Some(format!("{error_kind:?}")), None)
-            }
+            CallOutcome::Denied { reason } => ("denied", Some(format!("{reason:?}")), None),
+            CallOutcome::Failed { error_kind } => ("failed", Some(format!("{error_kind:?}")), None),
             // Non-exhaustive: forward-compatible with future dioxus-extism variants.
             _ => ("unknown", None, None),
         };

@@ -192,6 +192,11 @@ pub fn Settings() -> Element {
 
     // ── SMTP settings state ───────────────────────────────────────────────────
     let is_admin = auth.cloned().flatten().map(|u| u.is_admin).unwrap_or(false);
+    let can_manage_workspace = auth
+        .cloned()
+        .flatten()
+        .map(|u| u.can_manage_workspace)
+        .unwrap_or(false);
     let mut smtp_auth_method = use_signal(|| "password".to_string());
     let mut smtp_host = use_signal(String::new);
     let mut smtp_port = use_signal(|| 587_u32);
@@ -240,8 +245,12 @@ pub fn Settings() -> Element {
 
     use_resource(move || async move {
         if let Ok(list) = api::workspace_role::list_roles_with_permissions().await {
-            if let Some(first) = list.first() {
-                invite_role_id.set(first.id.clone());
+            let default = list
+                .iter()
+                .find(|r| r.name == "standard")
+                .or_else(|| list.first());
+            if let Some(role) = default {
+                invite_role_id.set(role.id.clone());
             }
             roles_with_perms.set(list);
         }
@@ -411,17 +420,21 @@ pub fn Settings() -> Element {
                         Icon { icon: HiUser, width: 14, height: 14 }
                         {tid!("settings-tab-my-settings")}
                     }
-                    button {
-                        class: if *active_tab.read() == Tab::Workspace { "tab-pill tab-pill--active" } else { "tab-pill" },
-                        onclick: move |_| active_tab.set(Tab::Workspace),
-                        Icon { icon: HiOfficeBuilding, width: 14, height: 14 }
-                        {tid!("settings-tab-workspace-settings")}
+                    if can_manage_workspace || is_admin {
+                        button {
+                            class: if *active_tab.read() == Tab::Workspace { "tab-pill tab-pill--active" } else { "tab-pill" },
+                            onclick: move |_| active_tab.set(Tab::Workspace),
+                            Icon { icon: HiOfficeBuilding, width: 14, height: 14 }
+                            {tid!("settings-tab-workspace-settings")}
+                        }
                     }
-                    button {
-                        class: if *active_tab.read() == Tab::Members { "tab-pill tab-pill--active" } else { "tab-pill" },
-                        onclick: move |_| active_tab.set(Tab::Members),
-                        Icon { icon: HiUsers, width: 14, height: 14 }
-                        {tid!("settings-tab-members")}
+                    if can_manage_workspace || is_admin {
+                        button {
+                            class: if *active_tab.read() == Tab::Members { "tab-pill tab-pill--active" } else { "tab-pill" },
+                            onclick: move |_| active_tab.set(Tab::Members),
+                            Icon { icon: HiUsers, width: 14, height: 14 }
+                            {tid!("settings-tab-members")}
+                        }
                     }
                     if is_admin {
                         button {

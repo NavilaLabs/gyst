@@ -7,7 +7,7 @@ use eventually::aggregate::{Aggregate, Root};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
 use sea_query::{Alias, Condition, Expr, ExprTrait};
-use sqlx::{Row, any::AnyRow};
+use sqlx::{AssertSqlSafe, Row, any::AnyRow};
 use zeitrak_core::admin::{
     invitation::{
         Invitation, InvitationEvent, InvitationId,
@@ -132,10 +132,7 @@ impl RowToRoot<AnyRow, Invitation> for InvitationRepository {
 }
 
 impl InvitationRepository {
-    async fn row_to_root_versioned(
-        &self,
-        row: AnyRow,
-    ) -> Result<Root<Invitation>, crate::Error> {
+    async fn row_to_root_versioned(&self, row: AnyRow) -> Result<Root<Invitation>, crate::Error> {
         let root = self.row_to_root(row)?;
         let version =
             current_stream_version(&self.store.pool, &root.aggregate_id().to_string()).await?;
@@ -292,7 +289,7 @@ impl InvitationRepositoryTrait<AnyRow> for InvitationRepository {
             .and_where(Expr::col(Alias::new("status")).eq("pending"))
             .to_owned();
         let (sql, arguments) = self.store.pool.build_query(&statement);
-        let rows = sqlx::query_with(&sql, arguments)
+        let rows = sqlx::query_with(AssertSqlSafe(sql.as_str()), arguments)
             .fetch_all(self.store.pool.as_ref())
             .await?;
         rows.into_iter()
