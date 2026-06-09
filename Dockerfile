@@ -26,7 +26,6 @@ RUN cd zeitrak-presentation/gui && \
         dx build --package web --release; \
     fi
 
-# ----------------------------------------------------------
 # Stage 2: Runtime
 FROM debian:bookworm-slim
 

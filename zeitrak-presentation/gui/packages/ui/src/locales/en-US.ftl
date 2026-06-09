@@ -59,6 +59,7 @@ sidebar-nav-timesheets = Timesheets
 sidebar-nav-activities = Activities
 sidebar-nav-tags = Tags
 sidebar-nav-settings = Settings
+sidebar-nav-timeline = Timeline
 sidebar-timer-running = Timer Running
 sidebar-start-timer = Start Timer
 sidebar-logout = Logout
@@ -77,6 +78,7 @@ settings-menu-database = Database
 
 # ── Layout page titles ────────────────────────────────────────────────────────
 
+layout-title-timeline = Timeline
 layout-title-dashboard = Dashboard
 layout-title-activities = Activities
 layout-title-timesheets = Timesheets
@@ -244,6 +246,23 @@ tags-title = Tags
 # ── Timesheets ────────────────────────────────────────────────────────────────
 
 timesheets-recent-title = Recent
+
+# ── Timeline ──────────────────────────────────────────────────────────────────
+
+timeline-filter-from = From
+timeline-filter-to = To
+timeline-filter-clear = Clear
+timeline-aggregation-individual = Individual
+timeline-aggregation-hour = Hour
+timeline-aggregation-day = Day
+timeline-aggregation-week = Week
+timeline-aggregation-month = Month
+timeline-aggregation-year = Year
+timeline-metrics-total = Total
+timeline-metrics-avg-per-day = Avg / day
+timeline-no-entries = No entries for this period.
+timeline-load-more = Load more
+timeline-gap-label = No activity
 timesheets-col-activity = Activity
 timesheets-col-start = Start
 timesheets-col-duration = Duration

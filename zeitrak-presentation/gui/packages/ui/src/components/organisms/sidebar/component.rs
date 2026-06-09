@@ -3,7 +3,7 @@ use dioxus_extism_frontend::PluginSlot;
 use dioxus_extism_macros::overridable;
 use dioxus_free_icons::icons::hi_solid_icons::{
     HiChevronLeft, HiChevronRight, HiClock, HiCog, HiHashtag, HiHome, HiLogout, HiPlay, HiStop,
-    HiTag,
+    HiTag, HiViewList,
 };
 use dioxus_free_icons::Icon;
 use dioxus_i18n::tid;
@@ -132,6 +132,13 @@ pub fn Sidebar() -> Element {
                                 to: "/timesheets",
                                 Icon { icon: HiClock, width: 16, height: 16 }
                                 span { class: "sidebar-label", {tid!("sidebar-nav-timesheets")} }
+                            }
+                            NavbarItem {
+                                index: 5usize,
+                                value: "timeline".to_string(),
+                                to: "/timeline",
+                                Icon { icon: HiViewList, width: 16, height: 16 }
+                                span { class: "sidebar-label", {tid!("sidebar-nav-timeline")} }
                             }
                         }
                     }

@@ -33,6 +33,32 @@ pub trait TimesheetQueryTrait<R> {
         member_id: Option<&str>,
         since_rfc3339: &str,
     ) -> Result<Vec<TimesheetRow>, Self::Error>;
+
+    /// Returns a page of non-cancelled timesheets with optional date-range filtering.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    async fn list_for_timeline(
+        &self,
+        page: u32,
+        page_size: u32,
+        from: Option<&str>,
+        to: Option<&str>,
+        member_id: Option<&str>,
+    ) -> Result<(Vec<TimesheetRow>, u64), Self::Error>;
+
+    /// Returns all completed timesheets in the optional date range for metrics.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    async fn stats_for_timeline(
+        &self,
+        from: Option<&str>,
+        to: Option<&str>,
+        member_id: Option<&str>,
+    ) -> Result<Vec<TimesheetRow>, Self::Error>;
 }
 
 #[derive(Debug, Clone)]
@@ -94,6 +120,30 @@ where
     ) -> Result<Vec<TimesheetRow>, Self::Error> {
         self.repository
             .stats_for_period(member_id, since_rfc3339)
+            .await
+    }
+
+    async fn list_for_timeline(
+        &self,
+        page: u32,
+        page_size: u32,
+        from: Option<&str>,
+        to: Option<&str>,
+        member_id: Option<&str>,
+    ) -> Result<(Vec<TimesheetRow>, u64), Self::Error> {
+        self.repository
+            .list_for_timeline(page, page_size, from, to, member_id)
+            .await
+    }
+
+    async fn stats_for_timeline(
+        &self,
+        from: Option<&str>,
+        to: Option<&str>,
+        member_id: Option<&str>,
+    ) -> Result<Vec<TimesheetRow>, Self::Error> {
+        self.repository
+            .stats_for_timeline(from, to, member_id)
             .await
     }
 }

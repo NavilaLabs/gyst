@@ -28,5 +28,7 @@ pub mod settings;
 pub use settings::*;
 pub mod timesheets;
 pub use timesheets::*;
+pub mod timeline;
+pub use timeline::*;
 pub mod plugin_page;
 pub use plugin_page::*;

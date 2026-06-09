@@ -246,6 +246,70 @@ pub async fn cancel_timesheet(timesheet_id: String) -> Result<(), ServerFnError>
     }
 }
 
+/// Per-activity aggregated stat for the timeline metrics bar.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ActivityStatDto {
+    pub activity_id: String,
+    pub activity_name: String,
+    pub color: String,
+    pub total_seconds: i64,
+    /// Percentage of total tracked time (0–100).
+    pub percentage: f32,
+}
+
+/// Aggregated stats returned by `get_timeline_stats` for the metrics bar.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TimelineStatsDto {
+    pub total_seconds: i64,
+    pub by_activity: Vec<ActivityStatDto>,
+    pub can_filter_members: bool,
+}
+
+#[post("/api/timesheets/timeline")]
+pub async fn get_timeline_entries(
+    page: u32,
+    from: Option<String>,
+    to: Option<String>,
+    member_id: Option<String>,
+) -> Result<TimesheetPageDto, ServerFnError> {
+    #[cfg(feature = "server")]
+    {
+        _get_timeline_entries(page, from, to, member_id).await
+    }
+    #[cfg(not(feature = "server"))]
+    {
+        let _ = (page, from, to, member_id);
+        Ok(TimesheetPageDto {
+            items: vec![],
+            total: 0,
+            page: 0,
+            page_size: 50,
+            can_filter_members: false,
+        })
+    }
+}
+
+#[post("/api/timesheets/timeline-stats")]
+pub async fn get_timeline_stats(
+    from: Option<String>,
+    to: Option<String>,
+    member_id: Option<String>,
+) -> Result<TimelineStatsDto, ServerFnError> {
+    #[cfg(feature = "server")]
+    {
+        _get_timeline_stats(from, to, member_id).await
+    }
+    #[cfg(not(feature = "server"))]
+    {
+        let _ = (from, to, member_id);
+        Ok(TimelineStatsDto {
+            total_seconds: 0,
+            by_activity: vec![],
+            can_filter_members: false,
+        })
+    }
+}
+
 #[cfg(feature = "server")]
 fn row_to_dto(
     r: zeitrak::core::tenant::timesheet::TimesheetRow,
@@ -804,6 +868,203 @@ async fn _dashboard_stats(
         recent_entries,
         chart_bars,
         activity_mix,
+        can_filter_members: can_read_all,
+    })
+}
+
+#[cfg(feature = "server")]
+async fn _get_timeline_entries(
+    page: u32,
+    from: Option<String>,
+    to: Option<String>,
+    member_id: Option<String>,
+) -> Result<TimesheetPageDto, ServerFnError> {
+    use std::collections::HashMap;
+
+    use crate::session;
+    use zeitrak::authentication::CurrentUser;
+    use zeitrak::authorization::AuthorizationService;
+    use zeitrak::core::permissions;
+
+    const PAGE_SIZE: u32 = 50;
+
+    let (user, workspace_id) = session::session_workspace().await?;
+    let current_user = CurrentUser {
+        id: user.id.clone(),
+        email: user.email.clone(),
+    };
+    let is_admin = AuthorizationService::is_admin(&current_user.id)
+        .await
+        .map_err(session::internal)?;
+    let can_read_all = is_admin
+        || AuthorizationService::has_permission(
+            &current_user.id,
+            &workspace_id,
+            permissions::TIMESHEET_READ_ALL,
+        )
+        .await
+        .map_err(session::internal)?;
+
+    let effective_member_id: Option<&str> =
+        if can_read_all { member_id.as_deref() } else { Some(&user.id) };
+
+    let (rows, total) = zeitrak::tenant::timesheet::timeline_entries(
+        &workspace_id,
+        page,
+        PAGE_SIZE,
+        from.as_deref(),
+        to.as_deref(),
+        effective_member_id,
+    )
+    .await
+    .map_err(session::internal)?;
+
+    let member_names: HashMap<String, String> = if can_read_all {
+        zeitrak::workspace::list_workspace_members(&workspace_id)
+            .await
+            .map_err(session::internal)?
+            .into_iter()
+            .map(|m| (m.user_id, m.name))
+            .collect()
+    } else {
+        HashMap::new()
+    };
+
+    let ids: Vec<String> = rows.iter().map(|r| r.id().to_string()).collect();
+    let id_refs: Vec<&str> = ids.iter().map(String::as_str).collect();
+    let mut tags_map =
+        zeitrak::tenant::timesheet_tag::for_timesheets_batch(&workspace_id, &id_refs)
+            .await
+            .map_err(session::internal)?;
+
+    let items = rows
+        .into_iter()
+        .map(|r| {
+            let id = r.id().to_string();
+            let member_name = if can_read_all {
+                let uid = r.user_id().to_string();
+                member_names.get(uid.as_str()).cloned()
+            } else {
+                None
+            };
+            let tags = tags_map
+                .remove(&id)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|t| TimesheetsTagDto {
+                    id: t.id().to_string(),
+                    name: t.name().to_string(),
+                })
+                .collect();
+            row_to_dto(r, tags, member_name)
+        })
+        .collect();
+
+    Ok(TimesheetPageDto {
+        items,
+        total,
+        page,
+        page_size: PAGE_SIZE,
+        can_filter_members: can_read_all,
+    })
+}
+
+#[cfg(feature = "server")]
+async fn _get_timeline_stats(
+    from: Option<String>,
+    to: Option<String>,
+    member_id: Option<String>,
+) -> Result<TimelineStatsDto, ServerFnError> {
+    use std::collections::HashMap;
+
+    use crate::session;
+    use zeitrak::authentication::CurrentUser;
+    use zeitrak::authorization::AuthorizationService;
+    use zeitrak::core::permissions;
+
+    let (user, workspace_id) = session::session_workspace().await?;
+    let current_user = CurrentUser {
+        id: user.id.clone(),
+        email: user.email.clone(),
+    };
+    let is_admin = AuthorizationService::is_admin(&current_user.id)
+        .await
+        .map_err(session::internal)?;
+    let can_read_all = is_admin
+        || AuthorizationService::has_permission(
+            &current_user.id,
+            &workspace_id,
+            permissions::TIMESHEET_READ_ALL,
+        )
+        .await
+        .map_err(session::internal)?;
+
+    let effective_member_id: Option<&str> =
+        if can_read_all { member_id.as_deref() } else { Some(&user.id) };
+
+    let rows = zeitrak::tenant::timesheet::timeline_stats(
+        &workspace_id,
+        from.as_deref(),
+        to.as_deref(),
+        effective_member_id,
+    )
+    .await
+    .map_err(session::internal)?;
+
+    let act_rows = zeitrak::tenant::activity::list(&workspace_id)
+        .await
+        .map_err(session::internal)?;
+    let act_map: HashMap<String, (String, String)> = act_rows
+        .iter()
+        .map(|a| {
+            (
+                a.id().to_string(),
+                (a.name().to_string(), a.color().to_string()),
+            )
+        })
+        .collect();
+
+    let mut by_id: HashMap<String, i64> = HashMap::new();
+    let mut total_seconds: i64 = 0;
+    for r in &rows {
+        if let Some(dur) = r.duration() {
+            if dur > 0 {
+                let aid = r
+                    .activity_id()
+                    .map(|id| id.to_string())
+                    .unwrap_or_default();
+                *by_id.entry(aid).or_insert(0) += i64::from(dur);
+                total_seconds += i64::from(dur);
+            }
+        }
+    }
+
+    let mut by_activity: Vec<ActivityStatDto> = by_id
+        .into_iter()
+        .map(|(aid, secs)| {
+            let (name, color) = act_map
+                .get(&aid)
+                .cloned()
+                .unwrap_or_else(|| ("—".to_string(), "#6c6c76".to_string()));
+            let percentage = if total_seconds > 0 {
+                secs as f32 / total_seconds as f32 * 100.0
+            } else {
+                0.0
+            };
+            ActivityStatDto {
+                activity_id: aid,
+                activity_name: name,
+                color,
+                total_seconds: secs,
+                percentage,
+            }
+        })
+        .collect();
+    by_activity.sort_by(|a, b| b.total_seconds.cmp(&a.total_seconds));
+
+    Ok(TimelineStatsDto {
+        total_seconds,
+        by_activity,
         can_filter_members: can_read_all,
     })
 }

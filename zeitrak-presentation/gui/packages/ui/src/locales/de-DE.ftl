@@ -59,6 +59,7 @@ sidebar-nav-timesheets = Stundenzettel
 sidebar-nav-activities = Aktivitäten
 sidebar-nav-tags = Tags
 sidebar-nav-settings = Einstellungen
+sidebar-nav-timeline = Zeitstrahl
 sidebar-timer-running = Timer läuft
 sidebar-start-timer = Timer starten
 sidebar-logout = Abmelden
@@ -77,6 +78,7 @@ settings-menu-database = Datenbank
 
 # ── Seitentitel ───────────────────────────────────────────────────────────────
 
+layout-title-timeline = Zeitstrahl
 layout-title-dashboard = Dashboard
 layout-title-activities = Aktivitäten
 layout-title-timesheets = Stundenzettel
@@ -322,3 +324,20 @@ settings-smtp-test-label = Test-E-Mail senden an
 settings-smtp-test-button = Test senden
 settings-smtp-test-success = Test-E-Mail erfolgreich versendet
 settings-smtp-test-error = Fehler beim Versenden der Test-E-Mail
+
+# ── Zeitstrahl ────────────────────────────────────────────────────────────────
+
+timeline-filter-from = Von
+timeline-filter-to = Bis
+timeline-filter-clear = Zurücksetzen
+timeline-aggregation-individual = Einzeln
+timeline-aggregation-hour = Stunde
+timeline-aggregation-day = Tag
+timeline-aggregation-week = Woche
+timeline-aggregation-month = Monat
+timeline-aggregation-year = Jahr
+timeline-metrics-total = Gesamt
+timeline-metrics-avg-per-day = Ø / Tag
+timeline-no-entries = Keine Einträge für diesen Zeitraum.
+timeline-load-more = Mehr laden
+timeline-gap-label = Keine Aktivität

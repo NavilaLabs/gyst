@@ -12,6 +12,48 @@ use zeitrak_core::{
 };
 use zeitrak_infrastructure_impl::tenant::timesheet::repositories::TimesheetRepository;
 
+/// Returns a page of timesheets for the timeline view, newest first.
+///
+/// Supports optional `from`/`to` RFC-3339 date bounds and an optional `member_id` filter.
+///
+/// # Errors
+///
+/// Returns an error if the database query fails.
+pub async fn timeline_entries(
+    workspace_id: &str,
+    page: u32,
+    page_size: u32,
+    from: Option<&str>,
+    to: Option<&str>,
+    member_id: Option<&str>,
+) -> Result<(Vec<TimesheetRow>, u64)> {
+    let pool = super::tenant_pool(workspace_id).await?;
+    let repo = TimesheetRepository::from_pool(pool).await?;
+    TimesheetQuery::new(repo)
+        .list_for_timeline(page, page_size, from, to, member_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
+}
+
+/// Returns all completed timesheets in the optional date range for timeline metrics.
+///
+/// # Errors
+///
+/// Returns an error if the database query fails.
+pub async fn timeline_stats(
+    workspace_id: &str,
+    from: Option<&str>,
+    to: Option<&str>,
+    member_id: Option<&str>,
+) -> Result<Vec<TimesheetRow>> {
+    let pool = super::tenant_pool(workspace_id).await?;
+    let repo = TimesheetRepository::from_pool(pool).await?;
+    TimesheetQuery::new(repo)
+        .stats_for_timeline(from, to, member_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
+}
+
 pub async fn recent(
     workspace_id: &str,
     user_id: &str,

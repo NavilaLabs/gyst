@@ -66,4 +66,37 @@ pub trait TimesheetRepository<R>: Repository<Timesheet, R> + Send + Sync {
         member_id: Option<&str>,
         since_rfc3339: &str,
     ) -> Result<Vec<TimesheetRow>, <Self as TimesheetRepository<R>>::Error>;
+
+    /// Returns a page of non-cancelled timesheets (including running), newest first.
+    ///
+    /// `from` and `to` are optional RFC-3339 bounds on `start_time`.
+    /// `member_id` optionally restricts results to a single user.
+    /// Returns `(rows, total_count)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    async fn list_for_timeline(
+        &self,
+        page: u32,
+        page_size: u32,
+        from: Option<&str>,
+        to: Option<&str>,
+        member_id: Option<&str>,
+    ) -> Result<(Vec<TimesheetRow>, u64), <Self as TimesheetRepository<R>>::Error>;
+
+    /// Returns all completed timesheets in the optional date range, for metrics computation.
+    ///
+    /// `from` and `to` are optional RFC-3339 bounds on `start_time`.
+    /// `member_id` optionally restricts results to a single user.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    async fn stats_for_timeline(
+        &self,
+        from: Option<&str>,
+        to: Option<&str>,
+        member_id: Option<&str>,
+    ) -> Result<Vec<TimesheetRow>, <Self as TimesheetRepository<R>>::Error>;
 }

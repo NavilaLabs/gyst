@@ -181,6 +181,86 @@ impl TimesheetRepository {
         row.map(|r| Self::map_row(&r)).transpose()
     }
 
+    /// Returns a page of non-cancelled timesheets with optional date-range filtering.
+    ///
+    /// `from` and `to` are optional RFC-3339 bounds applied to `start_time`.
+    /// Returns `(rows, total_count)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    pub async fn list_for_timeline(
+        &self,
+        page: u32,
+        page_size: u32,
+        from: Option<&str>,
+        to: Option<&str>,
+        member_id: Option<&str>,
+    ) -> Result<(Vec<TimesheetRow>, u64), crate::Error> {
+        let rm = self.read_model();
+        let mut filter = Condition::all().add(Expr::col("cancelled_at").is_null());
+        if let Some(uid) = member_id {
+            filter = filter.add(Expr::col("user_id").eq(uid));
+        }
+        if let Some(f) = from {
+            filter = filter.add(Expr::col("start_time").gte(f));
+        }
+        if let Some(t) = to {
+            filter = filter.add(Expr::col("start_time").lte(t));
+        }
+        let total = rm
+            .count_rows(&rm.select_count().cond_where(filter.clone()).to_owned())
+            .await?;
+        let stmt = rm
+            .select()
+            .cond_where(filter)
+            .order_by(Alias::new("start_time"), Order::Desc)
+            .limit(u64::from(page_size))
+            .offset(u64::from(page) * u64::from(page_size))
+            .to_owned();
+        let rows = rm.fetch_all_rows(&stmt).await?;
+        let items = rows
+            .into_iter()
+            .map(|r| Self::map_row(&r))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok((items, total))
+    }
+
+    /// Returns all completed timesheets in the optional date range for timeline metrics.
+    ///
+    /// `from` and `to` are optional RFC-3339 bounds on `start_time`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database query fails.
+    pub async fn stats_for_timeline(
+        &self,
+        from: Option<&str>,
+        to: Option<&str>,
+        member_id: Option<&str>,
+    ) -> Result<Vec<TimesheetRow>, crate::Error> {
+        let rm = self.read_model();
+        let mut filter = Condition::all()
+            .add(Expr::col("cancelled_at").is_null())
+            .add(Expr::col("end_time").is_not_null());
+        if let Some(uid) = member_id {
+            filter = filter.add(Expr::col("user_id").eq(uid));
+        }
+        if let Some(f) = from {
+            filter = filter.add(Expr::col("start_time").gte(f));
+        }
+        if let Some(t) = to {
+            filter = filter.add(Expr::col("start_time").lte(t));
+        }
+        let stmt = rm
+            .select()
+            .cond_where(filter)
+            .order_by(Alias::new("start_time"), Order::Desc)
+            .to_owned();
+        let rows = rm.fetch_all_rows(&stmt).await?;
+        rows.into_iter().map(|r| Self::map_row(&r)).collect()
+    }
+
     fn map_row(row: &AnyRow) -> Result<TimesheetRow, crate::Error> {
         Ok(TimesheetRow::new(
             TimesheetId::from_str(&row.try_get::<String, _>("id")?)?,
@@ -390,5 +470,26 @@ impl TimesheetRepositoryTrait<AnyRow> for TimesheetRepository {
         since_rfc3339: &str,
     ) -> Result<Vec<TimesheetRow>, crate::Error> {
         self.stats_for_period(member_id, since_rfc3339).await
+    }
+
+    async fn list_for_timeline(
+        &self,
+        page: u32,
+        page_size: u32,
+        from: Option<&str>,
+        to: Option<&str>,
+        member_id: Option<&str>,
+    ) -> Result<(Vec<TimesheetRow>, u64), crate::Error> {
+        self.list_for_timeline(page, page_size, from, to, member_id)
+            .await
+    }
+
+    async fn stats_for_timeline(
+        &self,
+        from: Option<&str>,
+        to: Option<&str>,
+        member_id: Option<&str>,
+    ) -> Result<Vec<TimesheetRow>, crate::Error> {
+        self.stats_for_timeline(from, to, member_id).await
     }
 }

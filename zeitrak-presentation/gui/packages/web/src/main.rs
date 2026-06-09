@@ -16,7 +16,7 @@ use ui::{
     },
     views::{
         setup::Setup, Activities, Dashboard, Database, InvitationAccept, Login, PluginPage,
-        Register, SelectWorkspace, Settings, Tags, Timesheets, VerifyEmailConfirm,
+        Register, SelectWorkspace, Settings, Tags, Timeline, Timesheets, VerifyEmailConfirm,
         VerifyEmailPending,
     },
     ActivitiesCache, GlobalStyles, NavDirection, RunningElapsed, RunningTimer, SidebarOpen,
@@ -90,6 +90,9 @@ enum Route {
                     #[route("/timesheets")]
                     Timesheets {},
 
+                    #[route("/timeline")]
+                    Timeline {},
+
                     #[route("/tags")]
                     Tags {},
 
@@ -131,11 +134,12 @@ fn route_idx(route: &Route) -> i32 {
         Route::SelectWorkspace { .. } => 2,
         Route::Dashboard { .. } => 3,
         Route::Timesheets { .. } => 4,
-        Route::Activities { .. } => 5,
-        Route::Tags { .. } => 6,
-        Route::Settings { .. } => 7,
-        Route::Database { .. } => 8,
-        Route::PluginPage { .. } => 9,
+        Route::Timeline { .. } => 5,
+        Route::Activities { .. } => 6,
+        Route::Tags { .. } => 7,
+        Route::Settings { .. } => 8,
+        Route::Database { .. } => 9,
+        Route::PluginPage { .. } => 10,
         _ => -1,
     }
 }
@@ -397,6 +401,7 @@ fn Layout() -> Element {
         Route::Dashboard {} => tid!("layout-title-dashboard"),
         Route::Activities {} => tid!("layout-title-activities"),
         Route::Timesheets {} => tid!("layout-title-timesheets"),
+        Route::Timeline {} => tid!("layout-title-timeline"),
         Route::Tags {} => tid!("layout-title-tags"),
         Route::Settings {} => tid!("layout-title-settings"),
         Route::Database {} => tid!("layout-title-developer"),
