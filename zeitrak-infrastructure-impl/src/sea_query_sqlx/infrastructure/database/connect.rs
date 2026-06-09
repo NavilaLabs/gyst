@@ -10,6 +10,14 @@ use zeitrak_infrastructure::{
     },
 };
 
+fn configured_database_type() -> DatabaseType {
+    if CONFIG.database().base_uri().starts_with("postgres") {
+        DatabaseType::Postgres
+    } else {
+        DatabaseType::Sqlite
+    }
+}
+
 use crate::{
     Error, ScopeAdmin, ScopeDefault, ScopeTenant,
     sea_query_sqlx::infrastructure::{DatabaseType, Pool, StateConnected, StateDisconnected},
@@ -61,7 +69,7 @@ impl Pool<ScopeTenant, StateDisconnected> {
         tenant_token: &str,
     ) -> Result<Pool<ScopeTenant, StateConnected>, Error> {
         let uri = database_uri_factory::Factory::new_database_uri(&DatabaseUriType::Tenant)
-            .uri(&DatabaseType::Sqlite.to_string(), Some(tenant_token))?;
+            .uri(&configured_database_type().to_string(), Some(tenant_token))?;
 
         Self::connect(&uri).await
     }
@@ -73,7 +81,7 @@ impl Pool<ScopeAdmin, StateDisconnected> {
     /// Returns an error if the admin URI cannot be built or the pool cannot connect.
     pub async fn connect_admin() -> Result<Pool<ScopeAdmin, StateConnected>, Error> {
         let uri = database_uri_factory::Factory::new_database_uri(&DatabaseUriType::Admin)
-            .uri(&DatabaseType::Sqlite.to_string(), None)?;
+            .uri(&configured_database_type().to_string(), None)?;
 
         Self::connect(&uri).await
     }

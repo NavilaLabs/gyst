@@ -376,3 +376,24 @@
   0%, 80%, 100% { transform: scale(0.7); opacity: 0.4; }
   40%           { transform: scale(1);   opacity: 1;   }
 }
+
+/* ── Login-page decorative preview ──────────────────────────────────────────── */
+
+.tl-preview-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding-top: 24px;
+}
+
+.tl-preview-fade {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 200px;
+  background: linear-gradient(to bottom, transparent, var(--color-surface));
+  pointer-events: none;
+  z-index: 3;
+}

@@ -30,4 +30,5 @@ js-sys = "0.3"
 # default = ["server"]
 web = ["dioxus/web"]
 server = ["dioxus/server", "axum", "api/server", "dep:zeitrak", "zeitrak/sqlite", "dep:tokio", "dep:tower-sessions", "ui/server", "dep:urlencoding", "dioxus-extism-frontend/server", "dep:dioxus-extism-host", "dep:zeitrak-plugin-host"]
+server-postgres = ["server", "api/postgres"]
 landing = ["ui/landing", "api/landing"]

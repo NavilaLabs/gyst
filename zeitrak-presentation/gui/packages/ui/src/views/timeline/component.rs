@@ -5,11 +5,13 @@ use dioxus::prelude::*;
 use dioxus_i18n::tid;
 
 use crate::{
-    ActivitiesCache, RunningElapsed, RunningTimer, UserSettings,
-    components::atoms::card::{Card, CardContent, CardHeader, CardTitle},
-    components::molecules::MemberFilter,
-    formatting,
-    layouts::DefaultLayout,
+    components::molecules::MemberFilter, formatting, layouts::DefaultLayout, ActivitiesCache,
+    RunningElapsed, RunningTimer, UserSettings,
+};
+
+use super::{
+    rail::{GapSegment, RailSegment, TimelineRailColumn},
+    station::{StationEntry, TimelineStation},
 };
 
 // ── Aggregation ───────────────────────────────────────────────────────────────
@@ -37,12 +39,12 @@ impl Aggregation {
 
     fn schwelle_interval_min(self) -> i64 {
         match self {
-            Self::Individual => 60,    // 1 h
-            Self::Hour => 60,          // 1 h
-            Self::Day => 1440,         // 1 day
-            Self::Week => 10_080,      // 1 week
-            Self::Month => 43_200,     // ~30 days
-            Self::Year => 525_600,     // ~365 days
+            Self::Individual => 60, // 1 h
+            Self::Hour => 60,       // 1 h
+            Self::Day => 1440,      // 1 day
+            Self::Week => 10_080,   // 1 week
+            Self::Month => 43_200,  // ~30 days
+            Self::Year => 525_600,  // ~365 days
         }
     }
 
@@ -152,7 +154,13 @@ fn group_into_stations(entries: &[api::timesheet::TimesheetDto], agg: Aggregatio
                 group.iter().map(|e| e.end_time.clone()).max().flatten()
             };
             let total_seconds = group.iter().filter_map(|e| e.duration).map(i64::from).sum();
-            Station { start_time, end_time, total_seconds, entries: group, is_running }
+            Station {
+                start_time,
+                end_time,
+                total_seconds,
+                entries: group,
+                is_running,
+            }
         })
         .collect()
 }
@@ -173,8 +181,14 @@ fn fmt_duration(secs: i64) -> String {
 fn build_maps(
     activities: &[api::activity::ActivityDto],
 ) -> (HashMap<String, String>, HashMap<String, String>) {
-    let colors = activities.iter().map(|a| (a.id.clone(), a.color.clone())).collect();
-    let names = activities.iter().map(|a| (a.id.clone(), a.name.clone())).collect();
+    let colors = activities
+        .iter()
+        .map(|a| (a.id.clone(), a.color.clone()))
+        .collect();
+    let names = activities
+        .iter()
+        .map(|a| (a.id.clone(), a.name.clone()))
+        .collect();
     (colors, names)
 }
 
@@ -324,6 +338,7 @@ pub fn Timeline() -> Element {
     let (color_map, name_map) = build_maps(&activities_cache.read());
     let tz = user_settings.read().timezone.clone();
     let date_fmt = user_settings.read().date_format.clone();
+    let elapsed_secs = *elapsed.read();
 
     let agg = *aggregation.read();
     let px_per_min = agg.px_per_min();
@@ -339,7 +354,7 @@ pub fn Timeline() -> Element {
             let secs = DateTime::parse_from_rfc3339(&running.start_time)
                 .ok()
                 .map(|dt| (t_max - dt.with_timezone(&Utc)).num_seconds().max(0))
-                .unwrap_or(*elapsed.read() as i64);
+                .unwrap_or(elapsed_secs as i64);
             stations.insert(
                 0,
                 Station {
@@ -389,9 +404,9 @@ pub fn Timeline() -> Element {
         result
     };
 
-    // Precompute segment data: (top_y, height, color) per rail piece
-    let mut rail_segments: Vec<(f64, f64, String)> = Vec::new();
-    let mut gap_segments: Vec<(f64, f64)> = Vec::new();
+    // Precompute rail segments and gaps
+    let mut rail_segments: Vec<RailSegment> = Vec::new();
+    let mut gap_segments: Vec<GapSegment> = Vec::new();
 
     for (idx, station) in stations.iter().enumerate() {
         let seg_top = station.segment_top_y(t_max, px_per_min);
@@ -400,7 +415,11 @@ pub fn Timeline() -> Element {
         let mut part_y = seg_top;
         for (color, h) in parts {
             let h = h.max(1.0);
-            rail_segments.push((part_y, h, color));
+            rail_segments.push(RailSegment {
+                top: part_y,
+                height: h,
+                color,
+            });
             part_y += h;
         }
 
@@ -411,7 +430,10 @@ pub fn Timeline() -> Element {
         // in the same day).  Without this the dot appears disconnected from the rail.
         let intra_gap_h = dot_y - part_y;
         if intra_gap_h > 1.0 {
-            gap_segments.push((part_y, intra_gap_h));
+            gap_segments.push(GapSegment {
+                top: part_y,
+                height: intra_gap_h,
+            });
         }
 
         // Gap from this station's dot down to the next station's segment top
@@ -419,7 +441,10 @@ pub fn Timeline() -> Element {
             let next_seg_top = next.segment_top_y(t_max, px_per_min);
             let gap_h = next_seg_top - dot_y;
             if gap_h > 1.0 {
-                gap_segments.push((dot_y, gap_h));
+                gap_segments.push(GapSegment {
+                    top: dot_y,
+                    height: gap_h,
+                });
             }
         }
     }
@@ -428,7 +453,10 @@ pub fn Timeline() -> Element {
         let tail_top = last.dot_y(t_max, px_per_min);
         let tail_h = track_height as f64 - tail_top;
         if tail_h > 0.0 {
-            gap_segments.push((tail_top, tail_h));
+            gap_segments.push(GapSegment {
+                top: tail_top,
+                height: tail_h,
+            });
         }
     }
 
@@ -503,7 +531,7 @@ pub fn Timeline() -> Element {
                         div { class: "tl-metrics-stats",
                             div { class: "tl-stat-block",
                                 span { class: "tl-stat-label", {tid!("timeline-metrics-total")} }
-                                span { class: "tl-stat-value", {fmt_duration(s.total_seconds)} }
+                                span { class: "tl-stat-value font-mono", {fmt_duration(s.total_seconds)} }
                             }
                             div { class: "tl-activity-breakdown",
                                 for act in &s.by_activity {
@@ -513,7 +541,7 @@ pub fn Timeline() -> Element {
                                             style: "background:{act.color}",
                                         }
                                         span { class: "tl-act-name", "{act.activity_name}" }
-                                        span { class: "tl-act-dur", {fmt_duration(act.total_seconds)} }
+                                        span { class: "tl-act-dur font-mono", {fmt_duration(act.total_seconds)} }
                                         div { class: "tl-act-bar-wrap",
                                             div {
                                                 class: "tl-act-bar",
@@ -537,132 +565,102 @@ pub fn Timeline() -> Element {
                             style: "min-height:{track_height}px",
 
                             // ── Rail column ───────────────────────────────────
-                            div { class: "tl-rail-col",
-                                for y in &schwellen {
-                                    div {
-                                        class: "tl-schwelle",
-                                        style: "top:{y:.1}px",
-                                    }
-                                }
-                                for (top, h, color) in &rail_segments {
-                                    div {
-                                        class: "tl-segment",
-                                        style: "top:{top:.1}px;height:{h:.1}px;--seg-color:{color}",
-                                    }
-                                }
-                                for (top, h) in &gap_segments {
-                                    div {
-                                        class: "tl-gap",
-                                        style: "top:{top:.1}px;height:{h:.1}px",
-                                    }
-                                }
-                            }
+                            TimelineRailColumn { schwellen, segments: rail_segments, gaps: gap_segments }
 
                             // ── Stations ──────────────────────────────────────
                             for (idx, station) in stations.iter().enumerate() {
                                 {
-                                    let dot_y   = station.dot_y(t_max, px_per_min);
-                                    let side    = if idx % 2 == 0 { "left" } else { "right" };
+                                    let dot_y = station.dot_y(t_max, px_per_min);
+                                    let side = if idx % 2 == 0 { "left" } else { "right" };
                                     let is_running = station.is_running;
-                                    let is_single  = station.is_single_activity();
-                                    let dot_color  = if is_single {
+                                    let is_single = station.is_single_activity();
+                                    let dot_color = if is_single {
                                         station.primary_color(&color_map).to_string()
                                     } else {
                                         "#6c6c76".to_string()
                                     };
-                                    let elapsed_secs = *elapsed.read();
-                                    let total_secs = if is_running { elapsed_secs as i64 } else { station.total_seconds };
-
-                                    let entries_snap   = station.entries.clone();
-                                    let color_map_snap = color_map.clone();
-                                    let name_map_snap  = name_map.clone();
-                                    let tz_s     = tz.clone();
-                                    let dfmt_s   = date_fmt.clone();
-                                    let key      = station.start_time.clone();
-
+                                    let total_secs = if is_running {
+                                        elapsed_secs as i64
+                                    } else {
+                                        station.total_seconds
+                                    };
+                                    let title = if station.entries.len() == 1 {
+                                        station.entries[0]
+                                            .activity_id
+                                            .as_deref()
+                                            .and_then(|id| name_map.get(id))
+                                            .cloned()
+                                            .unwrap_or_else(|| {
+                                                formatting::format_date(
+                                                    &station.entries[0].start_time,
+                                                    &tz,
+                                                    &date_fmt,
+                                                )
+                                            })
+                                    } else {
+                                        formatting::format_date(
+                                            &station.entries[0].start_time,
+                                            &tz,
+                                            &date_fmt,
+                                        )
+                                    };
+                                    let station_entries: Vec<StationEntry> = station
+                                        .entries
+                                        .iter()
+                                        .map(|e| {
+                                            let activity_name: String = e
+                                                .activity_id
+                                                .as_deref()
+                                                .and_then(|id| name_map.get(id))
+                                                .cloned()
+                                                .unwrap_or("--".to_string());
+                                            let activity_color = e
+                                                .activity_id
+                                                .as_deref()
+                                                .and_then(|id| color_map.get(id))
+                                                .cloned();
+                                            let start_fmt = formatting::format_datetime(
+                                                &e.start_time,
+                                                &tz,
+                                                &date_fmt,
+                                            );
+                                            let end_fmt = e.end_time.as_deref().map(|t| {
+                                                formatting::format_datetime(t, &tz, &date_fmt)
+                                            });
+                                            let time_range = match end_fmt {
+                                                Some(end) => format!("{start_fmt} \u{2013} {end}"),
+                                                None => start_fmt,
+                                            };
+                                            let entry_is_running =
+                                                e.end_time.is_none() && station.is_running;
+                                            let duration = e
+                                                .duration
+                                                .map(|d| fmt_duration(i64::from(d)))
+                                                .or_else(|| {
+                                                    entry_is_running
+                                                        .then(|| fmt_duration(elapsed_secs as i64))
+                                                });
+                                            StationEntry {
+                                                activity_name: Some(activity_name),
+                                                activity_color,
+                                                time_range,
+                                                duration,
+                                                description: e.description.clone(),
+                                                is_running: entry_is_running,
+                                            }
+                                        })
+                                        .collect();
+                                    let key = station.start_time.clone();
                                     rsx! {
-                                        div {
+                                        TimelineStation {
                                             key: "{key}",
-                                            class: "tl-station",
-                                            "data-side": side,
-                                            style: "top:{dot_y:.1}px",
-
-                                            div {
-                                                class: if is_running { "tl-dot tl-dot--running" } else { "tl-dot" },
-                                                style: "--dot-color:{dot_color}",
-                                            }
-
-                                            div { class: "tl-card-wrap",
-                                                div { class: "tl-connector" }
-                                                Card {
-                                                    CardHeader {
-                                                        CardTitle {
-                                                            if entries_snap.len() == 1 {
-                                                                if let Some(act_id) = &entries_snap[0].activity_id {
-                                                                    span {
-                                                                        class: "zk-activity-dot",
-                                                                        style: "background:{color_map_snap.get(act_id.as_str()).map(String::as_str).unwrap_or(\"#6c6c76\")}",
-                                                                    }
-                                                                }
-                                                                {
-                                                                    entries_snap[0]
-                                                                        .activity_id
-                                                                        .as_deref()
-                                                                        .and_then(|id| name_map_snap.get(id))
-                                                                        .cloned()
-                                                                        .unwrap_or_else(|| formatting::format_date(&entries_snap[0].start_time, &tz_s, &dfmt_s))
-                                                                }
-                                                            } else {
-                                                                {formatting::format_date(&entries_snap[0].start_time, &tz_s, &dfmt_s)}
-                                                            }
-                                                        }
-                                                    }
-                                                    CardContent {
-                                                        div { class: "tl-card-body",
-                                                            for entry in &entries_snap {
-                                                                div { class: "tl-card-entry",
-                                                                    if entries_snap.len() > 1 {
-                                                                        if let Some(act_id) = &entry.activity_id {
-                                                                            span {
-                                                                                class: "zk-activity-dot",
-                                                                                style: "background:{color_map_snap.get(act_id.as_str()).map(String::as_str).unwrap_or(\"#6c6c76\")}",
-                                                                            }
-                                                                            span { class: "tl-act-label",
-                                                                                {name_map_snap.get(act_id.as_str()).cloned().unwrap_or_else(|| "—".to_string())}
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                    div { class: "tl-entry-meta",
-                                                                        span { class: "tl-entry-time",
-                                                                            {formatting::format_datetime(&entry.start_time, &tz_s, &dfmt_s)}
-                                                                            if let Some(et) = &entry.end_time {
-                                                                                " – "
-                                                                                {formatting::format_datetime(et, &tz_s, &dfmt_s)}
-                                                                            }
-                                                                        }
-                                                                        if let Some(dur) = entry.duration {
-                                                                            span { class: "tl-entry-dur", {fmt_duration(i64::from(dur))} }
-                                                                        } else if is_running {
-                                                                            span { class: "tl-entry-dur tl-entry-dur--live",
-                                                                                {fmt_duration(elapsed_secs as i64)}
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                    if let Some(desc) = &entry.description {
-                                                                        if !desc.is_empty() {
-                                                                            p { class: "tl-entry-notes", "{desc}" }
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                            div { class: "tl-card-total",
-                                                                if is_running { span { class: "timer-dot" } }
-                                                                span { {fmt_duration(total_secs)} }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
+                                            dot_y,
+                                            side: side.to_string(),
+                                            is_running,
+                                            dot_color,
+                                            title,
+                                            entries: station_entries,
+                                            total_duration: fmt_duration(total_secs),
                                         }
                                     }
                                 }

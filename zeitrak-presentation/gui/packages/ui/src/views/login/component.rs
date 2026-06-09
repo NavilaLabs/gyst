@@ -1,4 +1,5 @@
 use crate::components::atoms::{Button, Form, FormField, Input, Label};
+use crate::views::timeline::TimelinePreview;
 use dioxus::prelude::*;
 use dioxus_free_icons::icons::hi_solid_icons::{HiLogin, HiRefresh};
 use dioxus_free_icons::Icon;
@@ -111,14 +112,9 @@ pub fn Login() -> Element {
                 }
             }
 
-            // Right art panel
+            // Right art panel — timeline preview
             div { class: "auth-art",
-                div { class: "auth-art-quote",
-                    p { class: "auth-art-quote-text",
-                        "Time is the most valuable thing you can spend."
-                    }
-                    span { class: "auth-art-quote-attr", "— Theophrastus" }
-                }
+                TimelinePreview {}
             }
         }
     }

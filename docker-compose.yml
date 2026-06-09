@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+      args:
+        WITH_LANDING: ${WITH_LANDING:-false}
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      ZK_APPLICATION__SECURITY__AUTHENTICATION_SECRET: ${ZK_APPLICATION__SECURITY__AUTHENTICATION_SECRET}
+      ZK_DATABASE__BASE_URI: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432
+
+  admin-projector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: admin-projector
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ZK_APPLICATION__SECURITY__AUTHENTICATION_SECRET: ${ZK_APPLICATION__SECURITY__AUTHENTICATION_SECRET}
+      ZK_DATABASE__BASE_URI: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432
+
+  tenant-projector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: tenant-projector
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ZK_APPLICATION__SECURITY__AUTHENTICATION_SECRET: ${ZK_APPLICATION__SECURITY__AUTHENTICATION_SECRET}
+      ZK_DATABASE__BASE_URI: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432
+
+volumes:
+  postgres_data:
