@@ -32,9 +32,9 @@ api = { path = "packages/api" }
 zeitrak-core = { path = "../../zeitrak-core" }
 
 # plugin system — paths go 3 levels up (gui/ → zeitrak-presentation/ → zeitrak/ → workspaces/)
-dioxus-extism-frontend  = { path = "../../../dioxus-extism/crates/dioxus-extism-frontend" }
-dioxus-extism-macros    = { path = "../../../dioxus-extism/crates/dioxus-extism-macros" }
-dioxus-extism-protocol  = { path = "../../../dioxus-extism/crates/dioxus-extism-protocol" }
+dioxus-extism-frontend = { git = "https://github.com/NavilaLabs/dioxus-extism", package = "dioxus-extism-frontend" }
+dioxus-extism-macros = { git = "https://github.com/NavilaLabs/dioxus-extism", package = "dioxus-extism-macros" }
+dioxus-extism-protocol = { git = "https://github.com/NavilaLabs/dioxus-extism", package = "dioxus-extism-protocol" }
 
 [workspace.lints.clippy]
 # Enforce correctness and best practices
