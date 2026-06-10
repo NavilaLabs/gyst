@@ -1502,6 +1502,7 @@ dependencies = [
 [[package]]
 name = "dioxus-extism-host"
 version = "0.1.0"
+source = "git+https://github.com/NavilaLabs/dioxus-extism#58d664f455a0e36093087613a4a1ac6b94d89b58"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1525,6 +1526,7 @@ dependencies = [
 [[package]]
 name = "dioxus-extism-pdk"
 version = "0.1.0"
+source = "git+https://github.com/NavilaLabs/dioxus-extism#58d664f455a0e36093087613a4a1ac6b94d89b58"
 dependencies = [
  "dioxus-extism-protocol",
  "extism-pdk",
@@ -1536,6 +1538,7 @@ dependencies = [
 [[package]]
 name = "dioxus-extism-protocol"
 version = "0.1.0"
+source = "git+https://github.com/NavilaLabs/dioxus-extism#58d664f455a0e36093087613a4a1ac6b94d89b58"
 dependencies = [
  "indexmap 2.14.0",
  "serde",

@@ -1,0 +1,28 @@
+# Build artifacts — these are the biggest offenders (50 GB+)
+target/
+zeitrak-presentation/gui/target/
+
+# Git history not needed inside the build context
+.git/
+.gitignore
+.gitattributes
+
+# Dev tooling and local config
+.devcontainer/
+.vscode/
+.env
+.env.*
+justfile
+rustfmt.toml
+
+# Docs, examples, scripts — not part of the server build
+docs/
+examples/
+scripts/
+plugins/
+README.md
+CLAUDE.md
+ROADMAP.md
+
+# CI / GitHub
+.github/

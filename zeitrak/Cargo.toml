@@ -39,7 +39,7 @@ zeitrak-core = { path = "../zeitrak-core" }
 zeitrak-infrastructure = { path = "../zeitrak-infrastructure" }
 zeitrak-infrastructure-impl = { path = "../zeitrak-infrastructure-impl" }
 zeitrak-plugin-host = { path = "../zeitrak-plugin-host" }
-dioxus-extism-protocol = { path = "../../dioxus-extism/crates/dioxus-extism-protocol" }
+dioxus-extism-protocol = { git = "https://github.com/NavilaLabs/dioxus-extism", package = "dioxus-extism-protocol" }
 rand = "0.9"
 reqwest = { version = "0.13", features = ["json", "rustls", "form"], default-features = false }
 urlencoding = "2"

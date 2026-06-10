@@ -2,58 +2,72 @@
 
 ## Docker Compose
 
-The recommended way to run Zeitrak in production is with Docker Compose. The application runs as a single container (web server + two background projection daemons launched by the entrypoint script).
+The recommended way to run Zeitrak in production is with Docker Compose. The stack consists of four services: a PostgreSQL database, the web server, and two background projection daemons.
 
 ### Prerequisites
 
 - Docker 24+ and Docker Compose v2+
-- A pre-built image (`docker build -t zeitrak:latest .` from the repo root)
+- The repository cloned locally (the image is built from source)
 
-### `docker-compose.yaml`
+### Setup
 
-```yaml
-services:
-  zeitrak:
-    image: zeitrak:latest
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    environment:
-      # Required: random secret used to sign session cookies.
-      # Generate with: openssl rand -hex 32
-      ZK_APPLICATION__SECURITY__AUTHENTICATION_SECRET: "changeme-use-a-real-secret"
+1. Copy the example environment file and fill in the required values:
 
-      # SQLite database directory (must match the volume mount below).
-      ZK_DATABASE__BASE_URI: "sqlite:///data/databases"
-      ZK_DATABASE__DATABASES__ADMIN__NAME: "zeitrak_admin"
+```bash
+cp .env.example .env
+```
 
-      ZK_PROJECT_ROOT: "/app"
-      ZK_ENVIRONMENT: "production"
+2. Edit `.env`:
 
-      # Public base URL — used to build invitation links sent by email.
-      ZK_APPLICATION__BASE_URL: "https://zeitrak.example.com"
-    volumes:
-      # Persist SQLite database files across container restarts.
-      - zeitrak_data:/data/databases
+```dotenv
+# JWT signing secret — required. Generate with: openssl rand -base64 64
+ZK_APPLICATION__SECURITY__AUTHENTICATION_SECRET=<your-secret>
 
-volumes:
-  zeitrak_data:
+# PostgreSQL credentials
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=<your-password>
+
+# Exposed port for the web service (default: 8080)
+PORT=8080
+```
+
+### Starting
+
+```bash
+docker compose up -d
+```
+
+On first start the databases are automatically created and migrated. Navigate to `http://localhost:8080/setup` to complete the initial setup.
+
+### Upgrading
+
+```bash
+docker compose build --no-cache
+docker compose up -d
 ```
 
 ### Environment variables
 
 Configuration is layered: YAML files under `config/{environment}/` are merged first, then environment variables (prefixed `ZK_`, with `__` as the nested-key separator) override them at runtime.
 
-#### Core (required)
+#### Required (set in `.env`)
 
 | Variable | Description |
 |---|---|
 | `ZK_APPLICATION__SECURITY__AUTHENTICATION_SECRET` | HS256 secret used to sign JWT session tokens. Must be a long random string. |
-| `ZK_DATABASE__BASE_URI` | Database base URI. For SQLite: `sqlite:///path/to/directory`. For PostgreSQL: `postgres://user:pass@host:5432`. |
-| `ZK_PROJECT_ROOT` | Absolute path to the app root inside the container (default: `/app`). |
-| `ZK_ENVIRONMENT` | `production` or `development`. Selects the config profile under `config/`. |
+| `POSTGRES_USER` | PostgreSQL superuser name. |
+| `POSTGRES_PASSWORD` | PostgreSQL superuser password. |
 
-#### Database (optional)
+#### Optional
+
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `8080` | Host port mapped to the web service. |
+| `WITH_LANDING` | `false` | Set to `true` to include the landing page in the web build. |
+
+#### Database (optional overrides)
+
+`ZK_DATABASE__BASE_URI` is derived automatically from `POSTGRES_USER` and `POSTGRES_PASSWORD` inside the compose file and does not need to be set manually.
 
 | Variable | Default | Description |
 |---|---|---|
@@ -81,29 +95,24 @@ Configuration is layered: YAML files under `config/{environment}/` are merged fi
 | `ZK_APPLICATION__SMTP__FROM_ADDRESS` | `noreply@zeitrak.app` | Sender address for outgoing emails. |
 | `ZK_APPLICATION__SMTP__USE_TLS` | `true` | Set to `false` for plain SMTP without TLS (e.g. local MailHog). |
 
-### Starting
+### Services
 
-```bash
-docker compose up -d
-```
-
-On first start the admin database is automatically created and migrated. Navigate to `http://localhost:8080/setup` to complete the initial setup.
-
-### Upgrading
-
-```bash
-docker compose pull   # or rebuild locally
-docker compose up -d  # recreates the container; database files are preserved in the volume
-```
+| Service | Description |
+|---|---|
+| `postgres` | PostgreSQL 17 database. Data persisted in the `postgres_data` named volume. |
+| `web` | Dioxus fullstack web server. Exposed on `PORT` (default `8080`). |
+| `admin-projector` | Daemon that projects admin-scoped events into read-model tables. |
+| `tenant-projector` | Daemon that projects tenant-scoped events into read-model tables. |
 
 ### Ports
 
-Only port `8080` needs to be exposed. Put a reverse proxy (nginx, Caddy, Traefik) in front if you need TLS termination or a custom domain.
+Only port `8080` (or the value of `PORT`) needs to be exposed. Put a reverse proxy (nginx, Caddy, Traefik) in front for TLS termination or a custom domain.
 
 ### Logs
 
 ```bash
-docker compose logs -f zeitrak
+docker compose logs -f
+docker compose logs -f web
+docker compose logs -f admin-projector
+docker compose logs -f tenant-projector
 ```
-
-The projection daemons and the web server each write to stdout. All three processes are visible in the combined log stream.

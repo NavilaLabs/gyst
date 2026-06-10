@@ -194,7 +194,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "dioxus",
- "dioxus-extism-protocol",
+ "dioxus-extism-protocol 0.1.0",
  "serde",
  "tower-sessions",
  "tracing",
@@ -2304,9 +2304,9 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "dioxus",
- "dioxus-extism-host",
+ "dioxus-extism-host 0.1.0",
  "dioxus-extism-macros",
- "dioxus-extism-protocol",
+ "dioxus-extism-protocol 0.1.0",
  "keyring",
  "serde",
  "serde_json",
@@ -2322,7 +2322,31 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
- "dioxus-extism-protocol",
+ "dioxus-extism-protocol 0.1.0",
+ "extism",
+ "futures",
+ "indexmap",
+ "reqwest 0.12.28",
+ "ring",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.18",
+ "tokio",
+ "toml 0.8.2",
+ "tracing",
+]
+
+[[package]]
+name = "dioxus-extism-host"
+version = "0.1.0"
+source = "git+https://github.com/NavilaLabs/dioxus-extism#58d664f455a0e36093087613a4a1ac6b94d89b58"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "dioxus-extism-protocol 0.1.0 (git+https://github.com/NavilaLabs/dioxus-extism)",
  "extism",
  "futures",
  "indexmap",
@@ -2350,6 +2374,17 @@ dependencies = [
 [[package]]
 name = "dioxus-extism-protocol"
 version = "0.1.0"
+dependencies = [
+ "indexmap",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "dioxus-extism-protocol"
+version = "0.1.0"
+source = "git+https://github.com/NavilaLabs/dioxus-extism#58d664f455a0e36093087613a4a1ac6b94d89b58"
 dependencies = [
  "indexmap",
  "serde",
@@ -10328,7 +10363,7 @@ dependencies = [
  "convert_case 0.11.0",
  "dioxus",
  "dioxus-extism-frontend",
- "dioxus-extism-host",
+ "dioxus-extism-host 0.1.0",
  "dioxus-i18n",
  "dioxus-motion",
  "dotenvy",
@@ -11302,7 +11337,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "dioxus-extism-protocol",
+ "dioxus-extism-protocol 0.1.0 (git+https://github.com/NavilaLabs/dioxus-extism)",
  "dotenvy",
  "eventually",
  "eventually-macros",
@@ -11406,8 +11441,8 @@ name = "zeitrak-plugin-host"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "dioxus-extism-host",
- "dioxus-extism-protocol",
+ "dioxus-extism-host 0.1.0 (git+https://github.com/NavilaLabs/dioxus-extism)",
+ "dioxus-extism-protocol 0.1.0 (git+https://github.com/NavilaLabs/dioxus-extism)",
  "eventually",
  "eventually-any",
  "eventually-projection",
