@@ -5,8 +5,6 @@ edition = "2021"
 
 [dependencies]
 api = { workspace = true }
-axum = {version="0.8", optional = true}
-zeitrak = { path = "../../../../zeitrak", optional = true }
 convert_case = "0.11.0"
 dioxus = { workspace = true, features = ["router", "fullstack"] }
 dioxus-i18n = { workspace = true }
@@ -32,6 +30,7 @@ js-sys = "0.3"
 
 [features]
 web = ["dioxus/web"]
-server = ["dioxus/server", "axum", "api/server", "dep:zeitrak", "zeitrak/sqlite", "dep:tokio", "dep:tower-sessions", "ui/server", "dep:urlencoding", "dioxus-extism-frontend/server", "dep:dioxus-extism-host", "dep:zeitrak-plugin-host"]
-server-postgres = ["server", "api/postgres"]
+server = ["dioxus/server", "dep:axum", "api/server", "dep:zeitrak", "dep:tokio", "dep:tower-sessions", "ui/server", "dep:urlencoding"] # "dioxus-extism-frontend/server", "dep:dioxus-extism-host", "dep:zeitrak-plugin-host"
+sqlite = ["api/sqlite", "zeitrak?/sqlite"]
+postgres = ["api/postgres", "zeitrak?/postgres"]
 landing = ["ui/landing", "api/landing"]
