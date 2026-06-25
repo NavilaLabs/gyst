@@ -13,12 +13,12 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(
                         ColumnDef::new(Alias::new("workspace_role_id"))
-                            .uuid()
+                            .string()
                             .not_null(),
                     )
                     .col(
                         ColumnDef::new(Alias::new("permission_id"))
-                            .uuid()
+                            .string()
                             .not_null(),
                     )
                     .primary_key(

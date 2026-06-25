@@ -19,6 +19,7 @@ use crate::{
 };
 
 const TABLE: &str = "projections__activities";
+const COLUMNS: &[&str] = &["id", "name", "color", "comment"];
 
 pub struct ActivityRepository {
     store: SnapshotRepository<Activity, ConnectedTenantPool>,
@@ -58,7 +59,7 @@ impl ActivityRepository {
     pub async fn all(&self) -> Result<Vec<ActivityRow>, crate::Error> {
         let rm = self.read_model();
         let stmt = rm
-            .select()
+            .select_columns(COLUMNS)
             .cond_where(Expr::col("deleted_at").is_null())
             .order_by(Alias::new("name"), Order::Asc)
             .to_owned();
@@ -125,7 +126,7 @@ impl ReadRepository<Activity, AnyRow> for ActivityRepository {
 
     async fn find_by(&self, filter: Condition) -> Result<Option<Root<Activity>>, crate::Error> {
         let rm = self.read_model();
-        let stmt = rm.select().cond_where(filter).to_owned();
+        let stmt = rm.select_columns(COLUMNS).cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
         if let Some(row) = row {
             Ok(Some(self.row_to_root_versioned(row).await?))
@@ -145,7 +146,7 @@ impl ReadRepository<Activity, AnyRow> for ActivityRepository {
 
     async fn find_many_by(&self, filter: Condition) -> Result<Vec<Root<Activity>>, crate::Error> {
         let rm = self.read_model();
-        let stmt = rm.select().cond_where(filter).to_owned();
+        let stmt = rm.select_columns(COLUMNS).cond_where(filter).to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
         let mut roots = Vec::with_capacity(rows.len());
         for row in rows {
@@ -156,7 +157,7 @@ impl ReadRepository<Activity, AnyRow> for ActivityRepository {
 
     async fn all(&self) -> Result<Vec<Root<Activity>>, crate::Error> {
         let rm = self.read_model();
-        let stmt = rm.select();
+        let stmt = rm.select_columns(COLUMNS);
         let rows = rm.fetch_all_rows(&stmt).await?;
         let mut roots = Vec::with_capacity(rows.len());
         for row in rows {

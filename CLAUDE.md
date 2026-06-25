@@ -1,5 +1,7 @@
 # CLAUDE.md — Zeitrak
 
+@./CLAUDE.local.md
+
 This file is the authoritative reference for Claude when working on the Zeitrak codebase. Read it in full before writing or reviewing any code.
 
 ---

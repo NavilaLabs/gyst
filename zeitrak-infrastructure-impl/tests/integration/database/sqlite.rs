@@ -1,7 +1,6 @@
-use zeitrak_tests::TestFixture;
-
+#[cfg(not(feature = "postgres"))]
 pub mod tests {
-    use super::*;
+    use zeitrak_tests::TestFixture;
 
     /// Verifies that admin and tenant migrations run successfully on a fresh
     /// isolated database.  If any migration panics or fails, the test fails.

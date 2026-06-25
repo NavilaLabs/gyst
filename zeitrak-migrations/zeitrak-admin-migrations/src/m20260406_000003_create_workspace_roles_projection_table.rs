@@ -1,7 +1,4 @@
-use sea_orm_migration::{
-    prelude::*,
-    schema::{pk_uuid, string_null, uuid},
-};
+use sea_orm_migration::{prelude::*, schema::string_null};
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -14,8 +11,8 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table("projections__workspace_roles")
                     .if_not_exists()
-                    .col(pk_uuid("id"))
-                    .col(uuid("workspace_id"))
+                    .col(ColumnDef::new(Alias::new("id")).string().not_null().primary_key())
+                    .col(ColumnDef::new(Alias::new("workspace_id")).string().not_null())
                     .col(string_null("name"))
                     .foreign_key(
                         ForeignKey::create()

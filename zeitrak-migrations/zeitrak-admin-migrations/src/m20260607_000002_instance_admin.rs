@@ -158,13 +158,12 @@ impl MigrationTrait for Migration {
 
         // 4c. Grant all 26 workspace permissions to every "workspace_admin" role
         //     (covers both freshly renamed roles and pre-existing ones).
-        let perm_union = WORKSPACE_PERM_IDS
-            .iter()
-            .map(|id| format!("SELECT '{id}' AS pid"))
-            .collect::<Vec<_>>()
-            .join(" UNION ALL ");
-
         let grant_sql = if db == sea_orm::DatabaseBackend::Sqlite {
+            let perm_union = WORKSPACE_PERM_IDS
+                .iter()
+                .map(|id| format!("SELECT '{id}' AS pid"))
+                .collect::<Vec<_>>()
+                .join(" UNION ALL ");
             format!(
                 "INSERT OR IGNORE INTO projections__workspace_role_permissions \
                      (workspace_role_id, permission_id) \
@@ -175,6 +174,11 @@ impl MigrationTrait for Migration {
                    AND EXISTS (SELECT 1 FROM permissions WHERE id = p.pid)"
             )
         } else {
+            let perm_union = WORKSPACE_PERM_IDS
+                .iter()
+                .map(|id| format!("SELECT '{id}' AS pid"))
+                .collect::<Vec<_>>()
+                .join(" UNION ALL ");
             format!(
                 "INSERT INTO projections__workspace_role_permissions \
                      (workspace_role_id, permission_id) \

@@ -59,11 +59,21 @@ use zeitrak_infrastructure_impl::{
 #[cfg(feature = "postgres")]
 static PG_BASE_URL: tokio::sync::OnceCell<String> = tokio::sync::OnceCell::const_new();
 
+/// Returns the base `PostgreSQL` URL for test databases.
+///
+/// If `ZEITRAK_TEST_POSTGRES_URL` is set (e.g. `postgres://postgres:postgres@postgres:5432`),
+/// that URL is used directly — useful in devcontainers or CI where a Postgres
+/// instance is already running. Otherwise falls back to starting a testcontainer.
 #[cfg(feature = "postgres")]
 async fn pg_base_url() -> &'static str {
+    use testcontainers::runners::AsyncRunner as _;
+
     PG_BASE_URL
         .get_or_init(|| async {
-            use testcontainers::runners::AsyncRunner as _;
+            if let Ok(url) = std::env::var("ZEITRAK_TEST_POSTGRES_URL") {
+                return url;
+            }
+
             let container = testcontainers_modules::postgres::Postgres::default()
                 .start()
                 .await
@@ -72,8 +82,6 @@ async fn pg_base_url() -> &'static str {
                 .get_host_port_ipv4(5432)
                 .await
                 .expect("must get Postgres port");
-            // Leak the container so it lives for the entire test binary run.
-            // testcontainers removes the Docker container when the process exits.
             Box::leak(Box::new(container));
             format!("postgres://postgres:postgres@127.0.0.1:{port}")
         })
@@ -183,18 +191,20 @@ impl TestFixture {
             .await
             .expect("must connect to default postgres database");
 
-        // Postgres does not support parameters in CREATE DATABASE, so raw DDL
-        // with escaped identifiers is the correct approach here.
-        let create_admin = format!("CREATE DATABASE \"{admin_db}\"");
-        let create_tenant = format!("CREATE DATABASE \"{tenant_db}\"");
-        sqlx::query(sqlx::AssertSqlSafe(create_admin.as_str()))
-            .execute(&bootstrap)
-            .await
-            .unwrap_or_else(|e| panic!("must create admin test DB {admin_db}: {e}"));
-        sqlx::query(sqlx::AssertSqlSafe(create_tenant.as_str()))
-            .execute(&bootstrap)
-            .await
-            .unwrap_or_else(|e| panic!("must create tenant test DB {tenant_db}: {e}"));
+        // Drop leftover databases from previous runs, then create fresh ones.
+        for db in [&admin_db, &tenant_db] {
+            let drop = format!("DROP DATABASE IF EXISTS \"{db}\"");
+            sqlx::query(sqlx::AssertSqlSafe(drop.as_str()))
+                .execute(&bootstrap)
+                .await
+                .unwrap_or_else(|e| panic!("must drop test DB {db}: {e}"));
+
+            let create = format!("CREATE DATABASE \"{db}\"");
+            sqlx::query(sqlx::AssertSqlSafe(create.as_str()))
+                .execute(&bootstrap)
+                .await
+                .unwrap_or_else(|e| panic!("must create test DB {db}: {e}"));
+        }
 
         let admin_url = Url::parse(&format!("{base}/{admin_db}")).expect("admin URL must parse");
         let tenant_url = Url::parse(&format!("{base}/{tenant_db}")).expect("tenant URL must parse");

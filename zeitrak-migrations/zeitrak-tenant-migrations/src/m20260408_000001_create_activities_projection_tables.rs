@@ -1,6 +1,6 @@
 use sea_orm_migration::{
     prelude::*,
-    schema::{pk_uuid, string, string_null, timestamp_with_time_zone},
+    schema::{string, string_null, timestamp_with_time_zone},
 };
 
 #[derive(DeriveMigrationName)]
@@ -14,7 +14,7 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table("projections__activities")
                     .if_not_exists()
-                    .col(pk_uuid("id"))
+                    .col(ColumnDef::new(Alias::new("id")).string().not_null().primary_key())
                     .col(string("name"))
                     .col(string_null("comment"))
                     .col(timestamp_with_time_zone("created_at").default(Expr::current_timestamp()))

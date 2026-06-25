@@ -58,13 +58,12 @@ impl MigrationTrait for Migration {
         // Step 2: Assign the 6 standard permissions to all "standard" roles.
         // Only assigns permissions that are actually present in the permissions table
         // (guards against running this migration before the permission seed migration).
-        let perm_values = STANDARD_PERMISSION_IDS
-            .iter()
-            .map(|id| format!("SELECT '{id}' AS pid"))
-            .collect::<Vec<_>>()
-            .join(" UNION ALL ");
-
         let perm_insert = if db == sea_orm::DatabaseBackend::Sqlite {
+            let perm_values = STANDARD_PERMISSION_IDS
+                .iter()
+                .map(|id| format!("SELECT '{id}' AS pid"))
+                .collect::<Vec<_>>()
+                .join(" UNION ALL ");
             format!(
                 "INSERT OR IGNORE INTO projections__workspace_role_permissions (workspace_role_id, permission_id)
                  SELECT r.id, p.pid
@@ -74,6 +73,11 @@ impl MigrationTrait for Migration {
                    AND EXISTS (SELECT 1 FROM permissions WHERE id = p.pid)"
             )
         } else {
+            let perm_values = STANDARD_PERMISSION_IDS
+                .iter()
+                .map(|id| format!("SELECT '{id}' AS pid"))
+                .collect::<Vec<_>>()
+                .join(" UNION ALL ");
             format!(
                 "INSERT INTO projections__workspace_role_permissions (workspace_role_id, permission_id)
                  SELECT r.id, p.pid

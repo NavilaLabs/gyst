@@ -1,8 +1,8 @@
 use sea_orm_migration::{
     prelude::*,
     schema::{
-        integer_null, pk_uuid, string, string_null, timestamp_with_time_zone,
-        timestamp_with_time_zone_null, uuid, uuid_null,
+        integer_null, string, string_null, timestamp_with_time_zone,
+        timestamp_with_time_zone_null,
     },
 };
 
@@ -16,9 +16,9 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table("projections__timesheets")
-                    .col(pk_uuid("id"))
-                    .col(uuid("user_id"))
-                    .col(uuid_null("activity_id"))
+                    .col(ColumnDef::new(Alias::new("id")).string().not_null().primary_key())
+                    .col(ColumnDef::new(Alias::new("user_id")).string().not_null())
+                    .col(ColumnDef::new(Alias::new("activity_id")).string())
                     .col(timestamp_with_time_zone("start_time"))
                     .col(timestamp_with_time_zone_null("end_time"))
                     .col(integer_null("duration"))

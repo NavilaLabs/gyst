@@ -1,7 +1,4 @@
-use sea_orm_migration::{
-    prelude::*,
-    schema::{pk_uuid, string, uuid},
-};
+use sea_orm_migration::{prelude::*, schema::string};
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -14,7 +11,7 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table("projections__timesheet_tags")
                     .if_not_exists()
-                    .col(pk_uuid("id"))
+                    .col(ColumnDef::new(Alias::new("id")).string().not_null().primary_key())
                     .col(string("name").unique_key())
                     .to_owned(),
             )
@@ -25,8 +22,8 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table("projections__timesheet_has_tags")
                     .if_not_exists()
-                    .col(uuid("timesheet_id"))
-                    .col(uuid("timesheet_tag_id"))
+                    .col(ColumnDef::new(Alias::new("timesheet_id")).string().not_null())
+                    .col(ColumnDef::new(Alias::new("timesheet_tag_id")).string().not_null())
                     .primary_key(Index::create().col("timesheet_id").col("timesheet_tag_id"))
                     // No FK on timesheet_id: timesheets may not yet be in the projection table
                     // when a tag event arrives; referential integrity is maintained at the app level.

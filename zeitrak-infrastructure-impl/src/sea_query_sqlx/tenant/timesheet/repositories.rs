@@ -5,7 +5,7 @@ use eventually::aggregate::repository::{GetError, Getter, SaveError, Saver};
 use eventually::aggregate::{Aggregate, Root};
 use eventually::serde::Json;
 use eventually_any::snapshot::Repository;
-use sea_query::{Alias, Condition, Expr, ExprTrait, Order};
+use sea_query::{Alias, Condition, Expr, ExprTrait, Order, SelectStatement};
 use sqlx::{Row, any::AnyRow};
 use zeitrak_core::admin::user::UserId;
 use zeitrak_core::shared::repositories::{ReadRepository, RowToRoot, WriteRepository};
@@ -56,6 +56,22 @@ impl TimesheetRepository {
         SeaQueryReadModel::new(&self.store.pool, TABLE)
     }
 
+    /// Builds `SELECT` with explicit columns, casting `TIMESTAMPTZ` to `TEXT`
+    /// so the `SQLx` `Any` driver can decode them.
+    fn base_select() -> SelectStatement {
+        let mut stmt = sea_query::Query::select();
+        for col in ["id", "user_id", "activity_id", "duration", "description", "timezone"] {
+            stmt.column(Alias::new(col));
+        }
+        for col in ["start_time", "end_time", "cancelled_at"] {
+            stmt.expr_as(
+                Expr::col(Alias::new(col)).cast_as(Alias::new("TEXT")),
+                Alias::new(col),
+            );
+        }
+        stmt.from(TABLE).to_owned()
+    }
+
     /// Returns a page of non-cancelled timesheets for a user, newest first.
     ///
     /// Returns `(rows, total_count)` where `total_count` is the full un-paged count.
@@ -76,8 +92,7 @@ impl TimesheetRepository {
         let total = rm
             .count_rows(&rm.select_count().cond_where(filter.clone()).to_owned())
             .await?;
-        let stmt = rm
-            .select()
+        let stmt = Self::base_select()
             .cond_where(filter)
             .order_by(Alias::new("start_time"), Order::Desc)
             .limit(u64::from(page_size))
@@ -113,8 +128,7 @@ impl TimesheetRepository {
         let total = rm
             .count_rows(&rm.select_count().cond_where(filter.clone()).to_owned())
             .await?;
-        let stmt = rm
-            .select()
+        let stmt = Self::base_select()
             .cond_where(filter)
             .order_by(Alias::new("start_time"), Order::Desc)
             .limit(u64::from(page_size))
@@ -147,8 +161,7 @@ impl TimesheetRepository {
         if let Some(uid) = member_id {
             filter = filter.add(Expr::col("user_id").eq(uid));
         }
-        let stmt = rm
-            .select()
+        let stmt = Self::base_select()
             .cond_where(filter)
             .order_by(Alias::new("start_time"), Order::Desc)
             .to_owned();
@@ -166,8 +179,7 @@ impl TimesheetRepository {
         user_id: &str,
     ) -> Result<Option<TimesheetRow>, crate::Error> {
         let rm = self.read_model();
-        let stmt = rm
-            .select()
+        let stmt = Self::base_select()
             .cond_where(
                 Condition::all()
                     .add(Expr::col("user_id").eq(user_id))
@@ -211,8 +223,7 @@ impl TimesheetRepository {
         let total = rm
             .count_rows(&rm.select_count().cond_where(filter.clone()).to_owned())
             .await?;
-        let stmt = rm
-            .select()
+        let stmt = Self::base_select()
             .cond_where(filter)
             .order_by(Alias::new("start_time"), Order::Desc)
             .limit(u64::from(page_size))
@@ -252,8 +263,7 @@ impl TimesheetRepository {
         if let Some(t) = to {
             filter = filter.add(Expr::col("start_time").lte(t));
         }
-        let stmt = rm
-            .select()
+        let stmt = Self::base_select()
             .cond_where(filter)
             .order_by(Alias::new("start_time"), Order::Desc)
             .to_owned();
@@ -366,7 +376,7 @@ impl ReadRepository<Timesheet, AnyRow> for TimesheetRepository {
 
     async fn find_by(&self, filter: Condition) -> Result<Option<Root<Timesheet>>, crate::Error> {
         let rm = self.read_model();
-        let stmt = rm.select().cond_where(filter).to_owned();
+        let stmt = Self::base_select().cond_where(filter).to_owned();
         let row = rm.fetch_optional_row(&stmt).await?;
         if let Some(row) = row {
             Ok(Some(self.row_to_root_versioned(row).await?))
@@ -386,7 +396,7 @@ impl ReadRepository<Timesheet, AnyRow> for TimesheetRepository {
 
     async fn find_many_by(&self, filter: Condition) -> Result<Vec<Root<Timesheet>>, crate::Error> {
         let rm = self.read_model();
-        let stmt = rm.select().cond_where(filter).to_owned();
+        let stmt = Self::base_select().cond_where(filter).to_owned();
         let rows = rm.fetch_all_rows(&stmt).await?;
         let mut roots = Vec::with_capacity(rows.len());
         for row in rows {
@@ -397,7 +407,7 @@ impl ReadRepository<Timesheet, AnyRow> for TimesheetRepository {
 
     async fn all(&self) -> Result<Vec<Root<Timesheet>>, crate::Error> {
         let rm = self.read_model();
-        let stmt = rm.select();
+        let stmt = Self::base_select();
         let rows = rm.fetch_all_rows(&stmt).await?;
         let mut roots = Vec::with_capacity(rows.len());
         for row in rows {

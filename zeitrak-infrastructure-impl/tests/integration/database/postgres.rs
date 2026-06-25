@@ -1,222 +1,214 @@
-use sqlx::AssertSqlSafe;
-use tracing::info;
-use url::Url;
-use zeitrak_infrastructure::{
-    config::CONFIG,
-    database::{
-        DatabaseUri, Migrate, TenantDatabaseNameBuilder, TenantDatabaseNameConcreteBuilder,
-        TenantDatabaseNameDirector,
-    },
-};
-use zeitrak_infrastructure_impl::{
-    Error, {Pool, ScopeAdmin, ScopeTenant, StateConnected},
-};
-
-use super::{ConnectedDefaultPool, initialize_databases};
-
-/// Escapes a `PostgreSQL` quoted identifier by doubling any embedded double-quote
-/// characters.  The resulting string is safe to embed between `"..."` delimiters
-/// in a dynamically-built SQL statement.
-///
-/// `PostgreSQL` does not support parameterised identifiers (only values can be
-/// bound with `$N`), so this is the correct way to handle untrusted or
-/// config-sourced database names.
-fn escape_pg_identifier(name: &str) -> String {
-    name.replace('"', "\"\"")
-}
-
-/// Escapes a string for use as the left-hand side of a `PostgreSQL` `LIKE` pattern
-/// by prefixing `%`, `_`, and `\` with a backslash escape character.
-fn escape_pg_like_prefix(prefix: &str) -> String {
-    prefix
-        .replace('\\', "\\\\")
-        .replace('%', "\\%")
-        .replace('_', "\\_")
-}
-
-#[allow(dead_code)]
-async fn reset_entire_database(pool: &ConnectedDefaultPool) -> Result<(), Error> {
-    sqlx::query(
-        "SELECT pg_terminate_backend(pid) FROM pg_stat_activity
-         WHERE datname LIKE 'test_zeitrak_%' AND pid <> pg_backend_pid()",
-    )
-    .execute(pool.as_ref())
-    .await?;
-
-    let admin_database_name = CONFIG.database().databases().admin().name();
-    let safe_admin_name = escape_pg_identifier(admin_database_name);
-    sqlx::query(AssertSqlSafe(
-        format!("DROP DATABASE IF EXISTS \"{safe_admin_name}\"").as_str(),
-    ))
-    .execute(pool.as_ref())
-    .await?;
-
-    let tenant_database_name_prefix = CONFIG.database().databases().tenant().name_prefix();
-    let safe_prefix = escape_pg_like_prefix(tenant_database_name_prefix);
-    let tenants: Vec<(String,)> = sqlx::query_as(AssertSqlSafe(
-        format!(
-            "SELECT datname::TEXT FROM pg_database WHERE datname LIKE '{safe_prefix}%' ESCAPE '\\'"
-        )
-        .as_str(),
-    ))
-    .fetch_all(pool.as_ref())
-    .await?;
-
-    for (tenant_name,) in tenants {
-        let safe_tenant_name = escape_pg_identifier(&tenant_name);
-        let drop_query = format!("DROP DATABASE CASCADE IF EXISTS \"{safe_tenant_name}\"");
-        sqlx::query(AssertSqlSafe(drop_query.as_str()))
-            .execute(pool.as_ref())
-            .await?;
-    }
-
-    Ok(())
-}
-
-#[allow(dead_code)]
-async fn uefault_pool() -> Result<ConnectedDefaultPool, Error> {
-    let database_url = "postgres://postgres:postgres@postgres-test:5432/postgres";
-    Pool::connect(&DatabaseUri::from(Url::parse(database_url).unwrap())).await
-}
-
-#[allow(dead_code)]
-async fn get_admin_pool() -> Result<Pool<ScopeAdmin, StateConnected>, Error> {
-    let admin_database_name = CONFIG.database().databases().admin().name();
-    let database_url =
-        format!("postgres://postgres:postgres@postgres-test:5432/{admin_database_name}");
-    Pool::connect(&DatabaseUri::from(Url::parse(&database_url).unwrap())).await
-}
-
-#[allow(dead_code)]
-async fn get_tenant_pool(tenant_token: &str) -> Result<Pool<ScopeTenant, StateConnected>, Error> {
-    let mut database_name_builder = TenantDatabaseNameConcreteBuilder::new();
-    TenantDatabaseNameDirector::construct(&mut database_name_builder, tenant_token);
-    let database_name = database_name_builder.tenant_database_name();
-    let database_url = format!("postgres://postgres:postgres@postgres-test:5432/{database_name}");
-    Pool::connect(&DatabaseUri::from(Url::parse(&database_url).unwrap())).await
-}
-
-#[allow(dead_code)]
-pub async fn refresh_databases(
-    pool: &ConnectedDefaultPool,
-    tenant_token: &str,
-) -> Result<(), Error> {
-    reset_entire_database(pool).await?;
-    info!("Database successfully reseted!");
-    initialize_databases(pool, tenant_token).await?;
-    info!("Database successfully initialized!");
-
-    let admin_pool = get_admin_pool().await?;
-    admin_pool.migrate_database().await?;
-    let tenant_template_pool = get_tenant_pool(tenant_token).await?;
-    tenant_template_pool.migrate_database().await?;
-    info!("Database successfully refreshed!");
-
-    Ok(())
-}
-
+#[cfg(feature = "postgres")]
 pub mod tests {
-    #[allow(unused_imports)]
-    use serial_test::serial;
-    #[allow(unused_imports)]
-    use with_lifecycle::with_lifecycle;
+    use zeitrak_tests::TestFixture;
 
-    #[allow(unused_imports)]
-    use crate::database::test_lifecycle;
-
-    #[allow(unused_imports)]
-    use super::*;
-
-    // #[serial]
-    // #[with_lifecycle(test_lifecycle)]
-    // #[tokio::test]
-    // async fn test_setup_postgres_database() -> Result<(), Error> {
-    //     let default_pool = get_default_pool().await?;
-    //     refresh_databases(&default_pool, "test_token").await?;
-
-    //     Ok(())
-    // }
-}
-
-// ── Unit tests for SQL identifier / LIKE-pattern escaping ─────────────────────
-
-#[cfg(test)]
-mod escape_tests {
-    use super::{escape_pg_identifier, escape_pg_like_prefix};
-
-    // ── escape_pg_identifier ──────────────────────────────────────────────────
-
-    #[test]
-    fn plain_name_is_unchanged() {
-        assert_eq!(escape_pg_identifier("zeitrak_admin"), "zeitrak_admin");
+    /// Verifies that all admin and tenant migrations run successfully on a fresh
+    /// `PostgreSQL` database via testcontainers.
+    #[tokio::test]
+    async fn test_setup_postgres_database() {
+        let _db = TestFixture::setup().await;
     }
 
-    #[test]
-    fn embedded_double_quote_is_doubled() {
-        // A name like `zeitrak"admin` becomes `zeitrak""admin` inside "..." delimiters.
-        assert_eq!(escape_pg_identifier("zeitrak\"admin"), "zeitrak\"\"admin");
+    /// Verify that the expected admin tables exist after migrations.
+    #[tokio::test]
+    async fn test_admin_tables_visible_after_setup() {
+        let db = TestFixture::setup().await;
+        let rows: Vec<(String,)> = sqlx::query_as(
+            "SELECT table_name::text FROM information_schema.tables \
+             WHERE table_schema = 'public' ORDER BY table_name",
+        )
+        .fetch_all(db.admin.as_ref())
+        .await
+        .expect("information_schema query must succeed");
+
+        let names: Vec<&str> = rows.iter().map(|(n,)| n.as_str()).collect();
+
+        let expected = [
+            "event_streams",
+            "events",
+            "snapshots",
+            "permissions",
+            "projections__users",
+            "projections__workspaces",
+            "projections__workspace_roles",
+            "projections__workspace_user_roles",
+            "projections__invitations",
+            "smtp_config",
+            "waitlist_signups",
+            "plugin_audit",
+        ];
+
+        for table in expected {
+            assert!(
+                names.contains(&table),
+                "{table} must exist after admin setup, found: {names:?}"
+            );
+        }
     }
 
-    #[test]
-    fn multiple_double_quotes_are_all_doubled() {
-        assert_eq!(escape_pg_identifier("a\"b\"c"), "a\"\"b\"\"c");
+    /// Verify that the expected tenant tables exist after migrations.
+    #[tokio::test]
+    async fn test_tenant_tables_visible_after_setup() {
+        let db = TestFixture::setup().await;
+        let rows: Vec<(String,)> = sqlx::query_as(
+            "SELECT table_name::text FROM information_schema.tables \
+             WHERE table_schema = 'public' ORDER BY table_name",
+        )
+        .fetch_all(db.tenant.as_ref())
+        .await
+        .expect("information_schema query must succeed");
+
+        let names: Vec<&str> = rows.iter().map(|(n,)| n.as_str()).collect();
+
+        let expected = [
+            "event_streams",
+            "events",
+            "snapshots",
+            "projections__activities",
+            "projections__timesheets",
+            "projections__timesheet_tags",
+            "projections__timesheet_has_tags",
+        ];
+
+        for table in expected {
+            assert!(
+                names.contains(&table),
+                "{table} must exist after tenant setup, found: {names:?}"
+            );
+        }
     }
 
-    /// Injection attempt: `" DROP DATABASE real_db; --`
-    ///
-    /// After escaping the `"` becomes `""`.  When embedded as `"<escaped>"` the
-    /// `PostgreSQL` parser reads `""` as a single escaped double-quote character
-    /// inside the identifier, not as a closing delimiter.  The rest of the
-    /// injection string becomes part of the (weirdly named) identifier, not
-    /// SQL that executes.
-    ///
-    /// We verify the invariant directly: every `"` in the input must become `""`
-    /// in the output, so the quote count doubles.
-    #[test]
-    fn injection_via_quote_is_neutralised() {
-        let malicious = "\" DROP DATABASE real_db; --";
-        let escaped = escape_pg_identifier(malicious);
+    /// Verify that UUID columns have the correct `PostgreSQL` `uuid` type (not text).
+    #[tokio::test]
+    async fn test_uuid_columns_have_correct_type() {
+        let db = TestFixture::setup().await;
 
-        let original_quotes = malicious.chars().filter(|&c| c == '"').count();
-        let escaped_quotes = escaped.chars().filter(|&c| c == '"').count();
+        let uuid_columns = [
+            ("projections__users", "id"),
+            ("projections__workspaces", "id"),
+            ("projections__workspace_roles", "id"),
+            ("projections__workspace_roles", "workspace_id"),
+            ("projections__invitations", "id"),
+            ("projections__invitations", "workspace_id"),
+            ("projections__invitations", "invited_by"),
+            ("projections__invitations", "workspace_role_id"),
+        ];
 
-        assert_eq!(
-            escaped_quotes,
-            original_quotes * 2,
-            "each '\"' in the original must become '\"\"' in the escaped output: {escaped:?}"
+        for (table, column) in uuid_columns {
+            let row: (String,) = sqlx::query_as(
+                "SELECT data_type::text FROM information_schema.columns \
+                 WHERE table_schema = 'public' AND table_name = $1::text AND column_name = $2::text",
+            )
+            .bind(table)
+            .bind(column)
+            .fetch_one(db.admin.as_ref())
+            .await
+            .unwrap_or_else(|e| panic!("must find column {table}.{column}: {e}"));
+
+            assert_eq!(
+                row.0, "uuid",
+                "{table}.{column} must be uuid type, got: {}",
+                row.0
+            );
+        }
+    }
+
+    /// Verify that permission seeds ran correctly on `PostgreSQL`.
+    #[tokio::test]
+    async fn test_permissions_seeded() {
+        let db = TestFixture::setup().await;
+
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM permissions")
+            .fetch_one(db.admin.as_ref())
+            .await
+            .expect("must count permissions");
+
+        assert!(
+            count.0 > 0,
+            "permissions table must be seeded after setup, found 0 rows"
         );
     }
 
-    // ── escape_pg_like_prefix ─────────────────────────────────────────────────
+    /// Verify that foreign key constraints are enforced on `PostgreSQL`.
+    /// Inserting an invitation with a non-existent `workspace_id` must fail.
+    #[tokio::test]
+    async fn test_foreign_key_constraints_enforced() {
+        let db = TestFixture::setup().await;
 
-    #[test]
-    fn plain_prefix_is_unchanged() {
-        assert_eq!(escape_pg_like_prefix("test_zeitrak_"), "test\\_zeitrak\\_");
+        let result = sqlx::query(
+            "INSERT INTO projections__invitations \
+                 (id, workspace_id, invited_by, email, workspace_role_id, token, status, expires_at) \
+             VALUES \
+                 ('00000000-0000-0000-0000-000000000001'::uuid, \
+                  '00000000-0000-0000-0000-000000000099'::uuid, \
+                  '00000000-0000-0000-0000-000000000099'::uuid, \
+                  'test@example.com', \
+                  '00000000-0000-0000-0000-000000000099'::uuid, \
+                  'tok_test', 'pending', '2099-01-01T00:00:00Z')",
+        )
+        .execute(db.admin.as_ref())
+        .await;
+
+        assert!(
+            result.is_err(),
+            "INSERT with non-existent `workspace_id` must fail due to FK constraint"
+        );
     }
 
-    #[test]
-    fn percent_in_prefix_is_escaped() {
-        assert_eq!(escape_pg_like_prefix("foo%bar"), "foo\\%bar");
+    /// Verify that UUID round-trip works: insert a row with UUID values, then
+    /// read it back and confirm the values match.
+    #[tokio::test]
+    async fn test_uuid_round_trip() {
+        let db = TestFixture::setup().await;
+
+        let workspace_id = "019d0ce8-facb-7c90-b9d7-287ae4f17c91";
+        sqlx::query("INSERT INTO projections__workspaces (id, name) VALUES ($1::uuid, $2)")
+            .bind(workspace_id)
+            .bind("Test Workspace")
+            .execute(db.admin.as_ref())
+            .await
+            .expect("must insert workspace");
+
+        let row: (String,) =
+            sqlx::query_as("SELECT id::text FROM projections__workspaces WHERE id = $1::uuid")
+                .bind(workspace_id)
+                .fetch_one(db.admin.as_ref())
+                .await
+                .expect("must read workspace back");
+
+        assert_eq!(row.0, workspace_id);
     }
 
-    #[test]
-    fn underscore_in_prefix_is_escaped() {
-        assert_eq!(escape_pg_like_prefix("foo_bar"), "foo\\_bar");
-    }
+    /// Verify that tenant UUID columns also have the correct type.
+    #[tokio::test]
+    async fn test_tenant_uuid_columns_have_correct_type() {
+        let db = TestFixture::setup().await;
 
-    #[test]
-    fn backslash_in_prefix_is_escaped_first() {
-        // `\` must be escaped before `%` and `_` so that the added `\` characters
-        // are not themselves re-escaped.
-        assert_eq!(escape_pg_like_prefix("a\\b%c_d"), "a\\\\b\\%c\\_d");
-    }
+        let uuid_columns = [
+            ("projections__activities", "id"),
+            ("projections__timesheets", "id"),
+            ("projections__timesheets", "user_id"),
+            ("projections__timesheet_tags", "id"),
+            ("projections__timesheet_has_tags", "timesheet_id"),
+            ("projections__timesheet_has_tags", "timesheet_tag_id"),
+        ];
 
-    /// Injection via LIKE wildcards: `%` alone would match all databases.
-    /// After escaping it becomes `\%` which matches only a literal `%`.
-    #[test]
-    fn wildcard_injection_is_neutralised() {
-        let malicious = "%";
-        let escaped = escape_pg_like_prefix(malicious);
-        assert_eq!(escaped, "\\%");
+        for (table, column) in uuid_columns {
+            let row: (String,) = sqlx::query_as(
+                "SELECT data_type::text FROM information_schema.columns \
+                 WHERE table_schema = 'public' AND table_name = $1::text AND column_name = $2::text",
+            )
+            .bind(table)
+            .bind(column)
+            .fetch_one(db.tenant.as_ref())
+            .await
+            .unwrap_or_else(|e| panic!("must find column {table}.{column}: {e}"));
+
+            assert_eq!(
+                row.0, "uuid",
+                "{table}.{column} must be uuid type, got: {}",
+                row.0
+            );
+        }
     }
 }

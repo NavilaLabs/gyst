@@ -1,4 +1,4 @@
-use sea_query::{Expr, Func, SelectStatement};
+use sea_query::{Alias, Expr, Func, SelectStatement};
 use sqlx::{AssertSqlSafe, Row, any::AnyRow};
 
 use super::{ConnectedAdminPool, ConnectionProvider};
@@ -26,6 +26,20 @@ impl<'a, P: ConnectionProvider> SeaQueryReadModel<'a, P> {
             .expr(Expr::col(sea_query::Asterisk))
             .from(self.table)
             .to_owned()
+    }
+
+    /// `SELECT <columns> FROM <table>` base statement.
+    ///
+    /// Use instead of [`select`](Self::select) when the table contains
+    /// column types the `SQLx` `Any` driver cannot decode (e.g. Postgres
+    /// `TIMESTAMPTZ`).
+    #[must_use]
+    pub fn select_columns(&self, columns: &[&str]) -> SelectStatement {
+        let mut stmt = sea_query::Query::select();
+        for col in columns {
+            stmt.column(Alias::new(*col));
+        }
+        stmt.from(self.table).to_owned()
     }
 
     /// `SELECT COUNT(*) FROM <table>` base statement.

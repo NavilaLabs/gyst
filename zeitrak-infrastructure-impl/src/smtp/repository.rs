@@ -3,7 +3,7 @@ use chrono::Utc;
 use sqlx::Row as _;
 use zeitrak_infrastructure::email::{PersistedSmtpConfig, SmtpAuthMethod, SmtpConfigRepository};
 
-use crate::{ConnectedAdminPool, smtp::encryption};
+use crate::{ConnectedAdminPool, DatabaseType, smtp::encryption};
 
 /// Reads and writes the single-row `smtp_config` table in the admin database.
 ///
@@ -109,23 +109,60 @@ impl SmtpConfigRepository for SmtpConfigRepositoryImpl {
 
         let oauth2_authorized: i64 = i64::from(config.oauth2_authorized);
 
-        sqlx::query(
-            "INSERT OR REPLACE INTO smtp_config (
-                id, auth_method, host, port, username, from_address, use_tls,
-                encrypted_password, password_nonce,
-                oauth2_client_id, oauth2_tenant_id, oauth2_smtp_email,
-                encrypted_client_secret, client_secret_nonce,
-                encrypted_refresh_token, refresh_token_nonce,
-                oauth2_authorized, updated_at
-            ) VALUES (
-                1, ?, ?, ?, ?, ?, ?,
-                ?, ?,
-                ?, ?, ?,
-                ?, ?,
-                ?, ?,
-                ?, ?
-            )",
-        )
+        let sql = match self.pool.database_type() {
+            DatabaseType::Sqlite => {
+                "INSERT OR REPLACE INTO smtp_config (
+                    id, auth_method, host, port, username, from_address, use_tls,
+                    encrypted_password, password_nonce,
+                    oauth2_client_id, oauth2_tenant_id, oauth2_smtp_email,
+                    encrypted_client_secret, client_secret_nonce,
+                    encrypted_refresh_token, refresh_token_nonce,
+                    oauth2_authorized, updated_at
+                ) VALUES (
+                    1, $1, $2, $3, $4, $5, $6,
+                    $7, $8,
+                    $9, $10, $11,
+                    $12, $13,
+                    $14, $15,
+                    $16, $17
+                )"
+            }
+            DatabaseType::Postgres => {
+                "INSERT INTO smtp_config (
+                    id, auth_method, host, port, username, from_address, use_tls,
+                    encrypted_password, password_nonce,
+                    oauth2_client_id, oauth2_tenant_id, oauth2_smtp_email,
+                    encrypted_client_secret, client_secret_nonce,
+                    encrypted_refresh_token, refresh_token_nonce,
+                    oauth2_authorized, updated_at
+                ) VALUES (
+                    1, $1, $2, $3, $4, $5, $6,
+                    $7, $8,
+                    $9, $10, $11,
+                    $12, $13,
+                    $14, $15,
+                    $16, $17
+                ) ON CONFLICT (id) DO UPDATE SET
+                    auth_method = EXCLUDED.auth_method,
+                    host = EXCLUDED.host,
+                    port = EXCLUDED.port,
+                    username = EXCLUDED.username,
+                    from_address = EXCLUDED.from_address,
+                    use_tls = EXCLUDED.use_tls,
+                    encrypted_password = EXCLUDED.encrypted_password,
+                    password_nonce = EXCLUDED.password_nonce,
+                    oauth2_client_id = EXCLUDED.oauth2_client_id,
+                    oauth2_tenant_id = EXCLUDED.oauth2_tenant_id,
+                    oauth2_smtp_email = EXCLUDED.oauth2_smtp_email,
+                    encrypted_client_secret = EXCLUDED.encrypted_client_secret,
+                    client_secret_nonce = EXCLUDED.client_secret_nonce,
+                    encrypted_refresh_token = EXCLUDED.encrypted_refresh_token,
+                    refresh_token_nonce = EXCLUDED.refresh_token_nonce,
+                    oauth2_authorized = EXCLUDED.oauth2_authorized,
+                    updated_at = EXCLUDED.updated_at"
+            }
+        };
+        sqlx::query(sql)
         .bind(auth_method)
         .bind(&config.host)
         .bind(i64::from(config.port))

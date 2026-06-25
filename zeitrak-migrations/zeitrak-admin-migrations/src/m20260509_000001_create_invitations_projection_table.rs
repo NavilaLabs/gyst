@@ -11,24 +11,11 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Alias::new("projections__invitations"))
                     .if_not_exists()
-                    .col(
-                        ColumnDef::new(Alias::new("id"))
-                            .string()
-                            .not_null()
-                            .primary_key(),
-                    )
-                    .col(
-                        ColumnDef::new(Alias::new("workspace_id"))
-                            .string()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Alias::new("id")).string().not_null().primary_key())
+                    .col(ColumnDef::new(Alias::new("workspace_id")).string().not_null())
                     .col(ColumnDef::new(Alias::new("invited_by")).string().not_null())
                     .col(ColumnDef::new(Alias::new("email")).string().not_null())
-                    .col(
-                        ColumnDef::new(Alias::new("workspace_role_id"))
-                            .string()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Alias::new("workspace_role_id")).string().not_null())
                     .col(
                         ColumnDef::new(Alias::new("token"))
                             .string()

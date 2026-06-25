@@ -2,7 +2,7 @@ use anyhow::Result;
 use chrono::Utc;
 use uuid::Uuid;
 use zeitrak_infrastructure::email::EmailSender;
-use zeitrak_infrastructure_impl::Pool;
+use zeitrak_infrastructure_impl::{DatabaseType, Pool};
 
 /// Adds an email address to the waitlist using the globally configured admin pool.
 ///
