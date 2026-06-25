@@ -3,14 +3,13 @@ use crate::components::atoms::{
     Button, ButtonVariant, Input, SearchableSelect, Select, SelectOption, ToastExt, Toasts,
 };
 use crate::layouts::DefaultLayout;
-use crate::PluginHostCtx;
+// use crate::PluginHostCtx;
 use api::invitation::InvitationDto;
 use api::member::MemberDto;
 use api::permissions::PermissionDto;
 use api::workspace_role::WorkspaceRoleDto;
 use chrono::NaiveDate;
 use dioxus::prelude::*;
-use dioxus_extism_frontend::PluginSlot;
 use dioxus_free_icons::icons::hi_solid_icons::{
     HiBadgeCheck, HiBell, HiCheck, HiDownload, HiMail, HiOfficeBuilding, HiPencil, HiPlus,
     HiRefresh, HiSave, HiShieldCheck, HiTag, HiTrash, HiUser, HiUsers, HiX,
@@ -651,8 +650,7 @@ pub fn Settings() -> Element {
                         }
                         } // end settings-card-disabled (Security)
 
-                        // Plugin-contributed user settings sections (§12.2 — settings.sections).
-                        PluginSlot::<PluginHostCtx> { name: "settings.sections".to_string() }
+                        // PluginSlot::<PluginHostCtx> { name: "settings.sections".to_string() }
                     }
                 }
 
@@ -990,8 +988,7 @@ pub fn Settings() -> Element {
                             }
                         }
 
-                        // Plugin-contributed workspace settings sections (§12.2 — workspace.settings.sections).
-                        PluginSlot::<PluginHostCtx> { name: "workspace.settings.sections".to_string() }
+                        // PluginSlot::<PluginHostCtx> { name: "workspace.settings.sections".to_string() }
                     }
                 }
 

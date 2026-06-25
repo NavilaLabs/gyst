@@ -1,21 +1,29 @@
 use anyhow::Result;
 use zeitrak_core::admin::user::{UserCommand, UserCommandTrait, UserId, UserQuery, UserQueryTrait};
 use zeitrak_infrastructure::database::Migrate;
+#[cfg(feature = "postgres")]
+use zeitrak_infrastructure_impl::database::PostgresInitializationStrategy;
+#[cfg(feature = "sqlite")]
+use zeitrak_infrastructure_impl::database::SqliteInitializationStrategy;
 use zeitrak_infrastructure_impl::{
     Pool, ScopeDefault, StateDisconnected,
     admin::{authentication::hash_password, user::repositories::UserRepository},
-    database::{Initializer, SqliteInitializationStrategy},
+    database::Initializer,
 };
 
 use crate::workspace::create_workspace_for_user;
 
-/// Ensures the admin `SQLite` file exists and all migrations are up to date.
+/// Ensures the admin database exists and all migrations are up to date.
 /// Call once at server startup before accepting requests.
 pub async fn init_admin_db() -> Result<()> {
     // Create the file if it doesn't exist.
     let default_pool = Pool::<ScopeDefault, StateDisconnected>::connect_default().await?;
-    let ini = Initializer::new(SqliteInitializationStrategy);
-    ini.initialize_admin(&default_pool).await?;
+    #[cfg(feature = "sqlite")]
+    let initializer = Initializer::new(SqliteInitializationStrategy);
+    #[cfg(feature = "postgres")]
+    let initializer = Initializer::new(PostgresInitializationStrategy);
+    #[cfg(any(feature = "sqlite", feature = "postgres"))]
+    initializer.initialize_admin(&default_pool).await?;
 
     // Run pending migrations.
     let admin_pool = Pool::connect_admin().await?;

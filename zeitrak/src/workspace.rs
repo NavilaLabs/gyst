@@ -24,8 +24,12 @@ use zeitrak_infrastructure_impl::{
         workspace::repositories::WorkspaceRepository,
         workspace_role::repositories::WorkspaceRoleRepository,
     },
-    database::{Initializer, SqliteInitializationStrategy},
+    database::Initializer,
 };
+#[cfg(feature = "sqlite")]
+use zeitrak_infrastructure_impl::database::SqliteInitializationStrategy;
+#[cfg(feature = "postgres")]
+use zeitrak_infrastructure_impl::database::PostgresInitializationStrategy;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkspaceInfo {
@@ -43,11 +47,11 @@ pub async fn create_workspace_for_user(
     user_id: UserId,
     workspace_name: String,
 ) -> Result<WorkspaceId> {
-    crate::plugin_hooks::run_pre(
-        "workspace.Create",
-        serde_json::json!({ "user_id": user_id.to_string(), "workspace_name": workspace_name }),
-    )
-    .await?;
+    // crate::plugin_hooks::run_pre(
+    //     "workspace.Create",
+    //     serde_json::json!({ "user_id": user_id.to_string(), "workspace_name": workspace_name }),
+    // )
+    // .await?;
 
     let pool = Pool::connect_admin().await?;
 
@@ -160,18 +164,23 @@ pub async fn create_workspace_for_user(
     }
 
     let default_pool = Pool::<ScopeDefault, StateDisconnected>::connect_default().await?;
+    #[cfg(feature = "sqlite")]
     Initializer::new(SqliteInitializationStrategy)
+        .initialize_tenant(&default_pool, Some(&workspace_id.to_string()))
+        .await?;
+    #[cfg(feature = "postgres")]
+    Initializer::new(PostgresInitializationStrategy)
         .initialize_tenant(&default_pool, Some(&workspace_id.to_string()))
         .await?;
     let tenant_pool =
         Pool::<ScopeTenant, StateDisconnected>::connect_tenant(&workspace_id.to_string()).await?;
     tenant_pool.migrate_database().await?;
 
-    crate::plugin_hooks::run_post(
-        "workspace.Create",
-        &serde_json::json!({ "workspace_id": workspace_id.to_string() }),
-    )
-    .await;
+    // crate::plugin_hooks::run_post(
+    //     "workspace.Create",
+    //     &serde_json::json!({ "workspace_id": workspace_id.to_string() }),
+    // )
+    // .await;
 
     Ok(workspace_id)
 }
@@ -248,11 +257,11 @@ pub async fn update_workspace_settings(
     currency: String,
     week_start: String,
 ) -> Result<()> {
-    crate::plugin_hooks::run_pre(
-        "workspace.UpdateSettings",
-        serde_json::json!({ "workspace_id": workspace_id }),
-    )
-    .await?;
+    // crate::plugin_hooks::run_pre(
+    //     "workspace.UpdateSettings",
+    //     serde_json::json!({ "workspace_id": workspace_id }),
+    // )
+    // .await?;
 
     let pool = Pool::connect_admin().await?;
     let repo = WorkspaceRepository::from_pool(pool).await?;
@@ -263,11 +272,11 @@ pub async fn update_workspace_settings(
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    crate::plugin_hooks::run_post(
-        "workspace.UpdateSettings",
-        &serde_json::json!({ "workspace_id": workspace_id }),
-    )
-    .await;
+    // crate::plugin_hooks::run_post(
+    //     "workspace.UpdateSettings",
+    //     &serde_json::json!({ "workspace_id": workspace_id }),
+    // )
+    // .await;
     Ok(())
 }
 
@@ -280,11 +289,11 @@ pub async fn create_role(workspace_id: &str, name: String) -> Result<WorkspaceRo
     if name.trim().is_empty() {
         anyhow::bail!("role name must not be empty");
     }
-    crate::plugin_hooks::run_pre(
-        "workspace_role.Create",
-        serde_json::json!({ "workspace_id": workspace_id, "name": name }),
-    )
-    .await?;
+    // crate::plugin_hooks::run_pre(
+    //     "workspace_role.Create",
+    //     serde_json::json!({ "workspace_id": workspace_id, "name": name }),
+    // )
+    // .await?;
 
     let pool = Pool::connect_admin().await?;
     let ws_id: WorkspaceId = workspace_id.parse()?;
@@ -294,11 +303,11 @@ pub async fn create_role(workspace_id: &str, name: String) -> Result<WorkspaceRo
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    crate::plugin_hooks::run_post(
-        "workspace_role.Create",
-        &serde_json::json!({ "workspace_id": workspace_id, "role_id": role_id.to_string() }),
-    )
-    .await;
+    // crate::plugin_hooks::run_post(
+    //     "workspace_role.Create",
+    //     &serde_json::json!({ "workspace_id": workspace_id, "role_id": role_id.to_string() }),
+    // )
+    // .await;
     Ok(role_id)
 }
 
@@ -311,11 +320,11 @@ pub async fn rename_role(role_id: &str, name: String) -> Result<()> {
     if name.trim().is_empty() {
         anyhow::bail!("role name must not be empty");
     }
-    crate::plugin_hooks::run_pre(
-        "workspace_role.Rename",
-        serde_json::json!({ "role_id": role_id, "name": name }),
-    )
-    .await?;
+    // crate::plugin_hooks::run_pre(
+    //     "workspace_role.Rename",
+    //     serde_json::json!({ "role_id": role_id, "name": name }),
+    // )
+    // .await?;
 
     let pool = Pool::connect_admin().await?;
     let id: WorkspaceRoleId = role_id.parse()?;
@@ -324,11 +333,11 @@ pub async fn rename_role(role_id: &str, name: String) -> Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    crate::plugin_hooks::run_post(
-        "workspace_role.Rename",
-        &serde_json::json!({ "role_id": role_id }),
-    )
-    .await;
+    // crate::plugin_hooks::run_post(
+    //     "workspace_role.Rename",
+    //     &serde_json::json!({ "role_id": role_id }),
+    // )
+    // .await;
     Ok(())
 }
 
@@ -338,11 +347,11 @@ pub async fn rename_role(role_id: &str, name: String) -> Result<()> {
 ///
 /// Returns an error if any members still have this role assigned, or if the command fails.
 pub async fn delete_role(role_id: &str) -> Result<()> {
-    crate::plugin_hooks::run_pre(
-        "workspace_role.Delete",
-        serde_json::json!({ "role_id": role_id }),
-    )
-    .await?;
+    // crate::plugin_hooks::run_pre(
+    //     "workspace_role.Delete",
+    //     serde_json::json!({ "role_id": role_id }),
+    // )
+    // .await?;
 
     let pool = Pool::connect_admin().await?;
     let id: WorkspaceRoleId = role_id.parse()?;
@@ -359,21 +368,21 @@ pub async fn delete_role(role_id: &str) -> Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    crate::plugin_hooks::run_post(
-        "workspace_role.Delete",
-        &serde_json::json!({ "role_id": role_id }),
-    )
-    .await;
+    // crate::plugin_hooks::run_post(
+    //     "workspace_role.Delete",
+    //     &serde_json::json!({ "role_id": role_id }),
+    // )
+    // .await;
     Ok(())
 }
 
 /// Grants a permission to a workspace role.
 pub async fn grant_role_permission(role_id: &str, permission_id: &str) -> Result<()> {
-    crate::plugin_hooks::run_pre(
-        "workspace_role.GrantPermission",
-        serde_json::json!({ "role_id": role_id, "permission_id": permission_id }),
-    )
-    .await?;
+    // crate::plugin_hooks::run_pre(
+    //     "workspace_role.GrantPermission",
+    //     serde_json::json!({ "role_id": role_id, "permission_id": permission_id }),
+    // )
+    // .await?;
 
     let pool = Pool::connect_admin().await?;
     let id: WorkspaceRoleId = role_id.parse()?;
@@ -383,21 +392,21 @@ pub async fn grant_role_permission(role_id: &str, permission_id: &str) -> Result
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    crate::plugin_hooks::run_post(
-        "workspace_role.GrantPermission",
-        &serde_json::json!({ "role_id": role_id, "permission_id": permission_id }),
-    )
-    .await;
+    // crate::plugin_hooks::run_post(
+    //     "workspace_role.GrantPermission",
+    //     &serde_json::json!({ "role_id": role_id, "permission_id": permission_id }),
+    // )
+    // .await;
     Ok(())
 }
 
 /// Revokes a permission from a workspace role.
 pub async fn revoke_role_permission(role_id: &str, permission_id: &str) -> Result<()> {
-    crate::plugin_hooks::run_pre(
-        "workspace_role.RevokePermission",
-        serde_json::json!({ "role_id": role_id, "permission_id": permission_id }),
-    )
-    .await?;
+    // crate::plugin_hooks::run_pre(
+    //     "workspace_role.RevokePermission",
+    //     serde_json::json!({ "role_id": role_id, "permission_id": permission_id }),
+    // )
+    // .await?;
 
     let pool = Pool::connect_admin().await?;
     let id: WorkspaceRoleId = role_id.parse()?;
@@ -407,11 +416,11 @@ pub async fn revoke_role_permission(role_id: &str, permission_id: &str) -> Resul
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    crate::plugin_hooks::run_post(
-        "workspace_role.RevokePermission",
-        &serde_json::json!({ "role_id": role_id, "permission_id": permission_id }),
-    )
-    .await;
+    // crate::plugin_hooks::run_post(
+    //     "workspace_role.RevokePermission",
+    //     &serde_json::json!({ "role_id": role_id, "permission_id": permission_id }),
+    // )
+    // .await;
     Ok(())
 }
 
@@ -438,11 +447,11 @@ pub async fn list_workspace_members(workspace_id: &str) -> Result<Vec<MemberRow>
 
 /// Assigns a role to a workspace member.
 pub async fn assign_member_role(workspace_id: &str, user_id: &str, role_id: &str) -> Result<()> {
-    crate::plugin_hooks::run_pre(
-        "workspace_role.AssignUser",
-        serde_json::json!({ "workspace_id": workspace_id, "user_id": user_id, "role_id": role_id }),
-    )
-    .await?;
+    // crate::plugin_hooks::run_pre(
+    //     "workspace_role.AssignUser",
+    //     serde_json::json!({ "workspace_id": workspace_id, "user_id": user_id, "role_id": role_id }),
+    // )
+    // .await?;
 
     let pool = Pool::connect_admin().await?;
     let ws_id: WorkspaceId = workspace_id.parse()?;
@@ -453,21 +462,21 @@ pub async fn assign_member_role(workspace_id: &str, user_id: &str, role_id: &str
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    crate::plugin_hooks::run_post(
-        "workspace_role.AssignUser",
-        &serde_json::json!({ "workspace_id": workspace_id, "user_id": user_id, "role_id": role_id }),
-    )
-    .await;
+    // crate::plugin_hooks::run_post(
+    //     "workspace_role.AssignUser",
+    //     &serde_json::json!({ "workspace_id": workspace_id, "user_id": user_id, "role_id": role_id }),
+    // )
+    // .await;
     Ok(())
 }
 
 /// Revokes a role from a workspace member.
 pub async fn revoke_member_role(workspace_id: &str, user_id: &str, role_id: &str) -> Result<()> {
-    crate::plugin_hooks::run_pre(
-        "workspace_role.RevokeUserRole",
-        serde_json::json!({ "workspace_id": workspace_id, "user_id": user_id, "role_id": role_id }),
-    )
-    .await?;
+    // crate::plugin_hooks::run_pre(
+    //     "workspace_role.RevokeUserRole",
+    //     serde_json::json!({ "workspace_id": workspace_id, "user_id": user_id, "role_id": role_id }),
+    // )
+    // .await?;
 
     let pool = Pool::connect_admin().await?;
     let ws_id: WorkspaceId = workspace_id.parse()?;
@@ -478,11 +487,11 @@ pub async fn revoke_member_role(workspace_id: &str, user_id: &str, role_id: &str
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    crate::plugin_hooks::run_post(
-        "workspace_role.RevokeUserRole",
-        &serde_json::json!({ "workspace_id": workspace_id, "user_id": user_id, "role_id": role_id }),
-    )
-    .await;
+    // crate::plugin_hooks::run_post(
+    //     "workspace_role.RevokeUserRole",
+    //     &serde_json::json!({ "workspace_id": workspace_id, "user_id": user_id, "role_id": role_id }),
+    // )
+    // .await;
     Ok(())
 }
 

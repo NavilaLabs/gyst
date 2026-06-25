@@ -29,14 +29,21 @@ pub async fn join_waitlist_on(
     let id = Uuid::now_v7().to_string();
     let now = Utc::now().to_rfc3339();
 
-    let result = sqlx::query(
-        "INSERT OR IGNORE INTO waitlist_signups (id, email, created_at) VALUES (?, ?, ?)",
-    )
-    .bind(&id)
-    .bind(&email)
-    .bind(&now)
-    .execute(pool.as_ref())
-    .await?;
+    let sql = match pool.database_type() {
+        DatabaseType::Sqlite => {
+            "INSERT OR IGNORE INTO waitlist_signups (id, email, created_at) VALUES ($1, $2, $3)"
+        }
+        DatabaseType::Postgres => {
+            "INSERT INTO waitlist_signups (id, email, created_at) VALUES ($1, $2, $3) \
+             ON CONFLICT (email) DO NOTHING"
+        }
+    };
+    let result = sqlx::query(sql)
+        .bind(&id)
+        .bind(&email)
+        .bind(&now)
+        .execute(pool.as_ref())
+        .await?;
 
     // rows_affected == 0 means the email was already in the list — skip notifications.
     if result.rows_affected() == 0 {

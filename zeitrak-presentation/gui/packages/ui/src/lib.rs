@@ -125,9 +125,9 @@ pub type SidebarOpen = Signal<bool>;
 /// Set by the top-level `Layout` component during every render that detects a route change.
 pub type NavDirection = Signal<i8>;
 
-/// Frontend plugin host context (§12.1).
-///
-/// Provided via `use_context_provider` in the root `Layout` so that
-/// `PluginSlot<PluginHostCtx>`, `OverridableComponent<PluginHostCtx>`, and
-/// `PluginAwareRouter<_, PluginHostCtx>` can access user identity for capability gating.
-pub type PluginHostCtx = std::sync::Arc<api::plugin_ctx::ZeitrakPluginCtx>;
+// Frontend plugin host context (§12.1).
+
+// Provided via `use_context_provider` in the root `Layout` so that
+// `PluginSlot<PluginHostCtx>`, `OverridableComponent<PluginHostCtx>`, and
+// `PluginAwareRouter<_, PluginHostCtx>` can access user identity for capability gating.
+// pub type PluginHostCtx = std::sync::Arc<api::plugin_ctx::ZeitrakPluginCtx>;

@@ -25,6 +25,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      tenant-projector:
+        condition: service_started
     ports:
       - "${PORT:-8080}:8080"
     environment:
@@ -53,6 +55,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      admin-projector:
+        condition: service_started
     environment:
       ZK_APPLICATION__SECURITY__AUTHENTICATION_SECRET: ${ZK_APPLICATION__SECURITY__AUTHENTICATION_SECRET}
       ZK_DATABASE__BASE_URI: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432

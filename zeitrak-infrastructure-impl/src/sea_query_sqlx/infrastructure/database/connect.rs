@@ -35,7 +35,7 @@ impl<Scope> Pool<Scope, StateDisconnected> {
             .min_connections(pool_config.min_size())
             .idle_timeout(Duration::from_secs(pool_config.timeout_seconds()));
         let database_type = match uri.scheme() {
-            "postgres" => DatabaseType::Postgres,
+            "postgres" | "postgresql" => DatabaseType::Postgres,
             "sqlite" => DatabaseType::Sqlite,
             schema => {
                 return Err(
@@ -90,16 +90,22 @@ impl Pool<ScopeAdmin, StateDisconnected> {
 impl Pool<ScopeDefault, StateDisconnected> {
     /// # Errors
     ///
-    /// Returns an error if the pool cannot connect to the default in-memory database.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the hardcoded default URI fails to parse (should never happen).
+    /// Returns an error if the pool cannot connect to the default bootstrap database.
     pub async fn connect_default() -> Result<Pool<ScopeDefault, StateConnected>, Error> {
-        let uri = &url::Url::from_str("sqlite:///file:zeitrak?mode=memory&cache=shared")
-            .expect("hardcoded default URI must parse")
-            .into();
+        let uri = match configured_database_type() {
+            DatabaseType::Postgres => {
+                let base = CONFIG.database().base_uri();
+                url::Url::from_str(&format!("{base}/postgres"))
+                    .expect("postgres base URI + /postgres must parse")
+                    .into()
+            }
+            DatabaseType::Sqlite => {
+                url::Url::from_str("sqlite:///file:zeitrak?mode=memory&cache=shared")
+                    .expect("hardcoded default URI must parse")
+                    .into()
+            }
+        };
 
-        Self::connect(uri).await
+        Self::connect(&uri).await
     }
 }

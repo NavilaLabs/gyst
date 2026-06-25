@@ -1,9 +1,12 @@
 #![allow(clippy::missing_errors_doc)]
 
+#[cfg(all(feature = "sqlite", feature = "postgres"))]
+compile_error!("features `sqlite` and `postgres` are mutually exclusive — enable exactly one");
+
 pub mod authentication;
 pub mod authorization;
-pub mod plugin_aggregate;
-pub mod plugin_hooks;
+// pub mod plugin_aggregate;
+// pub mod plugin_hooks;
 pub mod auth {
     pub use super::authentication::{CurrentUser, validate_token};
 }

@@ -1,12 +1,12 @@
 use api::invitation::InvitationDto;
 use api::workspace::WorkspaceDto;
 use dioxus::prelude::*;
-use dioxus_extism_frontend::PluginSlot;
+// use dioxus_extism_frontend::PluginSlot;
 use dioxus_free_icons::icons::hi_solid_icons::{HiArrowRight, HiCheck, HiX};
 use dioxus_free_icons::Icon;
 use dioxus_i18n::tid;
 
-use crate::PluginHostCtx;
+// use crate::PluginHostCtx;
 
 type AuthState = Signal<Option<Option<api::auth::UserInfo>>>;
 
@@ -18,28 +18,6 @@ fn workspace_initial(ws: &WorkspaceDto) -> char {
         .unwrap_or('W')
 }
 
-/// Full-screen greeting overlay shown for 3 seconds after login when any plugin
-/// contributes to the `login.greeting` slot.  Uses `gloo-timers` on WASM and
-/// `tokio::time::sleep` on the server so the timer is platform-agnostic.
-#[component]
-fn GreetingOverlay(dismissed: Signal<bool>) -> Element {
-    use_resource(move || async move {
-        // On WASM: wait 3 seconds so the greeting is visible after login.
-        // On the server (SSR): no sleep — the resource resolves immediately,
-        // dismissed becomes true before the HTML is sent, so there is no overlay
-        // in the server-rendered output (the client starts fresh on hydration).
-        #[cfg(target_arch = "wasm32")]
-        gloo_timers::future::sleep(std::time::Duration::from_secs(3)).await;
-        dismissed.set(true);
-    });
-
-    rsx! {
-        div { class: "greeting-overlay",
-            PluginSlot::<PluginHostCtx> { name: "login.greeting".to_string() }
-        }
-    }
-}
-
 #[component]
 pub fn SelectWorkspace() -> Element {
     let mut workspaces = use_signal(Vec::<WorkspaceDto>::new);
@@ -47,7 +25,6 @@ pub fn SelectWorkspace() -> Element {
     let mut error = use_signal(|| None::<String>);
     let mut auth: AuthState = use_context();
     let navigator = use_navigator();
-    let greeting_dismissed = use_signal(|| false);
 
     use_resource(move || async move {
         match api::workspace::list_workspaces().await {
@@ -64,10 +41,6 @@ pub fn SelectWorkspace() -> Element {
 
     rsx! {
         document::Link { rel: "stylesheet", href: asset!("./style.css") }
-
-        if !greeting_dismissed() {
-            GreetingOverlay { dismissed: greeting_dismissed }
-        }
 
         div { class: "workspace-select-page",
             div { class: "workspace-select-container",

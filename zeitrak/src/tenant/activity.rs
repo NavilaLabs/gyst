@@ -27,11 +27,11 @@ pub async fn create(
         color: color.clone(),
     })?;
 
-    crate::plugin_hooks::run_pre(
-        "activity.Create",
-        serde_json::json!({ "workspace_id": workspace_id, "name": name }),
-    )
-    .await?;
+    // crate::plugin_hooks::run_pre(
+    //     "activity.Create",
+    //     serde_json::json!({ "workspace_id": workspace_id, "name": name }),
+    // )
+    // .await?;
 
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = ActivityRepository::from_pool(pool).await?;
@@ -41,21 +41,21 @@ pub async fn create(
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    crate::plugin_hooks::run_post(
-        "activity.Create",
-        &serde_json::json!({ "workspace_id": workspace_id, "id": result.id().to_string() }),
-    )
-    .await;
+    // crate::plugin_hooks::run_post(
+    //     "activity.Create",
+    //     &serde_json::json!({ "workspace_id": workspace_id, "id": result.id().to_string() }),
+    // )
+    // .await;
     Ok(result)
 }
 
 /// Soft-delete an activity (excluded from future queries).
 pub async fn delete(workspace_id: &str, id: &str) -> Result<()> {
-    crate::plugin_hooks::run_pre(
-        "activity.Delete",
-        serde_json::json!({ "workspace_id": workspace_id, "id": id }),
-    )
-    .await?;
+    // crate::plugin_hooks::run_pre(
+    //     "activity.Delete",
+    //     serde_json::json!({ "workspace_id": workspace_id, "id": id }),
+    // )
+    // .await?;
 
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = ActivityRepository::from_pool(pool).await?;
@@ -65,11 +65,11 @@ pub async fn delete(workspace_id: &str, id: &str) -> Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    crate::plugin_hooks::run_post(
-        "activity.Delete",
-        &serde_json::json!({ "workspace_id": workspace_id, "id": id }),
-    )
-    .await;
+    // crate::plugin_hooks::run_post(
+    //     "activity.Delete",
+    //     &serde_json::json!({ "workspace_id": workspace_id, "id": id }),
+    // )
+    // .await;
     Ok(())
 }
 
@@ -86,11 +86,11 @@ pub async fn update(
         color: color.clone(),
     })?;
 
-    crate::plugin_hooks::run_pre(
-        "activity.Update",
-        serde_json::json!({ "workspace_id": workspace_id, "id": id, "name": name }),
-    )
-    .await?;
+    // crate::plugin_hooks::run_pre(
+    //     "activity.Update",
+    //     serde_json::json!({ "workspace_id": workspace_id, "id": id, "name": name }),
+    // )
+    // .await?;
 
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = ActivityRepository::from_pool(pool).await?;
@@ -100,10 +100,10 @@ pub async fn update(
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    crate::plugin_hooks::run_post(
-        "activity.Update",
-        &serde_json::json!({ "workspace_id": workspace_id, "id": id }),
-    )
-    .await;
+    // crate::plugin_hooks::run_post(
+    //     "activity.Update",
+    //     &serde_json::json!({ "workspace_id": workspace_id, "id": id }),
+    // )
+    // .await;
     Ok(())
 }

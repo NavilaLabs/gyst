@@ -143,12 +143,13 @@ impl InitializationStrategy for PostgresInitializationStrategy {
         pool: &Pool<ScopeDefault, StateConnected>,
         database_uri: &DatabaseUri,
     ) -> Result<bool, Error> {
+        let db_name = database_uri.path().trim_start_matches('/');
         let (sql, values) = Query::select()
             .expr(Expr::exists(
                 Query::select()
                     .expr(Expr::value(1))
                     .from("pg_database")
-                    .and_where(Expr::col("datname").eq(database_uri.host_str().unwrap_or("")))
+                    .and_where(Expr::col("datname").eq(db_name))
                     .to_owned(),
             ))
             .build_sqlx(PostgresQueryBuilder);

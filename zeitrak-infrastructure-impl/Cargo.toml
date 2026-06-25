@@ -48,10 +48,10 @@ zeitrak-tests = { path = "../zeitrak-tests" }
 with-lifecycle = { path = "../with-lifecycle" }
 
 [features]
-default = ["sea-query-sqlx", "sqlite"]
+default = ["sea-query-sqlx"]
 sea-query-sqlx = ["dep:sea-orm", "dep:sea-query", "dep:sea-query-sqlx", "dep:sqlx"]
-sqlite = ["zeitrak-admin-migrations/sqlite", "zeitrak-tenant-migrations/sqlite", "eventually-any/sqlite", "eventually-projection/sqlite", "sea-orm/sqlx-sqlite", "dep:sea-query", "dep:sea-query-sqlx", "sqlx/sqlite"]
-postgres = ["zeitrak-admin-migrations/postgres", "zeitrak-tenant-migrations/postgres", "eventually-any/postgres", "eventually-projection/postgres", "sea-orm/sqlx-postgres", "dep:sea-query", "dep:sea-query-sqlx", "sqlx/postgres"]
+sqlite = ["zeitrak-admin-migrations/sqlite", "zeitrak-tenant-migrations/sqlite", "eventually-any/sqlite", "eventually-projection/sqlite", "sea-orm/sqlx-sqlite", "dep:sea-query", "dep:sea-query-sqlx", "sqlx/sqlite", "zeitrak-tests/sqlite"]
+postgres = ["zeitrak-admin-migrations/postgres", "zeitrak-tenant-migrations/postgres", "eventually-any/postgres", "eventually-projection/postgres", "sea-orm/sqlx-postgres", "dep:sea-query", "dep:sea-query-sqlx", "sqlx/postgres", "zeitrak-tests/postgres"]
 
 [[test]]
 name = "integration_infrastructure"

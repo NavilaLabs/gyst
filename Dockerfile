@@ -1,10 +1,11 @@
 # Stage 1: Builder
-FROM rust:1 AS builder
-
+FROM rust:1-trixie AS builder
 WORKDIR /app
 
 RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
-RUN cargo binstall dioxus-cli --root /.cargo -y --force
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    cargo install dioxus-cli --locked --root /.cargo --force
 ENV PATH="/.cargo/bin:$PATH"
 
 ENV ZK_ENVIRONMENT=production
@@ -14,18 +15,29 @@ COPY . .
 
 ARG WITH_LANDING=false
 
-RUN cd zeitrak && cargo build --release --features postgres --bin admin-projection-daemon
-RUN cd zeitrak && cargo build --release --features postgres --bin tenant-projection-daemon
-RUN cd zeitrak-presentation/gui && \
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    cd zeitrak-presentation/gui && cargo fetch --locked
+
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    cd zeitrak && cargo build --release --locked --features postgres --bin admin-projection-daemon
+
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    cd zeitrak && cargo build --release --locked --features postgres --bin tenant-projection-daemon
+
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    cd zeitrak-presentation/gui && \
     if [ "$WITH_LANDING" = "true" ]; then \
-        dx build --package web --release --features server-postgres,landing; \
+        dx build --package web --release --locked --features postgres,landing; \
     else \
-        dx build --package web --release --features server-postgres; \
+        dx build --package web --release --locked --features postgres; \
     fi
 
 # Stage 2: Web server
-FROM debian:bookworm-slim AS web
-
+FROM debian:trixie AS web
 RUN apt-get update \
     && apt-get install -y openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
@@ -44,8 +56,7 @@ ENV ZK_PROJECT_ROOT="/app"
 CMD ["./server"]
 
 # Stage 3: Admin projection daemon
-FROM debian:bookworm-slim AS admin-projector
-
+FROM debian:trixie AS admin-projector
 RUN apt-get update \
     && apt-get install -y openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
@@ -61,8 +72,7 @@ ENV ZK_PROJECT_ROOT="/app"
 CMD ["./admin-projection-daemon"]
 
 # Stage 4: Tenant projection daemon
-FROM debian:bookworm-slim AS tenant-projector
-
+FROM debian:trixie AS tenant-projector
 RUN apt-get update \
     && apt-get install -y openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/*

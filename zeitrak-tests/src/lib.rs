@@ -56,8 +56,6 @@ use zeitrak_infrastructure_impl::{
     admin::user::{projectors::UserProjector, repositories::UserRepository},
 };
 
-// ── shared Postgres container (one per test binary) ───────────────────────────
-
 #[cfg(feature = "postgres")]
 static PG_BASE_URL: tokio::sync::OnceCell<String> = tokio::sync::OnceCell::const_new();
 

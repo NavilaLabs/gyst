@@ -5,9 +5,10 @@ use crate::components::atoms::{
 use crate::components::molecules::MemberFilter;
 use crate::formatting;
 use crate::layouts::DefaultLayout;
-use crate::{ActivitiesCache, PluginHostCtx};
+use crate::ActivitiesCache;
+// use crate::PluginHostCtx;
 use dioxus::prelude::*;
-use dioxus_extism_frontend::PluginSlot;
+// use dioxus_extism_frontend::PluginSlot;
 use dioxus_free_icons::icons::hi_solid_icons::{HiLightningBolt, HiPlay, HiStop};
 use dioxus_free_icons::Icon;
 use dioxus_i18n::tid;
@@ -739,8 +740,7 @@ pub fn Dashboard() -> Element {
                     }
                 }
 
-                // Plugin-contributed dashboard widgets (§12.2 — dashboard.widgets).
-                PluginSlot::<PluginHostCtx> { name: "dashboard.widgets".to_string() }
+                // PluginSlot::<PluginHostCtx> { name: "dashboard.widgets".to_string() }
 
                 // ── Recent Entries ───────────────────────────────────────────
                 if !recent_entries.is_empty() {

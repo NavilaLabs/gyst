@@ -1,3 +1,6 @@
+#[cfg(all(feature = "sqlite", feature = "postgres"))]
+compile_error!("features `sqlite` and `postgres` are mutually exclusive — enable exactly one");
+
 #[cfg(feature = "sea-query-sqlx")]
 mod sea_query_sqlx;
 #[cfg(feature = "sea-query-sqlx")]

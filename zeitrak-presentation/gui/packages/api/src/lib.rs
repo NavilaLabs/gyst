@@ -7,7 +7,7 @@ pub mod invitation;
 pub mod login;
 pub mod member;
 pub mod permissions;
-pub mod plugin_ctx;
+// pub mod plugin_ctx;
 pub mod registration;
 pub mod session;
 pub mod settings;

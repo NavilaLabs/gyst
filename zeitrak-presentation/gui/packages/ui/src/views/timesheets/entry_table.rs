@@ -3,12 +3,12 @@ use crate::components::atoms::{
     ToastExt, Toasts,
 };
 use crate::formatting;
-use crate::PluginHostCtx;
+// use crate::PluginHostCtx;
 use api::activity::ActivityDto;
 use api::timesheet::TimesheetDto;
 use api::timesheet_tag::TimesheetsTagDto;
 use dioxus::prelude::*;
-use dioxus_extism_frontend::PluginSlot;
+// use dioxus_extism_frontend::PluginSlot;
 use dioxus_free_icons::icons::hi_solid_icons::{HiPencil, HiSave, HiTag, HiTrash, HiX};
 use dioxus_free_icons::Icon;
 use dioxus_i18n::tid;
@@ -269,8 +269,7 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                                 },
                                                 Icon { icon: HiTrash, width: 14, height: 14 }
                                             }
-                                            // Plugin-contributed row actions (§12.2 — timesheet.row.actions).
-                                            PluginSlot::<PluginHostCtx> { name: "timesheet.row.actions".to_string() }
+                                            // PluginSlot::<PluginHostCtx> { name: "timesheet.row.actions".to_string() }
                                         }
                                     }
                                 }
@@ -336,8 +335,7 @@ pub(super) fn EntryTable(props: EntryTableProps) -> Element {
                                             {tid!("common-cancel")}
                                         }
                                     }
-                                    // Plugin-contributed detail sections (§12.2 — timesheet.detail.sections).
-                                    PluginSlot::<PluginHostCtx> { name: "timesheet.detail.sections".to_string() }
+                                    // PluginSlot::<PluginHostCtx> { name: "timesheet.detail.sections".to_string() }
                                 }
                             }
 

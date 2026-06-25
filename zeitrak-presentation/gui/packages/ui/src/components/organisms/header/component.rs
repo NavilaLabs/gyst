@@ -1,5 +1,5 @@
 use dioxus::prelude::*;
-use dioxus_extism_macros::overridable;
+// use dioxus_extism_macros::overridable;
 use dioxus_free_icons::icons::hi_solid_icons::{HiMenu, HiOfficeBuilding};
 use dioxus_free_icons::Icon;
 use dioxus_i18n::tid;
@@ -8,7 +8,7 @@ use crate::components::molecules::SettingsMenu;
 
 type AuthState = Signal<Option<Option<api::auth::UserInfo>>>;
 
-#[overridable]
+// #[overridable]
 #[component]
 pub fn Header(
     /// Current page title shown on the left of the header bar.

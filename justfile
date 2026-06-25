@@ -2,23 +2,23 @@ set dotenv-load := true
 set dotenv-filename := ".env"
 set shell := ["bash", "-uc"]
 
-serve:
+serve db="sqlite":
     just update && \
     cd /workspaces/zeitrak/zeitrak-presentation/gui/packages/web && \
-    dx serve --fullstack --port 8080 --addr 0.0.0.0
+    dx serve --fullstack --port 8080 --addr 0.0.0.0 --features {{db}}
 
-serve-lp:
+serve-lp db="sqlite":
     just update && \
     cd /workspaces/zeitrak/zeitrak-presentation/gui/packages/web && \
-    dx serve --fullstack --port 8080 --addr 0.0.0.0 --features landing
+    dx serve --fullstack --port 8080 --addr 0.0.0.0 --features {{db}},landing
 
-project-admin:
+project-admin db="sqlite":
     just update && \
-    cargo run -p zeitrak --bin admin-projection-daemon
+    cargo run -p zeitrak --features {{db}} --bin admin-projection-daemon
 
-project-tenant:
+project-tenant db="sqlite":
     just update && \
-    cargo run -p zeitrak --bin tenant-projection-daemon
+    cargo run -p zeitrak --features {{db}} --bin tenant-projection-daemon
 
 watch-tw:
     just update && \
@@ -27,6 +27,9 @@ watch-tw:
 
 update:
     cargo update && cd zeitrak-presentation/gui && cargo update
+
+test-postgres:
+    cargo test -p zeitrak-infrastructure-impl --features postgres --test integration_infrastructure -- database::postgres
 
 load-dev-env:
     [ -f .env ] && set -a && source .env && set +a

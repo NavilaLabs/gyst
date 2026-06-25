@@ -353,39 +353,7 @@ All contexts are provided in the top-level `Layout` component. Access them with 
 
 ## Branching & Commits
 
-### Branch naming
-
-```
-feature/<short-description>
-fix/<short-description>
-refactor/<short-description>
-chore/<short-description>
-docs/<short-description>
-```
-
-### Commit messages (Conventional Commits)
-
-```
-<type>(<scope>): <short summary in imperative mood>
-
-[optional body]
-
-[optional footer]
-```
-
-Types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `perf`, `ci`
-
-Examples:
-```
-feat(core): add user invitation aggregate and events
-fix(auth): reject alg:none tokens in JWT validation
-refactor(infrastructure): extract SnapshotRepository generic wrapper
-test(authorization): add cross-workspace isolation tests
-```
-
-- Summary line ≤ 72 characters
-- Body explains *why*, not *what*
-- All text in **English**
+Never commit or create a branch by yourself. If you want to commit changes ask me to do it.
 
 ---
 

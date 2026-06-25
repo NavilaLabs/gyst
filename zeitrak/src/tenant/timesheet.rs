@@ -113,11 +113,11 @@ pub async fn start(
     activity_id: Option<&str>,
     description: Option<String>,
 ) -> Result<TimesheetRow> {
-    crate::plugin_hooks::run_pre(
-        "timesheet.Start",
-        serde_json::json!({ "workspace_id": workspace_id, "user_id": user_id }),
-    )
-    .await?;
+    // crate::plugin_hooks::run_pre(
+    //     "timesheet.Start",
+    //     serde_json::json!({ "workspace_id": workspace_id, "user_id": user_id }),
+    // )
+    // .await?;
 
     let pool = super::tenant_pool(workspace_id).await?;
 
@@ -144,20 +144,20 @@ pub async fn start(
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    crate::plugin_hooks::run_post(
-        "timesheet.Start",
-        &serde_json::json!({ "workspace_id": workspace_id, "id": result.id().to_string() }),
-    )
-    .await;
+    // crate::plugin_hooks::run_post(
+    //     "timesheet.Start",
+    //     &serde_json::json!({ "workspace_id": workspace_id, "id": result.id().to_string() }),
+    // )
+    // .await;
     Ok(result)
 }
 
 pub async fn stop(workspace_id: &str, timesheet_id: &str) -> Result<()> {
-    crate::plugin_hooks::run_pre(
-        "timesheet.Stop",
-        serde_json::json!({ "workspace_id": workspace_id, "timesheet_id": timesheet_id }),
-    )
-    .await?;
+    // crate::plugin_hooks::run_pre(
+    //     "timesheet.Stop",
+    //     serde_json::json!({ "workspace_id": workspace_id, "timesheet_id": timesheet_id }),
+    // )
+    // .await?;
 
     let pool = super::tenant_pool(workspace_id).await?;
     let agg_id: TimesheetId = timesheet_id.parse()?;
@@ -183,11 +183,11 @@ pub async fn stop(workspace_id: &str, timesheet_id: &str) -> Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    crate::plugin_hooks::run_post(
-        "timesheet.Stop",
-        &serde_json::json!({ "workspace_id": workspace_id, "timesheet_id": timesheet_id }),
-    )
-    .await;
+    // crate::plugin_hooks::run_post(
+    //     "timesheet.Stop",
+    //     &serde_json::json!({ "workspace_id": workspace_id, "timesheet_id": timesheet_id }),
+    // )
+    // .await;
     Ok(())
 }
 
@@ -196,11 +196,11 @@ pub async fn update(
     timesheet_id: &str,
     description: Option<String>,
 ) -> Result<()> {
-    crate::plugin_hooks::run_pre(
-        "timesheet.Update",
-        serde_json::json!({ "workspace_id": workspace_id, "timesheet_id": timesheet_id }),
-    )
-    .await?;
+    // crate::plugin_hooks::run_pre(
+    //     "timesheet.Update",
+    //     serde_json::json!({ "workspace_id": workspace_id, "timesheet_id": timesheet_id }),
+    // )
+    // .await?;
 
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = TimesheetRepository::from_pool(pool).await?;
@@ -210,11 +210,11 @@ pub async fn update(
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    crate::plugin_hooks::run_post(
-        "timesheet.Update",
-        &serde_json::json!({ "workspace_id": workspace_id, "timesheet_id": timesheet_id }),
-    )
-    .await;
+    // crate::plugin_hooks::run_post(
+    //     "timesheet.Update",
+    //     &serde_json::json!({ "workspace_id": workspace_id, "timesheet_id": timesheet_id }),
+    // )
+    // .await;
     Ok(())
 }
 
@@ -265,11 +265,11 @@ pub async fn create_manual(
 }
 
 pub async fn cancel(workspace_id: &str, timesheet_id: &str) -> Result<()> {
-    crate::plugin_hooks::run_pre(
-        "timesheet.Cancel",
-        serde_json::json!({ "workspace_id": workspace_id, "timesheet_id": timesheet_id }),
-    )
-    .await?;
+    // crate::plugin_hooks::run_pre(
+    //     "timesheet.Cancel",
+    //     serde_json::json!({ "workspace_id": workspace_id, "timesheet_id": timesheet_id }),
+    // )
+    // .await?;
 
     let pool = super::tenant_pool(workspace_id).await?;
     let repo = TimesheetRepository::from_pool(pool).await?;
@@ -279,11 +279,11 @@ pub async fn cancel(workspace_id: &str, timesheet_id: &str) -> Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    crate::plugin_hooks::run_post(
-        "timesheet.Cancel",
-        &serde_json::json!({ "workspace_id": workspace_id, "timesheet_id": timesheet_id }),
-    )
-    .await;
+    // crate::plugin_hooks::run_post(
+    //     "timesheet.Cancel",
+    //     &serde_json::json!({ "workspace_id": workspace_id, "timesheet_id": timesheet_id }),
+    // )
+    // .await;
     Ok(())
 }
 
