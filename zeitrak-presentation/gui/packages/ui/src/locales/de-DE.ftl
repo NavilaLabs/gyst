@@ -110,8 +110,26 @@ dashboard-last-7-days = letzte 7 Tage
 dashboard-chart-week = Woche
 dashboard-chart-month = Monat
 dashboard-chart-year = Jahr
-dashboard-recent-entries = Letzte Einträge
 dashboard-unassigned = Nicht zugewiesen
+dashboard-monthly-overview = Monatliche Übersicht
+dashboard-month-col = Monat
+dashboard-year-col = Jahr
+dashboard-mix-col = Aktivitätsmix
+dashboard-total-col = Gesamt
+dashboard-mix-others = Andere
+dashboard-monthly-empty = Noch keine erfasste Zeit.
+dashboard-month-1 = Januar
+dashboard-month-2 = Februar
+dashboard-month-3 = März
+dashboard-month-4 = April
+dashboard-month-5 = Mai
+dashboard-month-6 = Juni
+dashboard-month-7 = Juli
+dashboard-month-8 = August
+dashboard-month-9 = September
+dashboard-month-10 = Oktober
+dashboard-month-11 = November
+dashboard-month-12 = Dezember
 
 # ── Aktivitäten ───────────────────────────────────────────────────────────────
 

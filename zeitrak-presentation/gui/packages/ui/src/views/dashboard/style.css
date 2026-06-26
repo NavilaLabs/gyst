@@ -316,77 +316,170 @@
   text-align: right;
 }
 
-/* ── Recent entries ───────────────────────────────────────────────────── */
+/* ── Monthly overview table ───────────────────────────────────────────── */
 
-.dash-entry {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
+.month-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.month-table th {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-subtle-foreground);
+  padding: 8px 16px;
+  text-align: left;
   border-bottom: 1px solid var(--color-border-soft);
 }
 
-.dash-entry:last-child {
+.month-table-th-total {
+  text-align: right !important;
+}
+
+.month-table td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--color-border-soft);
+  vertical-align: middle;
+}
+
+.month-table tbody tr:last-child td {
   border-bottom: none;
 }
 
-.dash-entry-color {
-  width: 9px;
-  height: 9px;
-  border-radius: 3px;
-  flex-shrink: 0;
-}
-
-.dash-entry-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.dash-entry-name {
+.month-table-month {
   font-size: 13px;
   font-weight: 500;
   color: var(--color-foreground);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.dash-entry-meta {
+.month-table-year {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--color-subtle-foreground);
+  white-space: nowrap;
+}
+
+.month-table-mix {
+  width: 100%;
+}
+
+.month-table-total {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-foreground);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.month-table-empty {
+  padding: 24px 16px;
+  font-size: 13px;
+  color: var(--color-subtle-foreground);
+  text-align: center;
+}
+
+.month-table-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.month-table-skeleton-row {
+  display: grid;
+  grid-template-columns: 100px 60px 1fr 80px;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border-soft);
+  align-items: center;
+}
+
+.month-table-skeleton-row:last-child {
+  border-bottom: none;
+}
+
+/* ── Activity mix bar ─────────────────────────────────────────────────── */
+
+.mix-bar-wrap {
+  position: relative;
+  width: 100%;
+  min-width: 80px;
+}
+
+.mix-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  gap: 1px;
+  background: var(--color-surface-raised);
+}
+
+.mix-bar-seg {
+  height: 100%;
+  min-width: 2px;
+}
+
+.mix-bar-empty {
+  color: var(--color-faint-foreground);
+  font-size: 13px;
+}
+
+.mix-bar-tooltip {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 100;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  pointer-events: none;
+}
+
+.mix-bar-tooltip-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+}
+
+.mix-bar-tooltip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mix-bar-tooltip-name {
+  font-size: 12px;
+  color: var(--color-muted-foreground);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.mix-bar-tooltip-hours {
   font-size: 11.5px;
-  color: var(--color-subtle-foreground);
-}
-
-.dash-entry-sep {
-  color: var(--color-faint-foreground);
-}
-
-.dash-entry-time {
   font-family: var(--font-mono);
-  font-size: 12.5px;
   font-weight: 600;
   color: var(--color-foreground);
   flex-shrink: 0;
 }
 
-/* ── Tag pills ────────────────────────────────────────────────────────── */
-
-.dash-tag-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10.5px;
-  font-weight: 600;
-  padding: 2px 7px;
-  border-radius: var(--radius-full);
-  background: var(--color-surface-raised);
+.mix-bar-tooltip-pct {
+  font-size: 11px;
   color: var(--color-subtle-foreground);
-  border: 1px solid var(--color-border-soft);
-  white-space: nowrap;
+  width: 32px;
+  text-align: right;
+  flex-shrink: 0;
 }

@@ -3,7 +3,6 @@ use crate::components::atoms::{
     Button, ButtonVariant, Select, SelectOption, Skeleton, ToastExt, Toasts,
 };
 use crate::components::molecules::MemberFilter;
-use crate::formatting;
 use crate::layouts::DefaultLayout;
 use crate::ActivitiesCache;
 // use crate::PluginHostCtx;
@@ -71,6 +70,7 @@ fn nice_max(v: f32) -> f32 {
         (v / 8.0).ceil() * 8.0
     }
 }
+
 
 // ── Hours bar chart with hover tooltip ───────────────────────────────────────
 
@@ -443,13 +443,87 @@ fn DonutChart(mix: Vec<ActivityMixItem>) -> Element {
     }
 }
 
+// ── Activity mix bar ──────────────────────────────────────────────────────────
+
+/// Segments with a share below this threshold are collapsed into "Others".
+const MIX_BAR_MIN_PCT: f32 = 7.0;
+
+#[component]
+fn ActivityMixBar(mix: Vec<api::timesheet::ActivityMixPoint>) -> Element {
+    let mut show_tooltip = use_signal(|| false);
+    let others_label = tid!("dashboard-mix-others");
+
+    let total: f32 = mix.iter().map(|m| m.hours).sum();
+    if total <= 0.0 {
+        return rsx! {
+            span { class: "mix-bar-empty", "—" }
+        };
+    }
+
+    let others_hours: f32 = mix
+        .iter()
+        .filter(|m| m.percentage < MIX_BAR_MIN_PCT)
+        .map(|m| m.hours)
+        .sum();
+
+    // Segments rendered in the bar (big ones first, then "others" at the end).
+    let bar_segs: Vec<(String, String, f32)> = {
+        let mut segs: Vec<(String, String, f32)> = mix
+            .iter()
+            .filter(|m| m.percentage >= MIX_BAR_MIN_PCT)
+            .map(|m| (m.activity_name.clone(), m.color.clone(), m.hours))
+            .collect();
+        if others_hours > 0.01 {
+            segs.push((others_label.clone(), "#6c6c76".to_string(), others_hours));
+        }
+        segs
+    };
+
+    rsx! {
+        div {
+            class: "mix-bar-wrap",
+            onmouseenter: move |_| show_tooltip.set(true),
+            onmouseleave: move |_| show_tooltip.set(false),
+
+            div { class: "mix-bar",
+                for (_, color, hours) in bar_segs.iter() {
+                    {
+                        let flex_val = format!("{:.4}", hours / total * 100.0);
+                        let style = format!("flex: {flex_val}; background: {color}");
+                        rsx! {
+                            div { class: "mix-bar-seg", style: "{style}" }
+                        }
+                    }
+                }
+            }
+
+            if *show_tooltip.read() {
+                div { class: "mix-bar-tooltip",
+                    for item in mix.iter() {
+                        div { class: "mix-bar-tooltip-row",
+                            span {
+                                class: "mix-bar-tooltip-dot",
+                                style: "background: {item.color}",
+                            }
+                            span { class: "mix-bar-tooltip-name", "{item.activity_name}" }
+                            span { class: "mix-bar-tooltip-hours", "{fmt_hours(item.hours)}" }
+                            span { class: "mix-bar-tooltip-pct",
+                                { format!("{:.0}%", item.percentage) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 #[component]
 pub fn Dashboard() -> Element {
     let mut running: crate::RunningTimer = use_context();
     let mut toasts: Toasts = use_context();
-    let user_settings: crate::UserSettings = use_context();
     let activities_cache: ActivitiesCache = use_context();
 
     let mut selected_activity_id = use_signal(|| Option::<String>::None);
@@ -460,6 +534,10 @@ pub fn Dashboard() -> Element {
     let mut members: Signal<Vec<api::member::MemberDto>> = use_signal(Vec::new);
     let mut stats: Signal<Option<api::timesheet::DashboardStatsDto>> = use_signal(|| None);
     let mut loading = use_signal(|| true);
+
+    let mut monthly_rows: Signal<Vec<api::timesheet::MonthlyOverviewRow>> =
+        use_signal(Vec::new);
+    let mut monthly_loading = use_signal(|| true);
 
     use_resource(move || async move {
         loading.set(true);
@@ -479,6 +557,15 @@ pub fn Dashboard() -> Element {
         loading.set(false);
     });
 
+    use_resource(move || async move {
+        monthly_loading.set(true);
+        let mid = member_id.read().clone();
+        if let Ok(rows) = api::timesheet::monthly_overview(mid).await {
+            monthly_rows.set(rows);
+        }
+        monthly_loading.set(false);
+    });
+
     let on_start = move |_| async move {
         let aid = selected_activity_id.peek().clone();
         match api::timesheet::start_timesheet(aid, None).await {
@@ -496,12 +583,15 @@ pub fn Dashboard() -> Element {
             match api::timesheet::stop_timesheet(id).await {
                 Ok(()) => {
                     running.set(None);
-                    // Re-fetch dashboard stats after stop so recent entries update.
+                    // Re-fetch dashboard stats after stop so charts update.
                     let mid = member_id.peek().clone();
                     let period: api::timesheet::DashboardPeriod =
                         chart_period.peek().clone().into();
-                    if let Ok(s) = api::timesheet::dashboard_stats(mid, period).await {
+                    if let Ok(s) = api::timesheet::dashboard_stats(mid.clone(), period).await {
                         stats.set(Some(s));
+                    }
+                    if let Ok(rows) = api::timesheet::monthly_overview(mid).await {
+                        monthly_rows.set(rows);
                     }
                 }
                 Err(e) => toasts.push_error(e.to_string()),
@@ -558,18 +648,6 @@ pub fn Dashboard() -> Element {
                 .collect()
         })
         .unwrap_or_default();
-
-    let recent_entries: Vec<api::timesheet::TimesheetDto> = stats
-        .read()
-        .as_ref()
-        .map(|s| s.recent_entries.clone())
-        .unwrap_or_default();
-
-    let activity_colors: std::collections::HashMap<String, String> = activities_cache
-        .read()
-        .iter()
-        .map(|a| (a.id.clone(), a.color.clone()))
-        .collect();
 
     rsx! {
         document::Link { rel: "stylesheet", href: asset!("./style.css") }
@@ -742,59 +820,68 @@ pub fn Dashboard() -> Element {
 
                 // PluginSlot::<PluginHostCtx> { name: "dashboard.widgets".to_string() }
 
-                // ── Recent Entries ───────────────────────────────────────────
-                if !recent_entries.is_empty() {
-                    div { class: "island",
-                        div { class: "island-header",
-                            span { class: "island-title", {tid!("dashboard-recent-entries")} }
+                // ── Monthly Overview ─────────────────────────────────────────
+                div { class: "island",
+                    div { class: "island-header",
+                        span { class: "island-title", {tid!("dashboard-monthly-overview")} }
+                    }
+                    if *monthly_loading.read() {
+                        div { class: "month-table-skeleton",
+                            for _ in 0..4 {
+                                div { class: "month-table-skeleton-row",
+                                    Skeleton { class: "h-4 w-20 rounded" }
+                                    Skeleton { class: "h-4 w-10 rounded" }
+                                    Skeleton { class: "h-4 w-full rounded" }
+                                    Skeleton { class: "h-4 w-14 rounded" }
+                                }
+                            }
                         }
-                        div { class: "flex flex-col",
-                            for ts in recent_entries.iter() {
-                                {
-                                    let ts = ts.clone();
-                                    let act_name = ts.activity_id.as_ref()
-                                        .and_then(|aid| activities_cache.read().iter().find(|a| &a.id == aid).map(|a| a.name.clone()))
-                                        .unwrap_or_else(|| "—".to_string());
-                                    let act_color = ts.activity_id.as_ref()
-                                        .and_then(|aid| activity_colors.get(aid).cloned())
-                                        .unwrap_or_else(|| "var(--color-accent)".to_string());
-                                    let duration_str = ts.duration.map(|d| {
-                                        let h = d / 3600;
-                                        let m = (d % 3600) / 60;
-                                        if h > 0 { format!("{h}h {m:02}m") } else { format!("{m}m") }
-                                    });
-                                    let date_str = {
-                                        let s = user_settings.read();
-                                        formatting::format_datetime(&ts.start_time, &s.timezone, &s.date_format)
-                                    };
-                                    rsx! {
-                                        div {
-                                            key: "{ts.id}",
-                                            class: "dash-entry",
-                                            div {
-                                                class: "dash-entry-color",
-                                                style: "background:{act_color}",
-                                            }
-                                            div { class: "dash-entry-main",
-                                                div { class: "dash-entry-name",
-                                                    if let Some(ref desc) = ts.description {
-                                                        "{desc}"
-                                                    } else {
-                                                        "{act_name}"
-                                                    }
+                    } else if monthly_rows.read().is_empty() {
+                        div { class: "month-table-empty",
+                            {tid!("dashboard-monthly-empty")}
+                        }
+                    } else {
+                        table { class: "month-table",
+                            thead {
+                                tr {
+                                    th { {tid!("dashboard-month-col")} }
+                                    th { {tid!("dashboard-year-col")} }
+                                    th { {tid!("dashboard-mix-col")} }
+                                    th { class: "month-table-th-total", {tid!("dashboard-total-col")} }
+                                }
+                            }
+                            tbody {
+                                for row in monthly_rows.read().iter() {
+                                    {
+                                        let row = row.clone();
+                                        let total_str = fmt_hours(row.total_hours);
+                                        rsx! {
+                                            tr { key: "{row.year}-{row.month}",
+                                                td { class: "month-table-month",
+                                                    { match row.month {
+                                                        1 => tid!("dashboard-month-1"),
+                                                        2 => tid!("dashboard-month-2"),
+                                                        3 => tid!("dashboard-month-3"),
+                                                        4 => tid!("dashboard-month-4"),
+                                                        5 => tid!("dashboard-month-5"),
+                                                        6 => tid!("dashboard-month-6"),
+                                                        7 => tid!("dashboard-month-7"),
+                                                        8 => tid!("dashboard-month-8"),
+                                                        9 => tid!("dashboard-month-9"),
+                                                        10 => tid!("dashboard-month-10"),
+                                                        11 => tid!("dashboard-month-11"),
+                                                        12 => tid!("dashboard-month-12"),
+                                                        _ => String::new(),
+                                                    }}
                                                 }
-                                                div { class: "dash-entry-meta",
-                                                    span { "{act_name}" }
-                                                    span { class: "dash-entry-sep", "·" }
-                                                    span { "{date_str}" }
-                                                    for tag in ts.tags.iter() {
-                                                        span { class: "dash-tag-pill", "#{tag.name}" }
-                                                    }
+                                                td { class: "month-table-year",
+                                                    { row.year.to_string() }
                                                 }
-                                            }
-                                            div { class: "dash-entry-time",
-                                                if let Some(ref d) = duration_str {
-                                                    "{d}"
+                                                td { class: "month-table-mix",
+                                                    ActivityMixBar { mix: row.activity_mix.clone() }
+                                                }
+                                                td { class: "month-table-total",
+                                                    "{total_str}"
                                                 }
                                             }
                                         }

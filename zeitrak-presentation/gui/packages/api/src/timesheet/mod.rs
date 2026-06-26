@@ -63,12 +63,20 @@ pub struct DashboardStatsDto {
     pub today_hours: f32,
     pub week_hours: f32,
     pub streak: u32,
-    /// Last six completed timesheets, newest first (tags populated).
-    pub recent_entries: Vec<TimesheetDto>,
     pub chart_bars: Vec<DailyChartPoint>,
     pub activity_mix: Vec<ActivityMixPoint>,
     /// `true` when the caller has `timesheet.read_all` and may use the `member_id` filter.
     pub can_filter_members: bool,
+}
+
+/// One row in the monthly overview table on the dashboard.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MonthlyOverviewRow {
+    pub year: i32,
+    /// Calendar month (1–12).
+    pub month: u32,
+    pub total_hours: f32,
+    pub activity_mix: Vec<ActivityMixPoint>,
 }
 
 #[post("/api/timesheets/recent")]
@@ -109,11 +117,25 @@ pub async fn dashboard_stats(
             today_hours: 0.0,
             week_hours: 0.0,
             streak: 0,
-            recent_entries: vec![],
             chart_bars: vec![],
             activity_mix: vec![],
             can_filter_members: false,
         })
+    }
+}
+
+#[post("/api/timesheets/monthly-overview")]
+pub async fn monthly_overview(
+    member_id: Option<String>,
+) -> Result<Vec<MonthlyOverviewRow>, ServerFnError> {
+    #[cfg(feature = "server")]
+    {
+        _monthly_overview(member_id).await
+    }
+    #[cfg(not(feature = "server"))]
+    {
+        let _ = member_id;
+        Ok(vec![])
     }
 }
 
@@ -815,61 +837,141 @@ async fn _dashboard_stats(
             .collect(),
     };
 
-    // ── Recent entries (last 6) with tags ─────────────────────────────────────
-
-    // `rows` is already ordered newest-first (see stats_for_period query).
-    let recent_rows: Vec<_> = rows.iter().take(6).collect();
-    let recent_ids: Vec<String> = recent_rows.iter().map(|r| r.id().to_string()).collect();
-    let recent_id_refs: Vec<&str> = recent_ids.iter().map(String::as_str).collect();
-    let mut recent_tags_map =
-        zeitrak::tenant::timesheet_tag::for_timesheets_batch(&workspace_id, &recent_id_refs)
-            .await
-            .map_err(session::internal)?;
-
-    // Build member name map for recent entries.
-    let member_names: HashMap<String, String> = if can_read_all {
-        zeitrak::workspace::list_workspace_members(&workspace_id)
-            .await
-            .map_err(session::internal)?
-            .into_iter()
-            .map(|m| (m.user_id, m.name))
-            .collect()
-    } else {
-        HashMap::new()
-    };
-
-    let recent_entries: Vec<TimesheetDto> = recent_rows
-        .into_iter()
-        .map(|r| {
-            let id = r.id().to_string();
-            let member_name = if can_read_all {
-                let uid = r.user_id().to_string();
-                member_names.get(uid.as_str()).cloned()
-            } else {
-                None
-            };
-            let tags = recent_tags_map
-                .remove(&id)
-                .unwrap_or_default()
-                .into_iter()
-                .map(|t| TimesheetsTagDto {
-                    id: t.id().to_string(),
-                    name: t.name().to_string(),
-                })
-                .collect();
-            row_to_dto(r.clone(), tags, member_name)
-        })
-        .collect();
-
     Ok(DashboardStatsDto {
         today_hours,
         week_hours,
         streak,
-        recent_entries,
         chart_bars,
         activity_mix,
         can_filter_members: can_read_all,
     })
+}
+
+#[cfg(feature = "server")]
+async fn _monthly_overview(
+    member_id: Option<String>,
+) -> Result<Vec<MonthlyOverviewRow>, ServerFnError> {
+    use std::collections::HashMap;
+
+    use chrono::{Datelike, Duration, Utc};
+
+    use crate::session;
+    use zeitrak::authentication::CurrentUser;
+    use zeitrak::authorization::AuthorizationService;
+    use zeitrak::core::permissions;
+
+    let (user, workspace_id) = session::session_workspace().await?;
+    let current_user = CurrentUser {
+        id: user.id.clone(),
+        email: user.email.clone(),
+    };
+    let is_admin = AuthorizationService::is_admin(&current_user.id)
+        .await
+        .map_err(session::internal)?;
+    let can_read_all = is_admin
+        || AuthorizationService::has_permission(
+            &current_user.id,
+            &workspace_id,
+            permissions::TIMESHEET_READ_ALL,
+        )
+        .await
+        .map_err(session::internal)?;
+
+    let effective_member_id: Option<&str> = if can_read_all {
+        member_id.as_deref()
+    } else {
+        Some(user.id.as_str())
+    };
+
+    // Query the last 24 months of completed timesheets.
+    let today = Utc::now().date_naive();
+    let since_date = today - Duration::days(730);
+    let since_rfc = format!("{since_date}T00:00:00Z");
+
+    let rows = zeitrak::tenant::timesheet::stats_for_period(
+        &workspace_id,
+        effective_member_id,
+        &since_rfc,
+    )
+    .await
+    .map_err(session::internal)?;
+
+    let act_rows = zeitrak::tenant::activity::list(&workspace_id)
+        .await
+        .map_err(session::internal)?;
+    let act_map: HashMap<String, (String, String)> = act_rows
+        .iter()
+        .map(|a| {
+            (
+                a.id().to_string(),
+                (a.name().to_string(), a.color().to_string()),
+            )
+        })
+        .collect();
+
+    let parse_ym = |s: &str| -> Option<(i32, u32)> {
+        chrono::DateTime::parse_from_rfc3339(s)
+            .ok()
+            .map(|dt| (dt.year(), dt.month()))
+            .or_else(|| {
+                chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f")
+                    .ok()
+                    .map(|dt| (dt.year(), dt.month()))
+            })
+    };
+
+    // Accumulate hours per (year, month, activity_id).
+    let mut monthly: HashMap<(i32, u32), HashMap<String, f32>> = HashMap::new();
+    for ts in &rows {
+        if let (Some(ym), Some(dur)) = (parse_ym(ts.start_time()), ts.duration()) {
+            if dur > 0 {
+                let aid = ts.activity_id().map(|id| id.to_string()).unwrap_or_default();
+                *monthly.entry(ym).or_default().entry(aid).or_insert(0.0) +=
+                    dur as f32 / 3600.0;
+            }
+        }
+    }
+
+    let mut result: Vec<MonthlyOverviewRow> = monthly
+        .into_iter()
+        .map(|((year, month), mix_map)| {
+            let total_hours: f32 = mix_map.values().copied().sum();
+            let mut activity_mix: Vec<ActivityMixPoint> = mix_map
+                .into_iter()
+                .map(|(aid, hours)| {
+                    let (name, color) = act_map
+                        .get(&aid)
+                        .cloned()
+                        .unwrap_or_else(|| ("—".to_string(), "#6c6c76".to_string()));
+                    ActivityMixPoint {
+                        activity_id: aid,
+                        activity_name: name,
+                        color,
+                        hours,
+                        percentage: if total_hours > 0.0 {
+                            hours / total_hours * 100.0
+                        } else {
+                            0.0
+                        },
+                    }
+                })
+                .collect();
+            activity_mix.sort_by(|a, b| {
+                b.hours
+                    .partial_cmp(&a.hours)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+            MonthlyOverviewRow {
+                year,
+                month,
+                total_hours,
+                activity_mix,
+            }
+        })
+        .collect();
+
+    result.sort_by(|a, b| b.year.cmp(&a.year).then(b.month.cmp(&a.month)));
+    Ok(result)
 }
 
 #[cfg(feature = "server")]
