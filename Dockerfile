@@ -19,19 +19,19 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
-    cd zeitrak && cargo build --release --locked --features postgres --bin admin-projection-daemon
+    cd zeitrak && cargo build --release --locked --features sqlite --bin admin-projection-daemon
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
-    cd zeitrak && cargo build --release --locked --features postgres --bin tenant-projection-daemon
+    cd zeitrak && cargo build --release --locked --features sqlite --bin tenant-projection-daemon
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     cd zeitrak-presentation/gui && \
     if [ "$WITH_LANDING" = "true" ]; then \
-        dx build --package web --release --locked --features postgres,landing; \
+        dx build --package web --release --locked --features sqlite,landing; \
     else \
-        dx build --package web --release --locked --features postgres; \
+        dx build --package web --release --locked --features sqlite; \
     fi
 
 # Stage 2: Web server

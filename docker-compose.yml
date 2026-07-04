@@ -1,18 +1,18 @@
 services:
-  postgres:
-    image: postgres:17-alpine
-    restart: always
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: postgres
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+  # postgres:
+  #   image: postgres:17-alpine
+  #   restart: always
+  #   environment:
+  #     POSTGRES_USER: ${POSTGRES_USER}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  #     POSTGRES_DB: postgres
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 10
 
   web:
     build:
@@ -23,15 +23,27 @@ services:
         WITH_LANDING: ${WITH_LANDING:-false}
     restart: always
     depends_on:
-      postgres:
-        condition: service_healthy
+      # postgres:
+      #   condition: service_healthy
       tenant-projector:
         condition: service_started
     ports:
       - "${PORT:-8080}:8080"
     environment:
-      ZK_APPLICATION__SECURITY__AUTHENTICATION_SECRET: ${ZK_APPLICATION__SECURITY__AUTHENTICATION_SECRET}
-      ZK_DATABASE__BASE_URI: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432
+      # ZK_APPLICATION__SECURITY__AUTHENTICATION_SECRET: ${ZK_APPLICATION__SECURITY__AUTHENTICATION_SECRET}
+      # ZK_DATABASE__BASE_URI: sqlite:///workspaces/zeitrak/.devcontainer/database
+      ZK_APPLICATION__SECURITY__AUTHENTICATION_SECRET: "1256c48ebd767c5fd98ade7837ba1d37bc3d16bc2dd62a7efb6def4d7c9298f9"
+
+      ZK_DATABASE__BASE_URI: "sqlite:///data/databases"
+      ZK_DATABASE__DATABASES__ADMIN__NAME: "zeitrak_admin"
+
+      ZK_PROJECT_ROOT: "/app"
+      ZK_ENVIRONMENT: "production"
+
+      # Öffentliche URL des Servers
+      ZK_APPLICATION__BASE_URL: "http://localhost:8080"
+    volumes:
+      - ./.devcontainer/database:/data/databases
 
   admin-projector:
     build:
@@ -39,12 +51,14 @@ services:
       dockerfile: Dockerfile
       target: admin-projector
     restart: always
-    depends_on:
-      postgres:
-        condition: service_healthy
+    # depends_on:
+    # postgres:
+    #   condition: service_healthy
     environment:
       ZK_APPLICATION__SECURITY__AUTHENTICATION_SECRET: ${ZK_APPLICATION__SECURITY__AUTHENTICATION_SECRET}
-      ZK_DATABASE__BASE_URI: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432
+      ZK_DATABASE__BASE_URI: sqlite:///data/databases
+    volumes:
+      - ./.devcontainer/database:/data/databases
 
   tenant-projector:
     build:
@@ -53,13 +67,15 @@ services:
       target: tenant-projector
     restart: always
     depends_on:
-      postgres:
-        condition: service_healthy
+      # postgres:
+      #   condition: service_healthy
       admin-projector:
         condition: service_started
     environment:
       ZK_APPLICATION__SECURITY__AUTHENTICATION_SECRET: ${ZK_APPLICATION__SECURITY__AUTHENTICATION_SECRET}
-      ZK_DATABASE__BASE_URI: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432
+      ZK_DATABASE__BASE_URI: sqlite:///data/databases
+    volumes:
+      - ./.devcontainer/database:/data/databases
 
-volumes:
-  postgres_data:
+# volumes:
+#   postgres_data:
