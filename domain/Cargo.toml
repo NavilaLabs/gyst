@@ -1,0 +1,28 @@
+[package]
+name = "zeitrak-domain"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = 's'
+lto = true
+codegen-units = 1
+strip = true
+
+[dependencies]
+chrono = { workspace = true }
+eventually = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+# zeitrak-tests = { path = "../zeitrak-tests" }
+with-lifecycle = { path = "../with-lifecycle" }
+
+[lints]
+workspace = true

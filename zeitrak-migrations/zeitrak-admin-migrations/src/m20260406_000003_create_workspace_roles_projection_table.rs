@@ -16,7 +16,7 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(pk_uuid("id"))
                     .col(uuid("workspace_id"))
-                    .col(string_null("name"))
+                    .col(string("name"))
                     .foreign_key(
                         ForeignKey::create()
                             .from("projections__workspace_roles", "workspace_id")

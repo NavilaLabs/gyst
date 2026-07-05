@@ -1,0 +1,65 @@
+# zeitrak-domain
+
+The zeitrak domain types including aggregates, events, repositories splitted by admin and tenant types.
+
+## Crate structure
+
+- src/
+  - admin/
+    - invitation/
+      - aggregates.rs
+      - events.rs
+      - repositories.rs
+      - mod.rs
+    - permission/
+      - aggregates.rs
+      - events.rs
+      - repositories.rs
+      - mod.rs
+    - user/
+      - aggregates.rs
+      - events.rs
+      - repositories.rs
+      - mod.rs
+    - user_settings/
+      - aggregates.rs
+      - events.rs
+      - repositories.rs
+      - mod.rs
+    - workspace/
+      - aggregates.rs
+      - events.rs
+      - repositories.rs
+      - mod.rs
+    - workspace_role/
+      - aggregates.rs
+      - events.rs
+      - repositories.rs
+      - mod.rs
+    - mod.rs
+  - plugin/
+    - mod.rs
+    - permissions.rs
+  - tenant/
+    - activities/
+      - aggregates.rs
+      - events.rs
+      - repositories.rs
+      - mod.rs
+    - timesheet/
+      - aggregates.rs
+      - events.rs
+      - repositories.rs
+      - mod.rs
+    - timesheet_tag/
+      - aggregates.rs
+      - events.rs
+      - repositories.rs
+      - mod.rs
+    - mod.rs
+  - event_bus.rs
+  - event_upcaster.rs
+  - lib.rs
+  - permissions.rs
+  - repositories.rs
+  - snapshot_policy.rs

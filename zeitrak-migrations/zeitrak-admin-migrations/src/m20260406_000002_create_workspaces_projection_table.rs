@@ -15,7 +15,7 @@ impl MigrationTrait for Migration {
                     .table("projections__workspaces")
                     .if_not_exists()
                     .col(pk_uuid("id"))
-                    .col(string_null("name"))
+                    .col(string("name"))
                     .to_owned(),
             )
             .await

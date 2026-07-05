@@ -8,8 +8,8 @@
     "rust-analyzer": {
       "initialization_options": {
         "linkedProjects": [
-          "./Cargo.toml",
-          "zeitrak-presentation/gui/Cargo.toml"
+          "./Cargo.toml"
+          // "zeitrak-presentation/gui/Cargo.toml"
         ],
         "check": {
           "command": "clippy"
