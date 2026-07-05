@@ -5,6 +5,12 @@ use crate::admin::{user, workspace, workspace_role};
 
 pub type Id = crate::AggregateId;
 
+/// The status of an [`Invatation`].
+///
+/// Statuses:
+/// - **Pending**: When the [`Invatation`] was sent.
+/// - **Accepted**: When the invitee accepeted the [`Invatation`].
+/// - **Revoked**: When the workspace admin revoked the [`Invatation`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Status {
     Pending,
@@ -15,21 +21,30 @@ pub enum Status {
 /// An aggregate repesenting an invitation.
 ///
 /// An invitation is used to invite new users (members) to workspaces.
-/// Only workspace admins can send invitations. When an invitation is
-/// sent it has the status [`invitation::Status::Pending`](Status). The
-/// invitation can then be accepted by the invitee or can be revoked
-/// by the workspace admin. The `status` is then set to the
-/// corresponding [`Status`], [`invitation::Status::Accepted`](Status)
-/// or [`invitation::Status::Revoked`](Status).
+/// Only workspace admins can send invitations.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Aggregate {
+    /// The id of the invitation.
     id: Id,
-    workspace_id: workspace::Id,
+    /// The [`User`](crate::admin::user::Aggregate) that issued the invitation.
+    /// Usually a workspace admin.
     invited_by: user::Id,
-    email: String,
+    /// The id of the [`Workspace`](crate::admin::workspace::Aggregate) the
+    /// user was invited to.
+    workspace_id: workspace::Id,
+    /// The id of the
+    /// [`WorkspaceRole`](crate::admin::workspace_role::Aggregate) that the
+    /// invitee is supposed to get if the invitation gets accepted.
     workspace_role_id: workspace_role::Id,
+    /// The email of the invitee the invitation gets send to.
+    email: String,
+    /// The token used to verify the invitations acceptance.
     token: String,
+    /// The status of the invitation.
+    ///
+    /// See: [`Status`]
     status: Status,
+    /// The `DateTime` in `Utc` when the invitation will expire.
     expires_at: DateTime<Utc>,
 }
 

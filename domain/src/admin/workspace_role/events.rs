@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::admin::{permission, workspace, workspace_role};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum WorkspaceRoleEvent {
+pub enum Event {
     Created {
         id: workspace_role::Id,
         workspace_id: workspace::Id,
@@ -22,7 +22,7 @@ pub enum WorkspaceRoleEvent {
     Deleted,
 }
 
-impl Message for WorkspaceRoleEvent {
+impl Message for Event {
     fn name(&self) -> &'static str {
         match self {
             Self::Created { .. } => "WorkspaceRoleCreated",
