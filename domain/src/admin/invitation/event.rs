@@ -6,6 +6,7 @@ use crate::admin::{invitation, user, workspace, workspace_role};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Event {
+    /// A new invitation was sent.
     Created {
         id: invitation::Id,
         workspace_id: workspace::Id,
@@ -15,9 +16,9 @@ pub enum Event {
         token: String,
         expires_at: DateTime<Utc>,
     },
-    Accepted {
-        accepted_by: user::Id,
-    },
+    /// The invitation was accepted by the invitee.
+    Accepted { accepted_by: user::Id },
+    /// The invitation was revoked by the inviter (normally a workspace admin).
     Revoked {},
 }
 

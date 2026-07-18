@@ -13,6 +13,7 @@ codegen-units = 1
 strip = true
 
 [dependencies]
+async-trait = { workspace = true }
 chrono = { workspace = true }
 eventually = { workspace = true }
 serde = { workspace = true }

@@ -40,7 +40,7 @@ The zeitrak domain types including aggregates, events, repositories splitted by 
   - plugin/
     - mod.rs
     - permissions.rs
-  - tenant/
+  - workspace/
     - activities/
       - aggregates.rs
       - events.rs

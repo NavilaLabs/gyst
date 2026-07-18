@@ -1,6 +1,6 @@
 use sea_orm_migration::{
     prelude::*,
-    schema::{pk_uuid, string_null, uuid},
+    schema::{pk_uuid, string, uuid},
 };
 
 #[derive(DeriveMigrationName)]

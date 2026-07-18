@@ -7,8 +7,8 @@ pub use events::Event;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("user settings not found")]
-    NotFound,
-    #[error("user settings already exists")]
+    #[error("timesheet tag already exists")]
     AlreadyExists,
+    #[error("timesheet tag not found")]
+    NotFound,
 }

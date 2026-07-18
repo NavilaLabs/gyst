@@ -7,8 +7,8 @@ pub use events::Event;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("user settings not found")]
-    NotFound,
-    #[error("user settings already exists")]
+    #[error("activity already exists")]
     AlreadyExists,
+    #[error("activity not found")]
+    NotFound,
 }

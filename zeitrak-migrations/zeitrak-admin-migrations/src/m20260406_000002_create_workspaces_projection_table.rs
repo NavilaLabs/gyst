@@ -1,6 +1,6 @@
 use sea_orm_migration::{
     prelude::*,
-    schema::{pk_uuid, string_null},
+    schema::{boolean, pk_uuid, string},
 };
 
 #[derive(DeriveMigrationName)]
@@ -16,6 +16,7 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(pk_uuid("id"))
                     .col(string("name"))
+                    .col(boolean("is_deleted").default(false))
                     .to_owned(),
             )
             .await

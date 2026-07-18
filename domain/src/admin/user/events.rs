@@ -5,16 +5,18 @@ use crate::admin::user;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Event {
+    /// A new user was created.
     Created {
         id: user::Id,
         name: String,
         email: String,
         password: String,
     },
-    VerificationRequested {
-        token: String,
-    },
+    /// A email verification was requested.
+    VerificationRequested { token: String },
+    /// A user's email was verified.
     Verified {},
+    /// A user was granted to be an admin of the whole zeitrak instance.
     InstanceAdminGranted {},
 }
 
